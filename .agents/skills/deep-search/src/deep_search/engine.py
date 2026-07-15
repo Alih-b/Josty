@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
-import random
 import re
 import socket
-import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Literal
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
@@ -19,6 +17,8 @@ SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]
 
+SCHEMA_VERSION = "1.0"
+MAX_SITES = 5
 TRACKING_QUERY_KEYS = {
     "dclid",
     "fbclid",
@@ -34,9 +34,12 @@ class SearchResult:
     title: str
     url: str
     snippet: str = ""
-    source: str = "web"
+    sources: list[str] = field(default_factory=list)
+    published_at: str | None = None
+    publisher: str | None = None
     score: float = 0.0
     content: str | None = None
+    extraction_method: str | None = None
     fetched_url: str | None = None
     fetched_at: str | None = None
     fetch_error: str | None = None
@@ -51,7 +54,6 @@ class ProviderStatus:
     query: str
     ok: bool
     result_count: int = 0
-    attempts: int = 1
     error: str | None = None
 
     def dict(self) -> dict[str, Any]:
@@ -68,9 +70,19 @@ class SearchRun:
     def partial(self) -> bool:
         return any(not provider.ok for provider in self.providers)
 
+    @property
+    def status(self) -> str:
+        if not self.results and self.providers and all(not item.ok for item in self.providers):
+            return "failed"
+        if self.partial:
+            return "degraded"
+        return "complete"
+
     def dict(self) -> dict[str, Any]:
         return {
+            "schema_version": SCHEMA_VERSION,
             "query": self.query,
+            "status": self.status,
             "count": len(self.results),
             "partial": self.partial,
             "providers": [provider.dict() for provider in self.providers],
@@ -79,11 +91,14 @@ class SearchRun:
 
 
 def canonical(url: str) -> str:
-    """Normalize URL variants while preserving query parameters that identify resources."""
+    """Normalize URL variants while preserving resource-identifying query parameters."""
     parsed = urlsplit(url.strip())
     scheme = parsed.scheme.lower()
     hostname = (parsed.hostname or "").lower()
+    if scheme not in ("http", "https") or not hostname or parsed.username or parsed.password:
+        raise ValueError("canonical URLs must be public-style HTTP(S) URLs")
     port = parsed.port
+    hostname = f"[{hostname}]" if ":" in hostname else hostname
     if port and not ((scheme == "http" and port == 80) or (scheme == "https" and port == 443)):
         hostname = f"{hostname}:{port}"
     path = parsed.path.rstrip("/") or "/"
@@ -98,8 +113,21 @@ def canonical(url: str) -> str:
     return urlunsplit((scheme, hostname, path, query, ""))
 
 
+def _clone(item: SearchResult) -> SearchResult:
+    return replace(item, sources=list(item.sources))
+
+
+def _merge_result(current: SearchResult, candidate: SearchResult) -> None:
+    current.sources = list(dict.fromkeys([*current.sources, *candidate.sources]))
+    if len(candidate.snippet) > len(current.snippet):
+        current.snippet = candidate.snippet
+        current.title = candidate.title or current.title
+    current.published_at = current.published_at or candidate.published_at
+    current.publisher = current.publisher or candidate.publisher
+
+
 def rrf(ranked: list[list[SearchResult]], k: int = 60) -> list[SearchResult]:
-    """Merge ranked lists using Reciprocal Rank Fusion and canonical URL deduplication."""
+    """Fuse independent ranked lists with Reciprocal Rank Fusion."""
     if k < 1:
         raise ValueError("k must be positive")
     merged: dict[str, SearchResult] = {}
@@ -115,16 +143,79 @@ def rrf(ranked: list[list[SearchResult]], k: int = 60) -> list[SearchResult]:
                 continue
             seen_in_list.add(key)
             scores[key] = scores.get(key, 0.0) + 1 / (k + rank)
-            current = merged.get(key)
-            if current is None or len(item.snippet) > len(current.snippet):
-                merged[key] = item
+            if key not in merged:
+                merged[key] = _clone(item)
+            else:
+                _merge_result(merged[key], item)
     for key, item in merged.items():
         item.score = round(scores[key], 6)
-    return sorted(merged.values(), key=lambda item: item.score, reverse=True)
+    return sorted(
+        merged.values(),
+        key=lambda item: (-item.score, canonical(item.url)),
+    )
+
+
+def merge_query_variants(ranked: list[list[SearchResult]]) -> list[SearchResult]:
+    """Merge query rewrites for one backend without counting them as independent votes."""
+    merged: dict[str, tuple[int, int, SearchResult]] = {}
+    for variant_index, results in enumerate(ranked):
+        for rank, item in enumerate(results, 1):
+            try:
+                key = canonical(item.url)
+            except ValueError:
+                continue
+            current = merged.get(key)
+            if current is None:
+                merged[key] = (rank, variant_index, _clone(item))
+                continue
+            best_rank, best_variant, saved = current
+            _merge_result(saved, item)
+            merged[key] = (min(rank, best_rank), min(variant_index, best_variant), saved)
+    return [
+        item
+        for _, _, item in sorted(
+            merged.values(),
+            key=lambda row: (row[0], row[1], canonical(row[2].url)),
+        )
+    ]
+
+
+def normalize_sites(sites: list[str] | None) -> list[str]:
+    if not sites:
+        return []
+    if len(sites) > MAX_SITES:
+        raise ValueError(f"at most {MAX_SITES} site filters are allowed")
+    normalized: list[str] = []
+    for raw in sites:
+        site = raw.strip().lower().rstrip(".")
+        if site.startswith("www."):
+            site = site[4:]
+        labels = site.split(".")
+        if (
+            not site
+            or "://" in site
+            or "/" in site
+            or ":" in site
+            or not re.fullmatch(r"[a-z0-9.-]+", site)
+            or any(
+                not label or len(label) > 63 or label.startswith("-") or label.endswith("-")
+                for label in labels
+            )
+        ):
+            raise ValueError(f"invalid site filter: {raw}")
+        normalized.append(site)
+    return list(dict.fromkeys(normalized))
+
+
+def _site_matches(url: str, sites: list[str]) -> bool:
+    hostname = (urlsplit(url).hostname or "").lower()
+    if hostname.startswith("www."):
+        hostname = hostname[4:]
+    return any(hostname == site or hostname.endswith(f".{site}") for site in sites)
 
 
 class DeepSearch:
-    """Bounded metasearch, RRF ranking, source routing, and safe text extraction."""
+    """Small, bounded metasearch with auditable fusion and safe text extraction."""
 
     DEFAULT_BACKENDS = (
         "bing,brave,duckduckgo",
@@ -143,13 +234,11 @@ class DeepSearch:
         github_token: str | None = None,
         backends: tuple[str, ...] | None = None,
         news_backends: tuple[str, ...] | None = None,
-        max_retries: int = 1,
-        retry_base_delay: float = 0.25,
     ):
         if timeout <= 0 or max_concurrency < 1:
             raise ValueError("timeout and max_concurrency must be positive")
-        if max_retries < 0 or retry_base_delay < 0:
-            raise ValueError("retry settings must not be negative")
+        if max_download_bytes < 1 or max_content_chars < 1:
+            raise ValueError("content limits must be positive")
         self.timeout = timeout
         self.max_concurrency = max_concurrency
         self.max_download_bytes = max_download_bytes
@@ -159,12 +248,9 @@ class DeepSearch:
         self.news_backends = news_backends or (
             backends if backends is not None else self.DEFAULT_NEWS_BACKENDS
         )
-        self.max_retries = max_retries
-        self.retry_base_delay = retry_base_delay
         self._sem: asyncio.Semaphore | None = None
 
     def _semaphore(self) -> asyncio.Semaphore:
-        # Construct lazily inside the active event loop.
         if self._sem is None:
             self._sem = asyncio.Semaphore(self.max_concurrency)
         return self._sem
@@ -180,18 +266,19 @@ class DeepSearch:
             raise ValueError("query must not be empty")
         if mode not in ("plain", "exact", "oss"):
             raise ValueError(f"unsupported search mode: {mode}")
-
-        base = [query]
+        variants = [query]
         if mode == "exact":
-            base.append(f'"{query}"')
+            variants.append(f'"{query}"')
         elif mode == "oss":
-            base.extend((f'"{query}"', f"{query} open source", f"{query} self-hosted"))
-
-        for site in sites or []:
-            site = site.strip().lower()
-            if site and f"site:{site}" not in query.lower():
-                base.append(f"site:{site} {query}")
-        return list(dict.fromkeys(base))
+            variants.extend((f'"{query}"', f"{query} open source", f"{query} self-hosted"))
+        normalized_sites = normalize_sites(sites)
+        if normalized_sites:
+            variants = [
+                f"site:{site} {variant}"
+                for site in normalized_sites
+                for variant in variants
+            ]
+        return list(dict.fromkeys(variants))
 
     async def _ddgs(
         self,
@@ -207,52 +294,93 @@ class DeepSearch:
         async with self._semaphore():
 
             def run() -> tuple[list[SearchResult], ProviderStatus]:
-                last_error: Exception | None = None
-                attempts = self.max_retries + 1
-                for attempt in range(1, attempts + 1):
-                    try:
-                        ddgs = DDGS(timeout=self.timeout)
-                        method = ddgs.news if category == "news" else ddgs.text
-                        kwargs: dict[str, Any] = {
-                            "backend": backend,
-                            "max_results": limit,
-                            "safesearch": safesearch,
-                        }
-                        if region:
-                            kwargs["region"] = region
-                        if timelimit:
-                            kwargs["timelimit"] = timelimit
-                        rows = method(query, **kwargs)
-                        results = []
-                        for row in rows:
-                            result_url = row.get("href") or row.get("url") or ""
-                            if result_url and not self._is_ad(result_url):
-                                results.append(
-                                    SearchResult(
-                                        row.get("title", ""),
-                                        result_url,
-                                        row.get("body", ""),
-                                        backend,
-                                    )
+                try:
+                    ddgs = DDGS(timeout=self.timeout)
+                    method = ddgs.news if category == "news" else ddgs.text
+                    kwargs: dict[str, Any] = {
+                        "backend": backend,
+                        "max_results": limit,
+                        "safesearch": safesearch,
+                    }
+                    if region:
+                        kwargs["region"] = region
+                    if timelimit:
+                        kwargs["timelimit"] = timelimit
+                    rows = method(query, **kwargs)
+                    results = []
+                    for row in rows:
+                        result_url = row.get("href") or row.get("url") or ""
+                        if result_url and not self._is_ad_redirect(result_url):
+                            results.append(
+                                SearchResult(
+                                    title=row.get("title", ""),
+                                    url=result_url,
+                                    snippet=row.get("body", ""),
+                                    sources=[backend],
+                                    published_at=row.get("date"),
+                                    publisher=row.get("source"),
                                 )
-                        return results, ProviderStatus(
-                            backend, query, True, len(results), attempts=attempt
-                        )
-                    except Exception as exc:
-                        last_error = exc
-                        if attempt < attempts:
-                            delay = self.retry_base_delay * (2 ** (attempt - 1))
-                            time.sleep(delay + random.uniform(0, delay / 4 if delay else 0))
-                assert last_error is not None
-                return [], ProviderStatus(
-                    backend,
-                    query,
-                    False,
-                    attempts=attempts,
-                    error=f"{type(last_error).__name__}: {last_error}",
-                )
+                            )
+                    return results, ProviderStatus(backend, query, True, len(results))
+                except Exception as exc:
+                    return [], ProviderStatus(
+                        backend, query, False, error=f"{type(exc).__name__}: {exc}"
+                    )
 
             return await asyncio.to_thread(run)
+
+    async def _search_parts(
+        self,
+        query: str,
+        *,
+        sites: list[str] | None,
+        mode: SearchMode,
+        limit: int,
+        category: SearchCategory,
+        region: str | None,
+        safesearch: SafeSearch,
+        timelimit: TimeLimit | None,
+    ) -> tuple[list[list[SearchResult]], list[ProviderStatus], list[str]]:
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        if category not in ("text", "news"):
+            raise ValueError(f"unsupported search category: {category}")
+        if safesearch not in ("on", "moderate", "off"):
+            raise ValueError(f"unsupported safe-search mode: {safesearch}")
+        if timelimit not in (None, "d", "w", "m", "y"):
+            raise ValueError(f"unsupported time limit: {timelimit}")
+        normalized_sites = normalize_sites(sites)
+        queries = self.expand(query, normalized_sites, mode)
+        backends = self.news_backends if category == "news" else self.backends
+        batches = await asyncio.gather(
+            *(
+                self._ddgs(
+                    variant,
+                    backend,
+                    limit,
+                    category=category,
+                    region=region,
+                    safesearch=safesearch,
+                    timelimit=timelimit,
+                )
+                for backend in backends
+                for variant in queries
+            )
+        )
+        width = len(queries)
+        lists = []
+        for index, _backend in enumerate(backends):
+            variant_lists = [items for items, _ in batches[index * width : (index + 1) * width]]
+            merged = merge_query_variants([items for items in variant_lists if items])
+            if merged:
+                lists.append(merged)
+        return lists, [status for _, status in batches], normalized_sites
+
+    @staticmethod
+    def _filter_sites(results: list[SearchResult], sites: list[str]) -> list[SearchResult]:
+        if not sites:
+            return results
+        return [result for result in results if _site_matches(result.url, sites)]
 
     async def search_run(
         self,
@@ -267,66 +395,40 @@ class DeepSearch:
         safesearch: SafeSearch = "moderate",
         timelimit: TimeLimit | None = None,
     ) -> SearchRun:
-        if not 1 <= limit <= 100:
-            raise ValueError("limit must be between 1 and 100")
-        queries = self.expand(query, sites, mode)
-        backends = self.news_backends if category == "news" else self.backends
-        batches = await asyncio.gather(
-            *(
-                self._ddgs(
-                    q,
-                    backend,
-                    limit,
-                    category=category,
-                    region=region,
-                    safesearch=safesearch,
-                    timelimit=timelimit,
-                )
-                for q in queries
-                for backend in backends
-            )
-        )
-        results = rrf([items for items, _ in batches if items])[:limit]
-        if fetch:
-            await self.fetch_content(results)
-        return SearchRun(query=query, results=results, providers=[status for _, status in batches])
-
-    async def search(
-        self,
-        query: str,
-        *,
-        sites: list[str] | None = None,
-        mode: SearchMode = "plain",
-        limit: int = 20,
-        fetch: bool = False,
-        category: SearchCategory = "text",
-        region: str | None = None,
-        safesearch: SafeSearch = "moderate",
-        timelimit: TimeLimit | None = None,
-    ) -> list[SearchResult]:
-        run = await self.search_run(
+        lists, providers, normalized_sites = await self._search_parts(
             query,
             sites=sites,
             mode=mode,
             limit=limit,
-            fetch=fetch,
             category=category,
             region=region,
             safesearch=safesearch,
             timelimit=timelimit,
         )
-        return run.results
+        results = self._filter_sites(rrf(lists), normalized_sites)[:limit]
+        if fetch:
+            await self.fetch_content(results)
+        return SearchRun(query=query, results=results, providers=providers)
+
+    async def search(self, query: str, **kwargs: Any) -> list[SearchResult]:
+        return (await self.search_run(query, **kwargs)).results
 
     async def fetch_content(self, results: list[SearchResult]) -> None:
-        headers = {"User-Agent": "deep-search/0.2 (+local research tool)"}
-        async with httpx.AsyncClient(timeout=self.timeout, headers=headers) as client:
+        headers = {"User-Agent": "deep-search/0.3 (+https://github.com/Alih-b/super-search)"}
+        async with httpx.AsyncClient(
+            timeout=self.timeout,
+            headers=headers,
+            follow_redirects=False,
+            trust_env=False,
+        ) as client:
 
             async def one(item: SearchResult) -> None:
                 async with self._semaphore():
                     try:
                         html, final_url = await self._download(client, item.url)
-                        item.content = await asyncio.to_thread(self._extract, html, final_url)
-                        item.content = item.content[: self.max_content_chars]
+                        content, method = await asyncio.to_thread(self._extract, html, final_url)
+                        item.content = content[: self.max_content_chars]
+                        item.extraction_method = method
                         item.fetched_url = final_url
                         item.fetched_at = datetime.now(UTC).isoformat()
                     except Exception as exc:
@@ -353,6 +455,13 @@ class DeepSearch:
                     for allowed in ("text/html", "application/xhtml+xml", "text/plain")
                 ):
                     raise ValueError(f"unsupported content type: {content_type}")
+                content_length = response.headers.get("content-length")
+                if (
+                    content_length
+                    and content_length.isdigit()
+                    and int(content_length) > self.max_download_bytes
+                ):
+                    raise ValueError("response exceeds download limit")
                 chunks: list[bytes] = []
                 size = 0
                 async for chunk in response.aiter_bytes():
@@ -364,8 +473,7 @@ class DeepSearch:
                 return b"".join(chunks).decode(encoding, errors="replace"), str(response.url)
         raise ValueError("too many redirects")
 
-    @staticmethod
-    async def _validate_public_url(url: str) -> None:
+    async def _validate_public_url(self, url: str) -> None:
         parsed = urlsplit(url)
         if parsed.scheme not in ("http", "https") or not parsed.hostname:
             raise ValueError("only public HTTP(S) URLs can be fetched")
@@ -373,12 +481,17 @@ class DeepSearch:
             raise ValueError("URLs containing credentials are blocked")
         default_port = 443 if parsed.scheme == "https" else 80
         try:
-            addresses = await asyncio.to_thread(
-                socket.getaddrinfo,
-                parsed.hostname,
-                parsed.port or default_port,
-                type=socket.SOCK_STREAM,
+            addresses = await asyncio.wait_for(
+                asyncio.to_thread(
+                    socket.getaddrinfo,
+                    parsed.hostname,
+                    parsed.port or default_port,
+                    type=socket.SOCK_STREAM,
+                ),
+                timeout=self.timeout,
             )
+        except TimeoutError as exc:
+            raise ValueError("hostname resolution timed out") from exc
         except socket.gaierror as exc:
             raise ValueError("hostname could not be resolved") from exc
         for address in addresses:
@@ -387,26 +500,42 @@ class DeepSearch:
                 raise ValueError("private or reserved network destinations are blocked")
 
     @staticmethod
-    def _is_ad(url: str) -> bool:
-        lowered = url.lower()
-        return any(
-            marker in lowered
-            for marker in (
-                "/aclick?",
-                "bing.com/ck/",
-                "googleadservices.com",
-                "doubleclick.net",
-            )
+    def _is_ad_redirect(url: str) -> bool:
+        try:
+            parsed = urlsplit(url)
+        except ValueError:
+            return False
+        host = (parsed.hostname or "").lower()
+        path = parsed.path.lower()
+
+        def is_domain(domain: str) -> bool:
+            return host == domain or host.endswith(f".{domain}")
+
+        return (
+            (is_domain("google.com") and path.startswith("/aclick"))
+            or (is_domain("bing.com") and path.startswith("/ck/"))
+            or is_domain("googleadservices.com")
+            or is_domain("doubleclick.net")
         )
 
     @staticmethod
-    def _extract(html: str, url: str) -> str:
+    def _extract(html: str, url: str) -> tuple[str, str]:
         try:
             import trafilatura
 
-            return trafilatura.extract(html, url=url, include_links=True) or ""
+            extracted = trafilatura.extract(html, url=url, include_links=True)
+            if extracted and extracted.strip():
+                return extracted.strip(), "trafilatura"
         except Exception:
-            return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip()
+            pass
+        without_noise = re.sub(
+            r"<(script|style|noscript)\b[^>]*>.*?</\1>",
+            " ",
+            html,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        fallback = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", without_noise)).strip()
+        return fallback, "html-text-fallback"
 
     async def github_run(
         self, query: str, limit: int = 20
@@ -414,25 +543,27 @@ class DeepSearch:
         url = "https://api.github.com/search/repositories"
         headers = {
             "Accept": "application/vnd.github+json",
-            "User-Agent": "deep-search/0.2",
+            "User-Agent": "deep-search/0.3 (+https://github.com/Alih-b/super-search)",
             "X-GitHub-Api-Version": "2022-11-28",
         }
         if self.github_token:
             headers["Authorization"] = f"Bearer {self.github_token}"
-        async with httpx.AsyncClient(timeout=self.timeout, headers=headers) as client:
+        async with httpx.AsyncClient(
+            timeout=self.timeout, headers=headers, trust_env=False
+        ) as client:
             try:
-                response = await client.get(
-                    url, params={"q": query, "sort": "stars", "per_page": min(limit, 100)}
-                )
+                response = await client.get(url, params={"q": query, "per_page": min(limit, 100)})
                 response.raise_for_status()
+                body = response.json()
                 results = [
                     SearchResult(
-                        item["full_name"],
-                        item["html_url"],
-                        item.get("description") or "",
-                        "github-api",
+                        title=item["full_name"],
+                        url=item["html_url"],
+                        snippet=item.get("description") or "",
+                        sources=["github-api"],
                     )
-                    for item in response.json().get("items", [])
+                    for item in body.get("items", [])
+                    if isinstance(item, dict) and item.get("full_name") and item.get("html_url")
                 ]
                 return results, ProviderStatus("github-api", query, True, len(results))
             except Exception as exc:
@@ -448,62 +579,35 @@ class DeepSearch:
         mode: SearchMode = "plain",
         limit: int = 20,
         fetch: bool = False,
-        include_github: bool = True,
+        include_github: bool = False,
         category: SearchCategory = "text",
         region: str | None = None,
         safesearch: SafeSearch = "moderate",
         timelimit: TimeLimit | None = None,
     ) -> SearchRun:
-        web_task = self.search_run(
+        web_task = self._search_parts(
             query,
             sites=sites,
             mode=mode,
             limit=limit,
-            fetch=False,
             category=category,
             region=region,
             safesearch=safesearch,
             timelimit=timelimit,
         )
         if include_github:
-            web, (github, github_status) = await asyncio.gather(
+            (lists, providers, normalized_sites), (github, github_status) = await asyncio.gather(
                 web_task, self.github_run(query, limit)
             )
-            results = rrf([web.results, github])[:limit]
-            providers = [*web.providers, github_status]
+            if github:
+                lists.append(github)
+            providers.append(github_status)
         else:
-            web = await web_task
-            results = web.results
-            providers = web.providers
+            lists, providers, normalized_sites = await web_task
+        results = self._filter_sites(rrf(lists), normalized_sites)[:limit]
         if fetch:
             await self.fetch_content(results)
         return SearchRun(query=query, results=results, providers=providers)
 
-    async def research(
-        self,
-        query: str,
-        *,
-        sites: list[str] | None = None,
-        mode: SearchMode = "plain",
-        limit: int = 20,
-        fetch: bool = False,
-        include_github: bool = True,
-        category: SearchCategory = "text",
-        region: str | None = None,
-        safesearch: SafeSearch = "moderate",
-        timelimit: TimeLimit | None = None,
-    ) -> list[SearchResult]:
-        return (
-            await self.research_run(
-                query,
-                sites=sites,
-                mode=mode,
-                limit=limit,
-                fetch=fetch,
-                include_github=include_github,
-                category=category,
-                region=region,
-                safesearch=safesearch,
-                timelimit=timelimit,
-            )
-        ).results
+    async def research(self, query: str, **kwargs: Any) -> list[SearchResult]:
+        return (await self.research_run(query, **kwargs)).results

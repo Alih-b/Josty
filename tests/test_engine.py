@@ -1,57 +1,82 @@
 import asyncio
 import socket
+import sys
+from types import SimpleNamespace
 
 import httpx
 import pytest
-from deep_search.engine import DeepSearch, SearchResult, canonical, rrf
+from deep_search.engine import (
+    DeepSearch,
+    ProviderStatus,
+    SearchResult,
+    SearchRun,
+    canonical,
+    merge_query_variants,
+    normalize_sites,
+    rrf,
+)
 
 
-def test_canonical_removes_tracking_query_fragment_and_default_port():
+def result(url, snippet="", source="test"):
+    return SearchResult("title", url, snippet, sources=[source])
+
+
+def test_canonical_preserves_resource_query_and_removes_tracking():
     assert canonical("HTTPS://Example.COM:443/path/?utm_source=x#part") == "https://example.com/path"
-
-
-def test_canonical_preserves_resource_query_and_removes_only_tracking_keys():
     assert canonical(
         "https://example.com/search?q=python&utm_campaign=test&page=2&fbclid=abc"
     ) == "https://example.com/search?q=python&page=2"
     assert canonical("https://example.com/search?q=rust") != canonical(
         "https://example.com/search?q=python"
     )
-
-
-def test_canonical_preserves_non_default_port():
     assert canonical("http://Example.com:8080/") == "http://example.com:8080/"
+    assert canonical("https://[2606:4700:4700::1111]/") == "https://[2606:4700:4700::1111]/"
+    with pytest.raises(ValueError):
+        canonical("relative/path")
 
 
-def test_rrf_deduplicates_within_and_across_lists():
-    first = [
-        SearchResult("A", "https://example.com/a?utm_source=test", "short"),
-        SearchResult("A duplicate", "https://example.com/a", "longer snippet"),
-    ]
-    second = [SearchResult("A again", "https://EXAMPLE.com/a/", "best and longest snippet")]
+def test_rrf_fuses_independent_lists_and_preserves_provenance():
+    first = [result("https://example.com/a?utm_source=test", "short", "one")]
+    second = [result("https://EXAMPLE.com/a/", "longer snippet", "two")]
     results = rrf([first, second])
     assert len(results) == 1
-    assert results[0].snippet == "best and longest snippet"
+    assert results[0].snippet == "longer snippet"
+    assert results[0].sources == ["one", "two"]
     assert results[0].score == round(2 / 61, 6)
+    assert first[0].score == 0.0  # fusion does not mutate caller-owned results
 
 
-def test_rrf_rejects_invalid_k():
+def test_rrf_rejects_invalid_k_and_malformed_urls():
     with pytest.raises(ValueError):
         rrf([], k=0)
+    assert rrf([[result("https://example.com:invalid/path")]]) == []
 
 
-def test_rrf_skips_malformed_urls():
-    malformed = SearchResult("bad", "https://example.com:invalid/path")
-    assert rrf([[malformed]]) == []
+def test_query_variants_do_not_create_multiple_provider_votes():
+    merged = merge_query_variants(
+        [
+            [result("https://example.com/a", source="backend")],
+            [
+                result("https://example.com/b", source="backend"),
+                result("https://example.com/a", "better", "backend"),
+            ],
+        ]
+    )
+    assert [item.url for item in merged] == [
+        "https://example.com/a",
+        "https://example.com/b",
+    ]
+    assert merged[0].snippet == "better"
+    assert merged[0].sources == ["backend"]
 
 
-def test_plain_expansion_does_not_contaminate_general_queries():
+def test_query_modes_are_explicit():
     assert DeepSearch.expand("company revenue history") == ["company revenue history"]
-
-
-def test_oss_expansion_is_explicit():
-    expanded = DeepSearch.expand("agent search", mode="oss")
-    assert expanded == [
+    assert DeepSearch.expand("agent search", mode="exact") == [
+        "agent search",
+        '"agent search"',
+    ]
+    assert DeepSearch.expand("agent search", mode="oss") == [
         "agent search",
         '"agent search"',
         "agent search open source",
@@ -59,25 +84,90 @@ def test_oss_expansion_is_explicit():
     ]
 
 
-def test_site_expansion_avoids_duplicate_operator():
-    assert DeepSearch.expand("site:github.com agent search", ["github.com"]) == [
-        "site:github.com agent search"
+def test_site_filters_scope_every_variant():
+    assert DeepSearch.expand("agent search", ["GitHub.com"], mode="exact") == [
+        "site:github.com agent search",
+        'site:github.com "agent search"',
     ]
+    assert normalize_sites(["www.GitHub.com", "github.com"]) == ["github.com"]
 
 
-def test_invalid_limit_is_rejected():
+@pytest.mark.parametrize(
+    "site",
+    [
+        "https://github.com",
+        "github.com/path",
+        "bad host",
+        "x:y",
+        ".github.com",
+        "-bad.example",
+        "bad-.example",
+    ],
+)
+def test_invalid_site_filters_are_rejected(site):
+    with pytest.raises(ValueError, match="invalid site"):
+        normalize_sites([site])
+
+
+def test_site_filter_count_is_bounded():
+    with pytest.raises(ValueError, match="at most"):
+        normalize_sites([f"site{i}.test" for i in range(6)])
+
+
+def test_site_results_are_post_filtered(monkeypatch):
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            return [
+                {"title": "inside", "href": "https://docs.github.com/a", "body": ""},
+                {"title": "outside", "href": "https://example.com/a", "body": ""},
+            ]
+
+    monkeypatch.setattr("deep_search.engine.DDGS", FakeDDGS)
+    run = asyncio.run(
+        DeepSearch(backends=("test",)).search_run("query", sites=["github.com"], limit=3)
+    )
+    assert [item.url for item in run.results] == ["https://docs.github.com/a"]
+
+
+def test_invalid_search_options_and_content_bounds_are_rejected():
     with pytest.raises(ValueError):
         asyncio.run(DeepSearch().search_run("query", limit=101))
+    with pytest.raises(ValueError, match="category"):
+        asyncio.run(DeepSearch().search_run("query", category="invalid"))
+    with pytest.raises(ValueError, match="safe-search"):
+        asyncio.run(DeepSearch().search_run("query", safesearch="invalid"))
+    with pytest.raises(ValueError, match="time limit"):
+        asyncio.run(DeepSearch().search_run("query", timelimit="invalid"))
+    with pytest.raises(ValueError):
+        DeepSearch(max_download_bytes=0)
 
 
-def test_private_network_is_blocked(monkeypatch):
+def test_search_run_status():
+    ok = ProviderStatus("one", "q", True, 1)
+    failed = ProviderStatus("two", "q", False, error="blocked")
+    assert SearchRun("q", [result("https://example.com")], [ok]).status == "complete"
+    assert SearchRun("q", [result("https://example.com")], [ok, failed]).status == "degraded"
+    assert SearchRun("q", [], [failed]).status == "failed"
+    assert SearchRun("q", [], [ok, failed]).status == "degraded"
+    assert SearchRun("q", [], [ok]).status == "complete"
+    assert SearchRun("q", [], [ok]).dict()["schema_version"] == "1.0"
+
+
+def test_private_network_and_unsafe_urls_are_blocked(monkeypatch):
     monkeypatch.setattr(
         socket,
         "getaddrinfo",
         lambda *args, **kwargs: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))],
     )
     with pytest.raises(ValueError, match="private or reserved"):
-        asyncio.run(DeepSearch._validate_public_url("http://example.test"))
+        asyncio.run(DeepSearch()._validate_public_url("http://example.test"))
+    with pytest.raises(ValueError, match="HTTP"):
+        asyncio.run(DeepSearch()._validate_public_url("file:///etc/passwd"))
+    with pytest.raises(ValueError, match="credentials"):
+        asyncio.run(DeepSearch()._validate_public_url("https://user:secret@example.com"))
 
 
 def test_public_network_is_allowed(monkeypatch):
@@ -88,24 +178,14 @@ def test_public_network_is_allowed(monkeypatch):
             (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
         ],
     )
-    asyncio.run(DeepSearch._validate_public_url("https://example.com"))
-
-
-def test_non_http_url_is_blocked():
-    with pytest.raises(ValueError, match="HTTP"):
-        asyncio.run(DeepSearch._validate_public_url("file:///etc/passwd"))
-
-
-def test_url_credentials_are_blocked():
-    with pytest.raises(ValueError, match="credentials"):
-        asyncio.run(DeepSearch._validate_public_url("https://user:secret@example.com"))
+    asyncio.run(DeepSearch()._validate_public_url("https://example.com"))
 
 
 def test_download_limit_is_enforced(monkeypatch):
-    async def allow(_url):
+    async def allow(_self, _url):
         return None
 
-    monkeypatch.setattr(DeepSearch, "_validate_public_url", staticmethod(allow))
+    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
 
     async def download():
         transport = httpx.MockTransport(
@@ -121,10 +201,10 @@ def test_download_limit_is_enforced(monkeypatch):
 
 
 def test_unsupported_content_type_is_blocked(monkeypatch):
-    async def allow(_url):
+    async def allow(_self, _url):
         return None
 
-    monkeypatch.setattr(DeepSearch, "_validate_public_url", staticmethod(allow))
+    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
 
     async def download():
         transport = httpx.MockTransport(
@@ -139,27 +219,27 @@ def test_unsupported_content_type_is_blocked(monkeypatch):
         asyncio.run(download())
 
 
-def test_provider_failures_are_reported(monkeypatch):
-    class BrokenDDGS:
-        def __init__(self, **kwargs):
-            pass
-
-        def text(self, *args, **kwargs):
-            raise RuntimeError("blocked")
-
-    monkeypatch.setattr("deep_search.engine.DDGS", BrokenDDGS)
-    run = asyncio.run(
-        DeepSearch(backends=("broken",), max_retries=0).search_run("query", limit=3)
+def test_empty_trafilatura_result_uses_safe_fallback(monkeypatch):
+    monkeypatch.setitem(sys.modules, "trafilatura", SimpleNamespace(extract=lambda *a, **k: None))
+    content, method = DeepSearch._extract(
+        "<html><script>ignore()</script><main>Hello world</main></html>",
+        "https://example.com",
     )
-    assert run.results == []
-    assert run.partial is True
-    assert run.providers[0].provider == "broken"
-    assert run.providers[0].attempts == 1
-    assert "RuntimeError: blocked" in run.providers[0].error
+    assert content == "Hello world"
+    assert method == "html-text-fallback"
 
 
-def test_provider_retries_are_reported(monkeypatch):
-    class FlakyDDGS:
+def test_known_ad_redirects_are_filtered_without_substring_false_positive():
+    assert DeepSearch._is_ad_redirect("https://www.google.com/aclick?id=1")
+    assert DeepSearch._is_ad_redirect("https://ad.doubleclick.net/path")
+    assert not DeepSearch._is_ad_redirect(
+        "https://example.com/article?topic=doubleclick.net"
+    )
+    assert not DeepSearch._is_ad_redirect("https://notgoogle.com/aclick?id=1")
+
+
+def test_provider_failures_are_reported_without_hidden_retry(monkeypatch):
+    class BrokenDDGS:
         calls = 0
 
         def __init__(self, **kwargs):
@@ -167,22 +247,18 @@ def test_provider_retries_are_reported(monkeypatch):
 
         def text(self, *args, **kwargs):
             self.__class__.calls += 1
-            if self.calls == 1:
-                raise RuntimeError("temporary")
-            return [{"title": "ok", "href": "https://example.com", "body": "found"}]
+            raise RuntimeError("blocked")
 
-    monkeypatch.setattr("deep_search.engine.DDGS", FlakyDDGS)
-    run = asyncio.run(
-        DeepSearch(backends=("test",), max_retries=1, retry_base_delay=0).search_run(
-            "query", limit=3
-        )
-    )
-    assert run.partial is False
-    assert run.providers[0].attempts == 2
-    assert run.results[0].url == "https://example.com"
+    monkeypatch.setattr("deep_search.engine.DDGS", BrokenDDGS)
+    run = asyncio.run(DeepSearch(backends=("broken",)).search_run("query", limit=3))
+    assert run.results == []
+    assert run.status == "failed"
+    assert run.providers[0].provider == "broken"
+    assert "RuntimeError: blocked" in run.providers[0].error
+    assert BrokenDDGS.calls == 1
 
 
-def test_news_filters_are_forwarded(monkeypatch):
+def test_news_metadata_and_filters_are_preserved(monkeypatch):
     captured = {}
 
     class CapturingDDGS:
@@ -196,12 +272,14 @@ def test_news_filters_are_forwarded(monkeypatch):
                     "title": "News",
                     "url": "https://example.com/news",
                     "body": "Snippet",
+                    "date": "2026-07-15",
+                    "source": "Example News",
                 }
             ]
 
     monkeypatch.setattr("deep_search.engine.DDGS", CapturingDDGS)
     run = asyncio.run(
-        DeepSearch(backends=("test",), max_retries=0).search_run(
+        DeepSearch(backends=("test",)).search_run(
             "query",
             limit=3,
             category="news",
@@ -210,7 +288,8 @@ def test_news_filters_are_forwarded(monkeypatch):
             timelimit="w",
         )
     )
-    assert run.results[0].url == "https://example.com/news"
+    item = run.results[0]
+    assert (item.published_at, item.publisher) == ("2026-07-15", "Example News")
     assert captured == {
         "query": "query",
         "backend": "test",
@@ -219,3 +298,54 @@ def test_news_filters_are_forwarded(monkeypatch):
         "region": "de-de",
         "timelimit": "w",
     }
+
+
+def test_github_uses_best_match_and_normalizes_results(monkeypatch):
+    captured = {}
+
+    async def fake_get(self, url, **kwargs):
+        captured.update(url=url, **kwargs)
+        return httpx.Response(
+            200,
+            request=httpx.Request("GET", url),
+            json={
+                "items": [
+                    {
+                        "full_name": "owner/repo",
+                        "html_url": "https://github.com/owner/repo",
+                        "description": "A repo",
+                    }
+                ]
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    results, status = asyncio.run(DeepSearch().github_run("agent search", 5))
+    assert status.ok
+    assert results[0].sources == ["github-api"]
+    assert captured["params"] == {"q": "agent search", "per_page": 5}
+
+
+def test_github_is_opt_in_and_fused_once(monkeypatch):
+    engine = DeepSearch()
+    a1 = result("https://example.com/a", source="one")
+    a2 = result("https://example.com/a", source="two")
+    repo = result("https://github.com/owner/repo", source="github-api")
+
+    async def parts(*args, **kwargs):
+        return [[a1], [a2]], [ProviderStatus("web", "q", True, 1)], []
+
+    async def github(*args, **kwargs):
+        return [repo], ProviderStatus("github-api", "q", True, 1)
+
+    monkeypatch.setattr(engine, "_search_parts", parts)
+    monkeypatch.setattr(engine, "github_run", github)
+
+    web_only = asyncio.run(engine.research_run("q"))
+    assert [item.url for item in web_only.results] == ["https://example.com/a"]
+
+    combined = asyncio.run(engine.research_run("q", include_github=True))
+    assert combined.results[0].url == "https://example.com/a"
+    assert combined.results[0].sources == ["one", "two"]
+    assert combined.results[0].score == round(2 / 61, 6)
+    assert combined.results[1].score == round(1 / 61, 6)

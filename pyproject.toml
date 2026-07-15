@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "deep-search-agent"
-version = "0.2.0"
-description = "Lightweight, keyless metasearch for AI-agent research"
+version = "0.3.0"
+description = "Small, auditable, keyless metasearch for AI-agent research"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
@@ -17,6 +17,7 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
 ]
 dependencies = [
@@ -33,13 +34,10 @@ Changelog = "https://github.com/Alih-b/super-search/blob/main/CHANGELOG.md"
 Security = "https://github.com/Alih-b/super-search/security/policy"
 
 [project.optional-dependencies]
-api = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1"]
 dev = [
   "build>=1.2,<2",
-  "fastapi>=0.115,<1",
   "pytest>=8.3,<9",
   "ruff>=0.11,<1",
-  "uvicorn[standard]>=0.34,<1",
 ]
 
 [project.scripts]
@@ -48,6 +46,19 @@ deep-search = "deep_search.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = [".agents/skills/deep-search/src/deep_search"]
 sources = [".agents/skills/deep-search/src"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  ".agents/skills/deep-search",
+  "tests",
+  "docs",
+  "README.md",
+  "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "SECURITY.md",
+  "LICENSE",
+  "pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

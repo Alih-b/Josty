@@ -1,29 +1,32 @@
-# Harness integration
+# Integration
 
-Deep Search is shell-first: an agent can call one command and parse one JSON object. MCP, an LLM, and hosted search credentials are not required.
+Deep Search is intentionally shell-first. An agent calls one command and parses one versioned JSON
+object. MCP, an HTTP daemon, an LLM, and hosted credentials are not required.
 
 ## Portable skill launcher
-
-Resolve the installed skill directory, then run:
 
 ```bash
 python "$SKILL_DIR/scripts/run.py" "open source search for AI agents" --limit 10
 ```
 
-The skill contains the canonical Python source and CLI requirements. The launcher uses available dependencies or creates a private skill virtual environment on first use. Copying only the skill directory remains supported.
+The launcher uses a private environment under the installed skill. If that environment is missing or
+the bundled requirements change, it creates or refreshes it from `requirements.txt` under a setup lock.
 
 ## Installed CLI
 
 ```bash
 deep-search "open source search for AI agents" --limit 10
-deep-search "SearXNG MCP server" --site github.com --fetch
+deep-search "SearXNG skill" --site github.com --fetch
+deep-search "agent search" --mode oss --github
 ```
 
-The CLI emits:
+The default output envelope is:
 
 ```json
 {
+  "schema_version": "1.0",
   "query": "...",
+  "status": "complete",
   "count": 10,
   "partial": false,
   "providers": [],
@@ -31,42 +34,44 @@ The CLI emits:
 }
 ```
 
-Always inspect `partial` and `providers`. An upstream failure must not be interpreted as evidence that no information exists.
+- `complete`: results are available and no branch failed, or every successful branch returned zero.
+- `degraded`: at least one branch failed, while another branch completed or results remain available.
+- `failed`: no results and every attempted branch failed.
 
-## HTTP
+Always inspect `providers`; an upstream failure must not be interpreted as evidence that no
+information exists.
 
-For clients making repeated calls:
+## Python
 
-```bash
-uvicorn deep_search.api:app --host 127.0.0.1 --port 8080
+```python
+import asyncio
+from deep_search import DeepSearch
+
+run = asyncio.run(
+    DeepSearch().research_run(
+        "agent search",
+        mode="oss",
+        include_github=True,
+        limit=10,
+    )
+)
+print(run.dict())
 ```
 
-```bash
-curl --get http://127.0.0.1:8080/search \
-  --data-urlencode 'q=site:github.com SearXNG agent skill' \
-  --data-urlencode 'limit=10' \
-  --data-urlencode 'mode=plain' \
-  --data-urlencode 'fetch=false'
-```
+Supported controls:
 
-OpenAPI is available at:
-
-- `http://127.0.0.1:8080/docs`
-- `http://127.0.0.1:8080/openapi.json`
-
-Supported request parameters:
-
-- `q`: query, 2–500 characters
-- `limit`: 1–100
 - `mode`: `plain`, `exact`, or `oss`
 - `category`: `text` or `news`
 - `region`: DDGS region code such as `us-en`
 - `safesearch`: `on`, `moderate`, or `off`
 - `timelimit`: `d`, `w`, `m`, or `y`
-- `site`: repeatable domain filter
+- `sites`: strict repeatable hostname filters, maximum five
 - `fetch`: bounded text extraction, off by default
-- `research`: include official GitHub repository search, on by default
+- `include_github`: official repository search, off by default
 
-## Production boundary
+## Trust boundary
 
-The default service is intended for a trusted local user. Before network exposure, add authentication, TLS, quotas, logs/metrics, process isolation, and egress policy. URL validation reduces SSRF risk but is not a substitute for network-level isolation. DNS is resolved separately during validation and connection, so network policy must enforce the same public-destination boundary. Retrieved content must always be treated as untrusted input.
+Fetched content is untrusted. URL checks and hard byte/character limits reduce risk but do not
+eliminate DNS rebinding because validation and connection resolve separately. Deep Search is a local
+library and command, not a network service. Callers that wrap it in a service must add authentication,
+quotas, cancellation, monitoring, process isolation, and network-level egress controls.

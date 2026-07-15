@@ -9,7 +9,7 @@ from .engine import DeepSearch
 
 def parser() -> argparse.ArgumentParser:
     command = argparse.ArgumentParser(
-        description="Keyless, citation-oriented metasearch for AI agents"
+        description="Small, auditable metasearch for AI agents"
     )
     command.add_argument("query", help="search query")
     command.add_argument("--limit", type=int, default=10)
@@ -25,7 +25,7 @@ def parser() -> argparse.ArgumentParser:
     )
     command.add_argument("--fetch", action="store_true", help="extract bounded text from results")
     command.add_argument(
-        "--web-only", action="store_true", help="skip the official GitHub repository search"
+        "--github", action="store_true", help="also search official GitHub repositories"
     )
     command.add_argument(
         "--results-only", action="store_true", help="emit only the result array"
@@ -41,7 +41,7 @@ async def run(args: argparse.Namespace) -> dict | list:
         mode=args.mode,
         limit=args.limit,
         fetch=args.fetch,
-        include_github=not args.web_only,
+        include_github=args.github,
         category=args.category,
         region=args.region,
         safesearch=args.safe_search,

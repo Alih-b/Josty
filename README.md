@@ -1,16 +1,21 @@
 # Deep Search
 
-Keyless web search for AI agents. No MCP server, account, or search API key required.
+> **Small enough to audit. Broad enough to research.**
+
+A shell-first, keyless metasearch primitive for AI agents. One command, three direct runtime
+dependencies, structured JSON. No account, daemon, MCP server, hosted vendor, or search API key.
+
+Deep Search searches independent DDGS backend groups, merges query rewrites without treating them
+as extra provider votes, and combines the independent rankings with Reciprocal Rank Fusion. It can
+optionally search GitHub repositories and fetch bounded page text.
 
 ## Install as an Agent Skill
 
-From this repository:
-
 ```bash
-npx skills add . --skill deep-search
+npx skills add Alih-b/super-search --skill deep-search
 ```
 
-The agent runs the bundled launcher. On first use it installs its Python dependencies into a private environment inside the skill.
+The skill launcher creates a private `.venv` and installs its bounded dependencies on first use.
 
 ## Install as a CLI
 
@@ -22,57 +27,62 @@ uv tool install .
 
 ```bash
 deep-search "your query" --limit 10
-deep-search "SearXNG agent integrations" --site github.com
-deep-search "agent search tools" --mode oss
+deep-search "SearXNG integrations" --site github.com
+deep-search "agent search tools" --mode oss --github
 deep-search "AI regulation" --category news --time-limit w --region us-en
 deep-search "company history and funding" --fetch
 ```
 
-Output is JSON. `partial: true` means at least one upstream provider failed.
+Output is versioned JSON. `status` is `complete`, `degraded`, or `failed`; `partial: true` means at
+least one upstream branch failed. Query rewrites are visible in `providers`.
 
 ## Options
 
 ```text
---limit N          maximum results
---site DOMAIN      add a site filter; repeatable
+--limit N          maximum results, 1–100
+--site DOMAIN      strict hostname filter; repeatable up to five times
 --mode MODE        plain, exact, or oss
 --category TYPE    text or news
 --region REGION    DDGS region code, such as us-en or de-de
 --safe-search MODE on, moderate, or off
 --time-limit RANGE d, w, m, or y
+--github           also search official GitHub repositories
 --fetch            extract bounded page text
---web-only         skip GitHub repository search
 --results-only     output only the result array
 ```
 
-`GITHUB_TOKEN` is optional and only increases GitHub API limits.
+`GITHUB_TOKEN` is optional and only increases GitHub API limits. GitHub search is opt-in so ordinary
+fact and news searches are not mixed with repository results or disclosed to GitHub unnecessarily.
 
-## What this project adds to DDGS
+## What it adds to DDGS
 
-Deep Search does not operate a search index. It orchestrates the MIT-licensed
-[DDGS](https://github.com/deedy5/ddgs) library and adds:
+Deep Search does not operate a search index. It builds on the MIT-licensed
+[DDGS](https://github.com/deedy5/ddgs) package and adds:
 
-- parallel searches across independent backend groups;
-- Reciprocal Rank Fusion and URL deduplication;
-- optional official GitHub repository search;
-- explicit provider health and partial-result reporting;
+- independent backend groups with one auditable RRF pass;
+- plain, exact-phrase, and OSS query rewrites without duplicate provider voting;
+- strict domain filtering and canonical URL deduplication;
+- merged source provenance and provider health reporting;
+- opt-in official GitHub repository search;
 - bounded concurrent extraction with public-network URL validation;
-- a stable JSON envelope for agent, CLI, Python, and HTTP integrations.
+- a small, versioned JSON contract for shell and Python callers.
 
-Search queries are sent to the selected upstream engines and, by default, GitHub.
-Fetched pages are untrusted input. Providers can throttle, block, log, or change their
-interfaces, and each provider's terms apply. This project does not claim unlimited search.
+## Deliberately not included
 
-## Local HTTP API (optional)
+Deep Search stays lean: no MCP server, HTTP daemon, browser automation, cache, vector store, claim
+verdicts, LLM summarizer, or paid-provider upgrade path. For those features use a full search stack
+such as [websearch-skill](https://github.com/hec-ovi/websearch-skill). Choose Deep Search when a
+small auditable command with hard content bounds is the better fit. See the
+[scope comparison](docs/COMPARISON.md).
 
-```bash
-pipx install ".[api]"
-uvicorn deep_search.api:app --host 127.0.0.1 --port 8080
-```
+## Trust boundary
 
-Keep the API on localhost unless you add authentication and network controls. Application-level
-URL checks reduce SSRF risk, but DNS is resolved separately during validation and connection; use
-network-level egress controls before accepting requests from untrusted users.
+Search queries go directly to selected upstream engines and, only with `--github`, GitHub. Providers
+can throttle, block, log, or change behavior, and their terms apply. Fetched pages are untrusted data.
+The fetcher allows public HTTP(S), revalidates redirects, rejects private/reserved destinations and
+credential-bearing URLs, limits decoded downloads to 2 MB, and caps extracted text at 50,000
+characters. DNS rebinding remains a documented residual because validation and connection resolve
+separately.
 
 ## Development
 
@@ -80,6 +90,7 @@ network-level egress controls before accepting requests from untrusted users.
 python -m pip install -e ".[dev]"
 pytest -q
 ruff check .
+python -m build
 ```
 
-MIT licensed. Upstream search providers may throttle or block requests.
+MIT licensed. Status: alpha.
