@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "deep-search-agent"
+version = "0.2.0"
+description = "Lightweight, keyless metasearch for AI-agent research"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "Ali Bayest" }]
+keywords = ["agent", "search", "research", "metasearch", "ddgs"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
+dependencies = [
+  "ddgs>=9.14.4,<10",
+  "httpx>=0.28,<1",
+  "trafilatura>=2.0,<3",
+]
+
+[project.urls]
+Homepage = "https://github.com/Alih-b/super-search"
+Repository = "https://github.com/Alih-b/super-search"
+Issues = "https://github.com/Alih-b/super-search/issues"
+Changelog = "https://github.com/Alih-b/super-search/blob/main/CHANGELOG.md"
+Security = "https://github.com/Alih-b/super-search/security/policy"
+
+[project.optional-dependencies]
+api = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1"]
+dev = [
+  "build>=1.2,<2",
+  "fastapi>=0.115,<1",
+  "pytest>=8.3,<9",
+  "ruff>=0.11,<1",
+  "uvicorn[standard]>=0.34,<1",
+]
+
+[project.scripts]
+deep-search = "deep_search.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = [".agents/skills/deep-search/src/deep_search"]
+sources = [".agents/skills/deep-search/src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".agents/skills/deep-search/src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
