@@ -1,0 +1,158 @@
+{
+  "raw_ddgs": {
+    "all_paired": {
+      "ndcg_at_10": {
+        "n_pairs": 136,
+        "mean_diff": -0.0969,
+        "ci95_low": -0.1626,
+        "ci95_high": -0.0365,
+        "wilcoxon_W": 1175.0,
+        "wilcoxon_W_plus": 1175.0,
+        "wilcoxon_W_minus": 1381.0,
+        "wilcoxon_n_nonzero": 71,
+        "p_value_approx": 0.5551,
+        "note": "normal approximation, n>=10"
+      },
+      "mrr": {
+        "n_pairs": 136,
+        "mean_diff": -0.1544,
+        "ci95_low": -0.2206,
+        "ci95_high": -0.0956,
+        "wilcoxon_W": 3.0,
+        "wilcoxon_W_plus": 3.0,
+        "wilcoxon_W_minus": 297.0,
+        "wilcoxon_n_nonzero": 24,
+        "p_value_approx": 0.0,
+        "note": "normal approximation, n>=10"
+      },
+      "wall_clock_seconds": {
+        "n_pairs": 136,
+        "mean_diff": -2.7511,
+        "ci95_low": -3.4708,
+        "ci95_high": -2.0548,
+        "wilcoxon_W": 855.0,
+        "wilcoxon_W_plus": 855.0,
+        "wilcoxon_W_minus": 8461.0,
+        "wilcoxon_n_nonzero": 136,
+        "p_value_approx": 0.0,
+        "note": "normal approximation, n>=10"
+      }
+    },
+    "successful_paired": {
+      "ndcg_at_10": {
+        "n_pairs": 66,
+        "mean_diff": 0.1055,
+        "ci95_low": 0.0729,
+        "ci95_high": 0.1406,
+        "wilcoxon_W": 50.0,
+        "wilcoxon_W_plus": 1175.0,
+        "wilcoxon_W_minus": 50.0,
+        "wilcoxon_n_nonzero": 49,
+        "p_value_approx": 0.0,
+        "note": "normal approximation, n>=10"
+      },
+      "mrr": {
+        "n_pairs": 66,
+        "mean_diff": 0.0152,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0379,
+        "wilcoxon_W": 0,
+        "wilcoxon_W_plus": 3.0,
+        "wilcoxon_W_minus": 0,
+        "wilcoxon_n_nonzero": 2,
+        "p_value_approx": null,
+        "note": "n too small for normal approximation; treat p as 'large'"
+      },
+      "wall_clock_seconds": {
+        "n_pairs": 66,
+        "mean_diff": -2.853,
+        "ci95_low": -3.7709,
+        "ci95_high": -2.0397,
+        "wilcoxon_W": 70.0,
+        "wilcoxon_W_plus": 70.0,
+        "wilcoxon_W_minus": 2141.0,
+        "wilcoxon_n_nonzero": 66,
+        "p_value_approx": 0.0,
+        "note": "normal approximation, n>=10"
+      }
+    }
+  },
+  "websearch_skill": {
+    "all_paired": {
+      "ndcg_at_10": {
+        "n_pairs": 136,
+        "mean_diff": -0.1024,
+        "ci95_low": -0.1638,
+        "ci95_high": -0.0468,
+        "wilcoxon_W": 271.0,
+        "wilcoxon_W_plus": 271.0,
+        "wilcoxon_W_minus": 857.0,
+        "wilcoxon_n_nonzero": 47,
+        "p_value_approx": 0.0019,
+        "note": "normal approximation, n>=10"
+      },
+      "mrr": {
+        "n_pairs": 136,
+        "mean_diff": -0.1029,
+        "ci95_low": -0.1654,
+        "ci95_high": -0.0441,
+        "wilcoxon_W": 27.0,
+        "wilcoxon_W_plus": 27.0,
+        "wilcoxon_W_minus": 204.0,
+        "wilcoxon_n_nonzero": 21,
+        "p_value_approx": 0.0021,
+        "note": "normal approximation, n>=10"
+      },
+      "wall_clock_seconds": {
+        "n_pairs": 136,
+        "mean_diff": -1.7164,
+        "ci95_low": -2.2,
+        "ci95_high": -1.2579,
+        "wilcoxon_W": 1186.0,
+        "wilcoxon_W_plus": 1186.0,
+        "wilcoxon_W_minus": 8130.0,
+        "wilcoxon_n_nonzero": 136,
+        "p_value_approx": 0.0,
+        "note": "normal approximation, n>=10"
+      }
+    },
+    "successful_paired": {
+      "ndcg_at_10": {
+        "n_pairs": 66,
+        "mean_diff": 0.0339,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0802,
+        "wilcoxon_W": 214.0,
+        "wilcoxon_W_plus": 251.0,
+        "wilcoxon_W_minus": 214.0,
+        "wilcoxon_n_nonzero": 30,
+        "p_value_approx": 0.7036,
+        "note": "normal approximation, n>=10"
+      },
+      "mrr": {
+        "n_pairs": 66,
+        "mean_diff": 0.0455,
+        "ci95_low": 0.0076,
+        "ci95_high": 0.0985,
+        "wilcoxon_W": 0,
+        "wilcoxon_W_plus": 10.0,
+        "wilcoxon_W_minus": 0,
+        "wilcoxon_n_nonzero": 4,
+        "p_value_approx": null,
+        "note": "n too small for normal approximation; treat p as 'large'"
+      },
+      "wall_clock_seconds": {
+        "n_pairs": 66,
+        "mean_diff": -1.5603,
+        "ci95_low": -1.7702,
+        "ci95_high": -1.3421,
+        "wilcoxon_W": 55.0,
+        "wilcoxon_W_plus": 55.0,
+        "wilcoxon_W_minus": 2156.0,
+        "wilcoxon_n_nonzero": 66,
+        "p_value_approx": 0.0,
+        "note": "normal approximation, n>=10"
+      }
+    }
+  }
+}
