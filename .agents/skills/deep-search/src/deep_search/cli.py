@@ -30,11 +30,27 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument(
         "--results-only", action="store_true", help="emit only the result array"
     )
+    command.add_argument(
+        "--search-concurrency",
+        type=int,
+        default=DeepSearch.DEFAULT_SEARCH_CONCURRENCY,
+        help="max concurrent search backend requests (default: %(default)d)",
+    )
+    command.add_argument(
+        "--fetch-concurrency",
+        type=int,
+        default=DeepSearch.DEFAULT_FETCH_CONCURRENCY,
+        help="max concurrent page fetches (default: %(default)d)",
+    )
     return command
 
 
 async def run(args: argparse.Namespace) -> dict | list:
-    engine = DeepSearch(github_token=os.getenv("GITHUB_TOKEN"))
+    engine = DeepSearch(
+        github_token=os.getenv("GITHUB_TOKEN"),
+        max_search_concurrency=args.search_concurrency,
+        max_fetch_concurrency=args.fetch_concurrency,
+    )
     search = await engine.research_run(
         args.query,
         sites=args.sites,

@@ -28,6 +28,9 @@ python "$SKILL_DIR/scripts/run.py" "query" --category news --time-limit w --regi
 
 # Extract bounded page text when snippets are insufficient
 python "$SKILL_DIR/scripts/run.py" "query" --fetch
+
+# Tune concurrency for loop use; search (default 6) and fetch (default 4) are independent
+python "$SKILL_DIR/scripts/run.py" "query" --search-concurrency 12 --fetch-concurrency 8
 ```
 
 GitHub repository search is opt-in with `--github`. `GITHUB_TOKEN` is optional and only increases
