@@ -145,6 +145,55 @@ def test_invalid_search_options_and_content_bounds_are_rejected():
         DeepSearch(max_download_bytes=0)
 
 
+def test_search_and_fetch_concurrency_have_independent_defaults():
+    assert DeepSearch.DEFAULT_SEARCH_CONCURRENCY == 6
+    assert DeepSearch.DEFAULT_FETCH_CONCURRENCY == 4
+    engine = DeepSearch()
+    assert engine.max_search_concurrency == 6
+    assert engine.max_fetch_concurrency == 4
+    search_sem = engine._search_semaphore()
+    fetch_sem = engine._fetch_semaphore()
+    assert search_sem is not fetch_sem
+
+
+def test_concurrency_constructor_params_are_validated():
+    with pytest.raises(ValueError):
+        DeepSearch(max_search_concurrency=0)
+    with pytest.raises(ValueError):
+        DeepSearch(max_fetch_concurrency=0)
+
+
+def test_max_concurrency_alias_targets_search_slot():
+    engine = DeepSearch(max_concurrency=3)
+    assert engine.max_search_concurrency == 3
+    assert engine.max_fetch_concurrency == DeepSearch.DEFAULT_FETCH_CONCURRENCY
+
+
+def test_search_and_fetch_semaphores_do_not_share_a_pool():
+    observed = {"peak_search": 0, "peak_fetch": 0}
+    counters = {"search": 0, "fetch": 0}
+
+    async def hold(sem: asyncio.Semaphore, kind: str) -> None:
+        async with sem:
+            counters[kind] += 1
+            observed[f"peak_{kind}"] = max(observed[f"peak_{kind}"], counters[kind])
+            await asyncio.sleep(0)
+            counters[kind] -= 1
+
+    async def scenario() -> None:
+        engine = DeepSearch(max_search_concurrency=2, max_fetch_concurrency=3)
+        search_sem = engine._search_semaphore()
+        fetch_sem = engine._fetch_semaphore()
+        await asyncio.gather(
+            *(hold(search_sem, "search") for _ in range(2)),
+            *(hold(fetch_sem, "fetch") for _ in range(3)),
+        )
+
+    asyncio.run(scenario())
+    assert observed["peak_search"] == 2
+    assert observed["peak_fetch"] == 3
+
+
 def test_search_run_status():
     ok = ProviderStatus("one", "q", True, 1)
     failed = ProviderStatus("two", "q", False, error="blocked")

@@ -5,6 +5,16 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+### Added
+
+- `--search-concurrency` and `--fetch-concurrency` CLI flags (and `max_search_concurrency` /
+  `max_fetch_concurrency` constructor params) to tune search and fetch ceilings independently.
+
+### Changed
+
+- Split the single shared semaphore into separate search and fetch semaphores so a slow page fetch
+  can no longer block concurrent backend queries. Defaults remain 6 for search and 4 for fetch.
+
 ## [0.3.0] - 2026-07-15
 
 ### Changed

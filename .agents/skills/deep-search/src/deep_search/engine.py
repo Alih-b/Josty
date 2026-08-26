@@ -224,23 +224,31 @@ class DeepSearch:
     )
     DEFAULT_NEWS_BACKENDS = ("bing,duckduckgo,yahoo",)
 
+    DEFAULT_SEARCH_CONCURRENCY = 6
+    DEFAULT_FETCH_CONCURRENCY = 4
+
     def __init__(
         self,
         *,
         timeout: float = 8,
-        max_concurrency: int = 6,
+        max_concurrency: int | None = None,
+        max_search_concurrency: int = 6,
+        max_fetch_concurrency: int = 4,
         max_download_bytes: int = 2_000_000,
         max_content_chars: int = 50_000,
         github_token: str | None = None,
         backends: tuple[str, ...] | None = None,
         news_backends: tuple[str, ...] | None = None,
     ):
-        if timeout <= 0 or max_concurrency < 1:
-            raise ValueError("timeout and max_concurrency must be positive")
+        if timeout <= 0 or max_search_concurrency < 1 or max_fetch_concurrency < 1:
+            raise ValueError("timeout and concurrency limits must be positive")
+        if max_concurrency is not None:
+            max_search_concurrency = max_concurrency
         if max_download_bytes < 1 or max_content_chars < 1:
             raise ValueError("content limits must be positive")
         self.timeout = timeout
-        self.max_concurrency = max_concurrency
+        self.max_search_concurrency = max_search_concurrency
+        self.max_fetch_concurrency = max_fetch_concurrency
         self.max_download_bytes = max_download_bytes
         self.max_content_chars = max_content_chars
         self.github_token = github_token
@@ -248,12 +256,18 @@ class DeepSearch:
         self.news_backends = news_backends or (
             backends if backends is not None else self.DEFAULT_NEWS_BACKENDS
         )
-        self._sem: asyncio.Semaphore | None = None
+        self._search_sem: asyncio.Semaphore | None = None
+        self._fetch_sem: asyncio.Semaphore | None = None
 
-    def _semaphore(self) -> asyncio.Semaphore:
-        if self._sem is None:
-            self._sem = asyncio.Semaphore(self.max_concurrency)
-        return self._sem
+    def _search_semaphore(self) -> asyncio.Semaphore:
+        if self._search_sem is None:
+            self._search_sem = asyncio.Semaphore(self.max_search_concurrency)
+        return self._search_sem
+
+    def _fetch_semaphore(self) -> asyncio.Semaphore:
+        if self._fetch_sem is None:
+            self._fetch_sem = asyncio.Semaphore(self.max_fetch_concurrency)
+        return self._fetch_sem
 
     @staticmethod
     def expand(
@@ -291,7 +305,7 @@ class DeepSearch:
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
     ) -> tuple[list[SearchResult], ProviderStatus]:
-        async with self._semaphore():
+        async with self._search_semaphore():
 
             def run() -> tuple[list[SearchResult], ProviderStatus]:
                 try:
@@ -423,7 +437,7 @@ class DeepSearch:
         ) as client:
 
             async def one(item: SearchResult) -> None:
-                async with self._semaphore():
+                async with self._fetch_semaphore():
                     try:
                         html, final_url = await self._download(client, item.url)
                         content, method = await asyncio.to_thread(self._extract, html, final_url)
