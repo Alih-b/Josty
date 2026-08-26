@@ -156,14 +156,26 @@ def test_search_run_status():
     assert SearchRun("q", [], [ok]).dict()["schema_version"] == "1.0"
 
 
-def test_private_network_and_unsafe_urls_are_blocked(monkeypatch):
+@pytest.mark.parametrize(
+    "address, family",
+    [
+        ("127.0.0.1", socket.AF_INET),
+        ("169.254.169.254", socket.AF_INET),
+        ("10.0.0.1", socket.AF_INET),
+        ("::1", socket.AF_INET6),
+    ],
+)
+def test_ssrf_guard_blocks_reserved_addresses(monkeypatch, address, family):
     monkeypatch.setattr(
         socket,
         "getaddrinfo",
-        lambda *args, **kwargs: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))],
+        lambda *args, **kwargs: [(family, socket.SOCK_STREAM, 6, "", (address, 80))],
     )
     with pytest.raises(ValueError, match="private or reserved"):
         asyncio.run(DeepSearch()._validate_public_url("http://example.test"))
+
+
+def test_ssrf_guard_blocks_unsafe_schemes_and_credentials():
     with pytest.raises(ValueError, match="HTTP"):
         asyncio.run(DeepSearch()._validate_public_url("file:///etc/passwd"))
     with pytest.raises(ValueError, match="credentials"):
