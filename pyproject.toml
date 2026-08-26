@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.31.0"]
+requires = ["hatchling>=1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -21,9 +21,9 @@ classifiers = [
   "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
 ]
 dependencies = [
-  "ddgs>=9.14.4,<10",
+  "ddgs>=9.15.0,<10",
   "httpx>=0.28.1,<1",
-  "trafilatura>=2.1.0,<3",
+  "trafilatura>=2.2.0,<3",
 ]
 
 [project.urls]
@@ -37,7 +37,7 @@ Security = "https://github.com/Alih-b/super-search/security/policy"
 dev = [
   "build>=1.5.0,<2",
   "pytest>=9.1.1,<10",
-  "ruff>=0.16.0,<1",
+  "ruff>=0.16.4,<1",
 ]
 
 [project.scripts]
