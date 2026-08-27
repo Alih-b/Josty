@@ -657,43 +657,52 @@ class DeepSearch:
             return HostStatus(
                 provider, host, False, None, "unknown", "no known upstream host"
             )
-        url = f"https://{host}/"
-        headers = {"User-Agent": USER_AGENT}
-        try:
-            async with httpx.AsyncClient(
-                timeout=self.timeout,
-                headers=headers,
-                follow_redirects=False,
-                trust_env=False,
-            ) as client:
-                response = await client.get(url)
-            return HostStatus(provider, host, True, response.status_code)
-        except Exception as exc:
-            return HostStatus(
-                provider,
-                host,
-                False,
-                None,
-                _classify_probe_error(exc),
-                f"{type(exc).__name__}: {exc}",
-            )
+        async with self._search_semaphore():
+            url = f"https://{host}/"
+            headers = {"User-Agent": USER_AGENT}
+            try:
+                async with httpx.AsyncClient(
+                    timeout=self.timeout,
+                    headers=headers,
+                    follow_redirects=False,
+                    trust_env=False,
+                ) as client:
+                    response = await client.get(url)
+                return HostStatus(provider, host, True, response.status_code)
+            except Exception as exc:
+                return HostStatus(
+                    provider,
+                    host,
+                    False,
+                    None,
+                    _classify_probe_error(exc),
+                    f"{type(exc).__name__}: {exc}",
+                )
 
-    async def diagnose_run(self) -> DiagnoseRun:
+    async def diagnose_run(
+        self,
+        *,
+        include_github: bool = False,
+        category: SearchCategory = "text",
+    ) -> DiagnoseRun:
         """Probe each configured backend's upstream host without running ddgs.
 
         Reports bare HTTPS reachability per provider so callers can distinguish
-        network-unreachable hosts from reachable-but-challenged ones.
+        network-unreachable hosts from reachable-but-challenged ones. Probes only
+        the backends the current category would use, plus api.github.com when
+        ``include_github`` is set — mirroring ``research_run``.
         """
+        groups = self.news_backends if category == "news" else self.backends
         targets: list[tuple[str, str]] = []
         seen_providers: set[str] = set()
-        for group in (*self.backends, *self.news_backends):
+        for group in groups:
             for name in group.split(","):
                 name = name.strip()
                 if name in seen_providers:
                     continue
                 seen_providers.add(name)
                 targets.append((name, self.BACKEND_HOSTS.get(name, "")))
-        if "github-api" not in seen_providers:
+        if include_github:
             targets.append(("github-api", self.BACKEND_HOSTS["github-api"]))
         statuses = await asyncio.gather(*(self._probe_host(name, host) for name, host in targets))
         return DiagnoseRun(providers=list(statuses))

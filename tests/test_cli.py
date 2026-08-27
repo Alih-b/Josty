@@ -22,14 +22,18 @@ def test_results_only_conflicts_with_diagnose(monkeypatch):
 
 
 def test_main_prints_json_diagnosis(monkeypatch, capsys):
-    async def diagnose(self):
+    captured = {}
+
+    async def diagnose(self, include_github=False, category="text"):
+        captured.update(include_github=include_github, category=category)
         return DiagnoseRun()
 
     monkeypatch.setattr("deep_search.engine.DeepSearch.diagnose_run", diagnose)
-    monkeypatch.setattr("sys.argv", ["deep-search", "--diagnose"])
+    monkeypatch.setattr("sys.argv", ["deep-search", "--diagnose", "--github"])
     main()
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "failed"
+    assert captured == {"include_github": True, "category": "text"}
 
 
 def test_main_without_query_or_diagnose_fails(monkeypatch):

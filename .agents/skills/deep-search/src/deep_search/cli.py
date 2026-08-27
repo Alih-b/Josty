@@ -59,7 +59,9 @@ async def run(args: argparse.Namespace) -> dict | list:
         max_fetch_concurrency=args.fetch_concurrency,
     )
     if args.diagnose:
-        return (await engine.diagnose_run()).dict()
+        return (
+            await engine.diagnose_run(include_github=args.github, category=args.category)
+        ).dict()
     search = await engine.research_run(
         args.query,
         sites=args.sites,

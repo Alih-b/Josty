@@ -436,9 +436,11 @@ def test_diagnose_probes_each_backend_group_host_with_bare_get(monkeypatch):
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
     payload = asyncio.run(DeepSearch().diagnose_run()).dict()
 
-    expected = {DeepSearch.BACKEND_HOSTS["github-api"]}
-    for group in DeepSearch.DEFAULT_BACKENDS:
-        expected |= {DeepSearch.BACKEND_HOSTS[name] for name in group.split(",")}
+    expected = {
+        DeepSearch.BACKEND_HOSTS[name]
+        for group in DeepSearch.DEFAULT_BACKENDS
+        for name in group.split(",")
+    }
     seen_hosts = {u for u in seen}
     assert seen_hosts == {f"https://{host}/" for host in expected}
     assert all(url.startswith("https://") for url in seen)
@@ -503,7 +505,27 @@ def test_diagnose_reports_unknown_backends_instead_of_skipping(monkeypatch):
     monkeypatch.setattr(httpx.AsyncClient, "get", fail_get)
     payload = asyncio.run(DeepSearch(backends=("mystery",)).diagnose_run()).dict()
     by_provider = {entry["provider"]: entry for entry in payload["providers"]}
-    assert set(by_provider) == {"mystery", "github-api"}
+    assert set(by_provider) == {"mystery"}
     assert by_provider["mystery"]["ok"] is False
     assert by_provider["mystery"]["error_kind"] == "unknown"
     assert payload["status"] == "failed"
+
+
+def test_diagnose_scopes_probes_to_category_and_github_opt_in(monkeypatch):
+    async def fake_get(self, url, **kwargs):
+        return httpx.Response(200, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+
+    text = asyncio.run(DeepSearch().diagnose_run()).dict()
+    text_providers = {entry["provider"] for entry in text["providers"]}
+    assert "github-api" not in text_providers
+    assert all(p in text_providers for p in ("bing", "google", "yandex"))
+
+    news = asyncio.run(DeepSearch().diagnose_run(category="news")).dict()
+    news_providers = {entry["provider"] for entry in news["providers"]}
+    assert news_providers == {"bing", "duckduckgo", "yahoo"}
+
+    got = asyncio.run(DeepSearch().diagnose_run(include_github=True)).dict()
+    got_providers = {entry["provider"] for entry in got["providers"]}
+    assert "github-api" in got_providers
