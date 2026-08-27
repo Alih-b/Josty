@@ -1,7 +1,9 @@
 import asyncio
 import socket
+import ssl
 import sys
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -19,6 +21,18 @@ from deep_search.engine import (
 
 def result(url, snippet="", source="test"):
     return SearchResult("title", url, snippet, sources=[source])
+
+
+def _dns_connect_error():
+    exc = httpx.ConnectError("dns failure", request=httpx.Request("GET", "u"))
+    exc.__cause__ = socket.gaierror(-2, "Name or service not known")
+    return exc
+
+
+def _tls_connect_error():
+    exc = httpx.ConnectError("tls failure", request=httpx.Request("GET", "u"))
+    exc.__cause__ = ssl.SSLError(1, "handshake failure")
+    return exc
 
 
 def test_canonical_preserves_resource_query_and_removes_tracking():
@@ -410,3 +424,86 @@ def test_github_is_opt_in_and_fused_once(monkeypatch):
     assert combined.results[0].sources == ["one", "two"]
     assert combined.results[0].score == round(2 / 61, 6)
     assert combined.results[1].score == round(1 / 61, 6)
+
+
+def test_diagnose_probes_each_backend_group_host_with_bare_get(monkeypatch):
+    seen = []
+
+    async def fake_get(self, url, **kwargs):
+        seen.append(url)
+        return httpx.Response(200, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    payload = asyncio.run(DeepSearch().diagnose_run()).dict()
+
+    expected = {DeepSearch.BACKEND_HOSTS["github-api"]}
+    for group in DeepSearch.DEFAULT_BACKENDS:
+        expected |= {DeepSearch.BACKEND_HOSTS[name] for name in group.split(",")}
+    seen_hosts = {u for u in seen}
+    assert seen_hosts == {f"https://{host}/" for host in expected}
+    assert all(url.startswith("https://") for url in seen)
+
+    by_host = {entry["host"]: entry for entry in payload["providers"]}
+    assert set(by_host) == expected
+    assert all(entry["ok"] and entry["http_status"] == 200 for entry in by_host.values())
+    assert payload["status"] == "complete"
+    assert payload["schema_version"] == "1.0"
+
+
+def test_diagnose_reports_http_status_for_challenged_hosts(monkeypatch):
+    async def fake_get(self, url, **kwargs):
+        return httpx.Response(403, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    payload = asyncio.run(DeepSearch().diagnose_run()).dict()
+    entry = next(item for item in payload["providers"] if item["provider"] == "bing")
+    assert entry["ok"] is True
+    assert entry["http_status"] == 403
+
+
+def test_diagnose_classifies_blocked_hosts(monkeypatch):
+    hosts_to_exc = {
+        "www.bing.com": httpx.ReadTimeout("timed out"),
+        "www.google.com": httpx.ConnectError("refused", request=httpx.Request("GET", "u")),
+        "yandex.com": _dns_connect_error(),
+        "www.mojeek.com": RuntimeError("boom"),
+        "www.startpage.com": _tls_connect_error(),
+    }
+
+    def exc_for(url):
+        return hosts_to_exc.get(urlsplit(url).hostname)
+
+    async def fake_get(self, url, **kwargs):
+        exc = exc_for(url)
+        if exc is not None:
+            raise exc
+        return httpx.Response(200, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    payload = asyncio.run(DeepSearch().diagnose_run()).dict()
+
+    by_provider = {entry["provider"]: entry for entry in payload["providers"]}
+    assert by_provider["bing"]["error_kind"] == "timeout"
+    assert by_provider["google"]["error_kind"] == "network"
+    assert by_provider["yandex"]["error_kind"] == "dns"
+    assert by_provider["startpage"]["error_kind"] == "tls"
+    assert by_provider["mojeek"]["error_kind"] == "unknown"
+    for provider in ("bing", "google", "yandex", "startpage", "mojeek"):
+        entry = by_provider[provider]
+        assert entry["ok"] is False
+        assert entry["http_status"] is None
+        assert entry["error"]
+    assert payload["status"] == "degraded"
+
+
+def test_diagnose_reports_unknown_backends_instead_of_skipping(monkeypatch):
+    async def fail_get(self, url, **kwargs):
+        raise AssertionError("no probe should run")
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fail_get)
+    payload = asyncio.run(DeepSearch(backends=("mystery",)).diagnose_run()).dict()
+    by_provider = {entry["provider"]: entry for entry in payload["providers"]}
+    assert set(by_provider) == {"mystery", "github-api"}
+    assert by_provider["mystery"]["ok"] is False
+    assert by_provider["mystery"]["error_kind"] == "unknown"
+    assert payload["status"] == "failed"

@@ -11,7 +11,9 @@ def parser() -> argparse.ArgumentParser:
     command = argparse.ArgumentParser(
         description="Small, auditable metasearch for AI agents"
     )
-    command.add_argument("query", help="search query")
+    command.add_argument(
+        "query", nargs="?", default="", help="search query (not needed with --diagnose)"
+    )
     command.add_argument("--limit", type=int, default=10)
     command.add_argument("--site", action="append", dest="sites", help="add a site: filter")
     command.add_argument("--mode", choices=("plain", "exact", "oss"), default="plain")
@@ -29,6 +31,11 @@ def parser() -> argparse.ArgumentParser:
     )
     command.add_argument(
         "--results-only", action="store_true", help="emit only the result array"
+    )
+    command.add_argument(
+        "--diagnose",
+        action="store_true",
+        help="probe backend host reachability instead of searching",
     )
     command.add_argument(
         "--search-concurrency",
@@ -51,6 +58,8 @@ async def run(args: argparse.Namespace) -> dict | list:
         max_search_concurrency=args.search_concurrency,
         max_fetch_concurrency=args.fetch_concurrency,
     )
+    if args.diagnose:
+        return (await engine.diagnose_run()).dict()
     search = await engine.research_run(
         args.query,
         sites=args.sites,
@@ -67,7 +76,12 @@ async def run(args: argparse.Namespace) -> dict | list:
 
 
 def main() -> None:
-    args = parser().parse_args()
+    command = parser()
+    args = command.parse_args()
+    if not args.query and not args.diagnose:
+        command.error("a query is required unless --diagnose is given")
+    if args.diagnose and args.results_only:
+        command.error("--results-only cannot be combined with --diagnose")
     try:
         payload = asyncio.run(run(args))
     except (ValueError, KeyboardInterrupt) as exc:
