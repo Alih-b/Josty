@@ -24,6 +24,11 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Offline deterministic benchmark replay check integrated into CI test workflow.
 - `--search-concurrency` and `--fetch-concurrency` CLI flags (and `max_search_concurrency` /
   `max_fetch_concurrency` constructor params) to tune search and fetch ceilings independently.
+- Per-`(backend, error_class)` in-process circuit breaker: 3 failures within 60 s opens the
+  breaker for 30 s. Skipped calls are reported with
+  `skipped: backend in cool-down until <iso8601>` in `providers[].error`. Defaults exposed via
+  `breaker_fail_threshold` / `breaker_window_seconds` / `breaker_cool_down_seconds` constructor
+  params, or a custom `breaker` instance.
 
 ### Changed
 

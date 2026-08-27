@@ -58,6 +58,15 @@ uvx josty "query" --search-concurrency 12 --fetch-concurrency 8
 $(command -v python3 || command -v python) "$SKILL_DIR/scripts/run.py" "query" --site github.com
 ```
 
+## Failure handling
+
+- Each `(backend, error class)` pair has an in-process circuit breaker: 3 failures within 60 s
+  opens the breaker for 30 s. Subsequent calls are skipped with a stable error string
+  `skipped: backend in cool-down until <iso8601>` reported in `providers[].error`.
+- A successful call clears the failure history for that pair. The breaker is per-process.
+- No automatic retry: hidden amplification is treated as a worse failure mode than
+  surfacing a `degraded` or `failed` status.
+
 GitHub repository search is opt-in with `--github`. `GITHUB_TOKEN` is optional and only increases
 GitHub API limits.
 

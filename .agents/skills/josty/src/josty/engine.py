@@ -700,6 +700,60 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
     )
 
 
+class CircuitBreaker:
+    """In-process per-(backend, error_class) breaker.
+
+    After ``fail_threshold`` failures within ``window_seconds`` the breaker
+    opens for ``cool_down_seconds`` and subsequent calls are skipped with
+    a stable error string until the cool-down elapses.
+    """
+
+    def __init__(
+        self,
+        *,
+        fail_threshold: int = 3,
+        window_seconds: float = 60,
+        cool_down_seconds: float = 30,
+    ):
+        if fail_threshold < 1 or window_seconds <= 0 or cool_down_seconds <= 0:
+            raise ValueError("breaker thresholds must be positive")
+        self.fail_threshold = fail_threshold
+        self.window_seconds = window_seconds
+        self.cool_down_seconds = cool_down_seconds
+        self._state: dict[tuple[str, str], list[float]] = {}
+        self._open_until: dict[tuple[str, str], float] = {}
+
+    def status(self, backend: str, error_class: str) -> tuple[bool, str | None]:
+        """Return ``(allowed, skip_message)`` for a backend/error pair."""
+        now = time.monotonic()
+        key = (backend, error_class)
+        open_until = self._open_until.get(key)
+        if open_until is not None:
+            if now < open_until:
+                until_iso = (
+                    datetime.fromtimestamp(time.time() + (open_until - now), UTC)
+                    .isoformat()
+                    .replace("+00:00", "Z")
+                )
+                return False, f"skipped: backend in cool-down until {until_iso}"
+            del self._open_until[key]
+            self._state.pop(key, None)
+        return True, None
+
+    def record_failure(self, backend: str, error_class: str) -> None:
+        now = time.monotonic()
+        key = (backend, error_class)
+        events = [t for t in self._state.get(key, []) if now - t <= self.window_seconds]
+        events.append(now)
+        self._state[key] = events
+        if len(events) >= self.fail_threshold and key not in self._open_until:
+            self._open_until[key] = now + self.cool_down_seconds
+
+    def record_success(self, backend: str, error_class: str) -> None:
+        self._state.pop((backend, error_class), None)
+        self._open_until.pop((backend, error_class), None)
+
+
 class DeepSearch:
     """Small, bounded metasearch querying backend groups in parallel with
     group-level RRF fusion and safe text extraction."""
@@ -725,6 +779,9 @@ class DeepSearch:
 
     DEFAULT_SEARCH_CONCURRENCY = 6
     DEFAULT_FETCH_CONCURRENCY = 4
+    DEFAULT_BREAKER_FAIL_THRESHOLD = 3
+    DEFAULT_BREAKER_WINDOW_SECONDS = 60
+    DEFAULT_BREAKER_COOL_DOWN_SECONDS = 30
 
     def __init__(
         self,
@@ -743,6 +800,10 @@ class DeepSearch:
         enable_cache: bool = True,
         cache_ttl: float = 21600.0,
         cache_db: Path | str | None = None,
+        breaker: CircuitBreaker | None = None,
+        breaker_fail_threshold: int = 3,
+        breaker_window_seconds: float = 60,
+        breaker_cool_down_seconds: float = 30,
     ):
         if timeout <= 0 or max_search_concurrency < 1 or max_fetch_concurrency < 1:
             raise ValueError("timeout and concurrency limits must be positive")
@@ -773,6 +834,14 @@ class DeepSearch:
         )
         self._search_sem: asyncio.Semaphore | None = None
         self._fetch_sem: asyncio.Semaphore | None = None
+        if breaker is not None:
+            self.breaker = breaker
+        else:
+            self.breaker = CircuitBreaker(
+                fail_threshold=breaker_fail_threshold,
+                window_seconds=breaker_window_seconds,
+                cool_down_seconds=breaker_cool_down_seconds,
+            )
 
     def clear_cache(self) -> None:
         if self.cache:
@@ -830,6 +899,9 @@ class DeepSearch:
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
     ) -> tuple[list[SearchResult], ProviderStatus]:
+        allowed, skip_message = self.breaker.status(backend, "search")
+        if not allowed:
+            return [], ProviderStatus(backend, query, False, error=skip_message)
         async with self._search_semaphore():
 
             def run() -> tuple[list[SearchResult], ProviderStatus]:
@@ -860,8 +932,10 @@ class DeepSearch:
                                     publisher=row.get("source"),
                                 )
                             )
+                    self.breaker.record_success(backend, "search")
                     return results, ProviderStatus(backend, query, True, len(results))
                 except Exception as exc:
+                    self.breaker.record_failure(backend, "search")
                     return [], ProviderStatus(
                         backend,
                         query,
@@ -1102,6 +1176,9 @@ class DeepSearch:
     async def github_run(
         self, query: str, limit: int = 20
     ) -> tuple[list[SearchResult], ProviderStatus]:
+        allowed, skip_message = self.breaker.status("github-api", "search")
+        if not allowed:
+            return [], ProviderStatus("github-api", query, False, error=skip_message)
         url = "https://api.github.com/search/repositories"
         headers = {
             "Accept": "application/vnd.github+json",
@@ -1127,8 +1204,10 @@ class DeepSearch:
                     for item in body.get("items", [])
                     if isinstance(item, dict) and item.get("full_name") and item.get("html_url")
                 ]
+                self.breaker.record_success("github-api", "search")
                 return results, ProviderStatus("github-api", query, True, len(results))
             except Exception as exc:
+                self.breaker.record_failure("github-api", "search")
                 return [], ProviderStatus(
                     "github-api",
                     query,

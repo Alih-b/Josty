@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 import httpx
 import pytest
 from josty.engine import (
+    CircuitBreaker,
     DeepSearch,
     ProviderStatus,
     SearchCache,
@@ -837,7 +838,6 @@ def test_domain_weights_expanded_authoritative_sets():
     # Spam domains are still penalized
     assert domain_weight("https://geeksforgeeks.org/article", profile="dev") == 0.5
 
-
 def test_search_run_and_research_run_behavior_parity(tmp_path, monkeypatch):
     cache_file = tmp_path / "parity_cache.db"
     engine = DeepSearch(cache_db=cache_file)
@@ -860,3 +860,119 @@ def test_search_run_and_research_run_behavior_parity(tmp_path, monkeypatch):
     assert search_res.results[0].title == "Result for test parity query"
 
 
+def test_circuit_breaker_opens_after_threshold_failures_and_skips_calls():
+    breaker = CircuitBreaker(fail_threshold=3, window_seconds=60, cool_down_seconds=30)
+    for _ in range(3):
+        breaker.record_failure("bing", "search")
+    allowed, message = breaker.status("bing", "search")
+    assert allowed is False
+    assert message is not None
+    assert message.startswith("skipped: backend in cool-down until ")
+    assert message.endswith("Z")
+
+
+def test_circuit_breaker_is_per_backend_and_per_error_class():
+    breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
+    breaker.record_failure("bing", "search")
+    breaker.record_failure("bing", "search")
+    assert breaker.status("bing", "search")[0] is False
+    assert breaker.status("brave", "search")[0] is True
+    assert breaker.status("bing", "fetch")[0] is True
+
+
+def test_circuit_breaker_recovers_after_cool_down(monkeypatch):
+    breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
+    monkeypatch.setattr("deep_search.engine.time.monotonic", lambda: 1000.0)
+    breaker.record_failure("bing", "search")
+    breaker.record_failure("bing", "search")
+    assert breaker.status("bing", "search")[0] is False
+    monkeypatch.setattr("deep_search.engine.time.monotonic", lambda: 2000.0)
+    allowed, message = breaker.status("bing", "search")
+    assert allowed is True
+    assert message is None
+
+
+def test_circuit_breaker_does_not_extend_cool_down_on_repeated_failures(monkeypatch):
+    breaker = CircuitBreaker(fail_threshold=3, window_seconds=60, cool_down_seconds=30)
+    # Freeze wall clock too so the iso timestamp doesn't drift
+    monkeypatch.setattr("deep_search.engine.time.time", lambda: 1_700_000_000.0)
+    monkeypatch.setattr("deep_search.engine.time.monotonic", lambda: 1000.0)
+    for _ in range(3):
+        breaker.record_failure("bing", "search")
+    _, first_msg = breaker.status("bing", "search")
+    assert first_msg is not None
+    first_until = first_msg.split("until ")[1]
+    # 4th through 10th failures during cool-down must NOT extend the timer
+    for _ in range(7):
+        breaker.record_failure("bing", "search")
+    _, later_msg = breaker.status("bing", "search")
+    later_until = later_msg.split("until ")[1]
+    assert first_until == later_until, "cool-down timer must freeze at the trip point"
+
+
+def test_circuit_breaker_success_clears_history():
+    breaker = CircuitBreaker(fail_threshold=3, window_seconds=60, cool_down_seconds=30)
+    breaker.record_failure("bing", "search")
+    breaker.record_failure("bing", "search")
+    breaker.record_success("bing", "search")
+    breaker.record_failure("bing", "search")
+    assert breaker.status("bing", "search")[0] is True
+
+
+def test_circuit_breaker_validates_constructor():
+    with pytest.raises(ValueError):
+        CircuitBreaker(fail_threshold=0)
+    with pytest.raises(ValueError):
+        CircuitBreaker(window_seconds=0)
+    with pytest.raises(ValueError):
+        CircuitBreaker(cool_down_seconds=0)
+
+
+def test_search_run_skips_backend_in_cool_down(monkeypatch):
+    class BrokenDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            raise RuntimeError("blocked")
+
+    monkeypatch.setattr("deep_search.engine.DDGS", BrokenDDGS)
+    breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
+    engine = DeepSearch(backends=("broken",), breaker=breaker)
+    for _ in range(2):
+        run = asyncio.run(engine.search_run("q", limit=3))
+        assert run.providers[0].error == "RuntimeError: blocked"
+    skipped = asyncio.run(engine.search_run("q", limit=3))
+    assert skipped.providers[0].error is not None
+    assert skipped.providers[0].error.startswith("skipped: backend in cool-down until ")
+    assert skipped.providers[0].error.endswith("Z")
+    assert skipped.results == []
+
+
+def test_github_breaker_is_independent_from_search_backends(monkeypatch):
+    class BrokenDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            raise RuntimeError("blocked")
+
+    monkeypatch.setattr("deep_search.engine.DDGS", BrokenDDGS)
+    breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
+    engine = DeepSearch(backends=("broken",), breaker=breaker)
+
+    async def fake_get(self, url, **kwargs):
+        return httpx.Response(
+            200,
+            request=httpx.Request("GET", url),
+            json={"items": []},
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    for _ in range(2):
+        asyncio.run(engine.search_run("q", limit=3))
+    assert breaker.status("broken", "search")[0] is False
+    assert breaker.status("github-api", "search")[0] is True
+    results, status = asyncio.run(engine.github_run("agent search", 5))
+    assert status.ok is True
+    assert results == []
