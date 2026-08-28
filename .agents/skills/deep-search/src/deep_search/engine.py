@@ -901,7 +901,13 @@ class DeepSearch:
         if fetch:
             await self.fetch_content(results)
         run = SearchRun(query=query, results=results, providers=providers)
-        if cache_key and self.enable_cache and self.cache and run.status != "failed":
+        if (
+            cache_key
+            and self.enable_cache
+            and self.cache
+            and run.status != "failed"
+            and len(run.results) > 0
+        ):
             self.cache.set(cache_key, run.dict())
         return run
 
@@ -1194,7 +1200,13 @@ class DeepSearch:
         if fetch:
             await self.fetch_content(results)
         run = SearchRun(query=query, results=results, providers=providers)
-        if cache_key and self.enable_cache and self.cache and run.status != "failed":
+        if (
+            cache_key
+            and self.enable_cache
+            and self.cache
+            and run.status != "failed"
+            and len(run.results) > 0
+        ):
             self.cache.set(cache_key, run.dict())
         return run
 
