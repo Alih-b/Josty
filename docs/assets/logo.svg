@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 38" width="320" height="76" fill="none">
+  <!-- Josty Seeker Fish Icon -->
+  <g transform="translate(2, 3)">
+    <path d="M6 8H22L14 16C14 16 10 20 10 23C10 25.2 11.8 27 14 27C17.3 27 20 24 20 20V12" 
+          stroke="#FF5D22" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="14" cy="20" r="2.5" fill="#FFA07A"/>
+  </g>
+  <!-- Space Grotesk Title Case Wordmark -->
+  <text x="42" y="27" font-family="'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700" font-size="26" fill="#FFFFFF" letter-spacing="-0.8">Josty</text>
+</svg>
