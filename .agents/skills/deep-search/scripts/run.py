@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -72,6 +73,38 @@ def has_required_modules(executable: Path) -> bool:
         return False
 
 
+def _bootstrap_with_uv(executable: Path, environment: Path, requirements: Path) -> bool:
+    uv_bin = shutil.which("uv")
+    if not uv_bin:
+        return False
+    try:
+        if not executable.exists():
+            subprocess.run(
+                [uv_bin, "venv", str(environment)],
+                check=True,
+                stdout=sys.stderr,
+                stderr=sys.stderr,
+            )
+        subprocess.run(
+            [
+                uv_bin,
+                "pip",
+                "install",
+                "--python",
+                str(executable),
+                "-r",
+                str(requirements),
+            ],
+            check=True,
+            stdout=sys.stderr,
+            stderr=sys.stderr,
+        )
+        return True
+    except (subprocess.CalledProcessError, OSError) as exc:
+        print(f"Deep Search uv bootstrap failed, falling back to pip: {exc}", file=sys.stderr)
+        return False
+
+
 def prepare_environment(environment: Path, requirements: Path) -> Path:
     executable = python_in(environment)
     marker = environment / ".requirements.sha256"
@@ -96,15 +129,27 @@ def prepare_environment(environment: Path, requirements: Path) -> Path:
     with setup_lock(environment.with_name(f"{environment.name}.lock")):
         if environment_ready(executable, marker, digest):
             return executable
+
+        if _bootstrap_with_uv(executable, environment, requirements):
+            marker.write_text(digest, encoding="utf-8")
+            return executable
+
         if not executable.exists():
             venv.EnvBuilder(with_pip=True, clear=False).create(environment)
             executable = python_in(environment)
-        subprocess.run(
-            [str(executable), "-m", "ensurepip", "--upgrade"],
-            check=True,
-            stdout=sys.stderr,
-            stderr=sys.stderr,
+
+        pip_bin = (
+            environment
+            / ("Scripts" if os.name == "nt" else "bin")
+            / ("pip.exe" if os.name == "nt" else "pip")
         )
+        if not pip_bin.exists():
+            subprocess.run(
+                [str(executable), "-m", "ensurepip", "--upgrade"],
+                check=True,
+                stdout=sys.stderr,
+                stderr=sys.stderr,
+            )
         subprocess.run(
             [
                 str(executable),
@@ -112,7 +157,6 @@ def prepare_environment(environment: Path, requirements: Path) -> Path:
                 "pip",
                 "install",
                 "--disable-pip-version-check",
-                "--force-reinstall",
                 "-r",
                 str(requirements),
             ],

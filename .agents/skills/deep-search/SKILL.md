@@ -5,32 +5,54 @@ description: Small, auditable, keyless web search for current facts, OSS discove
 
 # Deep Search
 
-Resolve this skill directory as `SKILL_DIR`, then run:
+> **Network Access Required**: Deep Search queries external search backends in real time. Outbound internet access is required. The tool is untested in fully offline or strictly network-isolated sandbox environments. If executing in an agent sandbox, ensure network access / sandbox bypass is enabled.
+
+## Quick Start & Invocation
+
+Choose the first available command matching your environment (`uvx` is strongly recommended for ~200ms cold starts without persistent venv management):
 
 ```bash
-python "$SKILL_DIR/scripts/run.py" "query" --limit 10
+# 1. Preferred (Fastest, zero-config, isolated):
+uvx deep-search-agent "query" --limit 10
+
+# 2. Installed CLI binary (if installed via pipx / pip):
+deep-search "query" --limit 10
+
+# 3. Fallback via bundled script (resolves python3/python automatically):
+$(command -v python3 || command -v python) "$SKILL_DIR/scripts/run.py" "query" --limit 10
 ```
 
-The first run creates a private `.venv` and installs three bounded direct dependencies.
+## Agent Self-Install Bootstrap (Optional)
+
+If an agent needs to ensure `deep-search` is installed locally in the environment without user intervention:
+
+```bash
+command -v uv >/dev/null 2>&1 && uv tool install deep-search-agent || \
+command -v pipx >/dev/null 2>&1 && pipx install deep-search-agent || \
+$(command -v python3 || command -v python) -m pip install --user deep-search-agent
+```
 
 ## Options
 
 ```bash
 # Strict domain filters; repeatable up to five times
-python "$SKILL_DIR/scripts/run.py" "query" --site github.com --site reddit.com
+uvx deep-search-agent "query" --site github.com --site reddit.com
 
 # Query rewrites for exact phrases or OSS discovery
-python "$SKILL_DIR/scripts/run.py" "query" --mode exact
-python "$SKILL_DIR/scripts/run.py" "query" --mode oss --github
+uvx deep-search-agent "query" --mode exact
+uvx deep-search-agent "query" --mode oss --github
 
 # Recent, regional, or news results
-python "$SKILL_DIR/scripts/run.py" "query" --category news --time-limit w --region us-en
+uvx deep-search-agent "query" --category news --time-limit w --region us-en
 
 # Extract bounded page text when snippets are insufficient
-python "$SKILL_DIR/scripts/run.py" "query" --fetch
+uvx deep-search-agent "query" --fetch
 
 # Tune concurrency for loop use; search (default 6) and fetch (default 4) are independent
-python "$SKILL_DIR/scripts/run.py" "query" --search-concurrency 12 --fetch-concurrency 8
+uvx deep-search-agent "query" --search-concurrency 12 --fetch-concurrency 8
+
+# Using bundled fallback script instead of uvx:
+$(command -v python3 || command -v python) "$SKILL_DIR/scripts/run.py" "query" --site github.com
 ```
 
 GitHub repository search is opt-in with `--github`. `GITHUB_TOKEN` is optional and only increases

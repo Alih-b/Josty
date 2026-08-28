@@ -77,3 +77,37 @@ def test_parser_handles_profile_flag():
 
     with pytest.raises(SystemExit):
         parser().parse_args(["query", "--profile", "invalid"])
+
+
+def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch, capsys):
+    """Assert stdout contains valid JSON and nothing else, even when stderr has warnings."""
+    import sys
+
+    from deep_search.engine import SearchRun
+
+    async def fake_research(self, *args, **kwargs):
+        # Simulate stderr output like rustls native root cert warnings or third-party loggers
+        print(
+            "failed to load native root certificate: Permission denied",
+            file=sys.stderr,
+        )
+        return SearchRun(query="test", results=[], providers=[])
+
+    monkeypatch.setattr("deep_search.engine.DeepSearch.research_run", fake_research)
+    monkeypatch.setattr("sys.argv", ["deep-search", "test"])
+    main()
+
+    captured = capsys.readouterr()
+    raw_stdout = captured.out
+    raw_stderr = captured.err
+
+    # Stderr has the warning
+    assert "failed to load native root certificate" in raw_stderr
+
+    # Stdout must be strictly valid JSON with zero non-JSON prefix or suffix
+    assert raw_stdout.startswith("{") or raw_stdout.startswith("[")
+    parsed = json.loads(raw_stdout)
+    assert isinstance(parsed, dict)
+    assert parsed["status"] == "complete"
+    assert parsed["query"] == "test"
+
