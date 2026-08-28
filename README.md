@@ -2,24 +2,10 @@
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Changelog](https://img.shields.io/badge/changelog-CHANGELOG.md-orange)](CHANGELOG.md)
 [![Ruff](https://img.shields.io/badge/code%20style-ruff-261230)](https://github.com/astral-sh/ruff)
 
-**A fast, keyless, zero-daemon search & page extraction primitive built specifically for AI agents.**
-
-Stop giving your agents raw HTML, brittle scrapers, or requiring paid API keys for simple research tasks. Deep Search queries multiple independent search backends in parallel, fuses their rankings with **Reciprocal Rank Fusion (RRF)**, and returns a clean, versioned JSON contract with structured Markdown extraction.
-
----
-
-## Why Deep Search?
-
-| Feature | Raw Scraping / `ddgs` | Heavy Search SaaS (Tavily/Exa) | Self-Hosted (SearXNG) | **Deep Search** |
-|---|---|---|---|---|
-| **API Keys / Billing** | Keyless | ❌ Paid / Tiered Keys | Keyless | **✅ 100% Keyless** |
-| **Infrastructure** | None | SaaS dependency | ❌ Docker / Redis / Host | **✅ Zero daemons** |
-| **Output Contract** | Messy / Unranked | JSON | JSON / HTML | **✅ Versioned JSON + Clean Markdown** |
-| **Ranking** | None (Raw list) | Proprietary | Score sum | **✅ Auditable RRF (k=60)** |
-| **Footprint** | Script | Cloud | Heavy (>1 GB RAM) | **✅ Tiny (<1,000 LOC, 3 deps)** |
-| **Agent Ready** | Manual parsing | Tool API | API | **✅ Subprocess / Python Primitive** |
+Deep Search queries keyless public search backends in parallel, fuses their rankings with Reciprocal Rank Fusion (RRF), strips tracking parameters, and returns a versioned JSON contract with structured Markdown extraction. It gives AI agents a predictable subprocess and Python interface for web search and page retrieval without requiring per-backend response parsing or ad-hoc deduplication.
 
 ---
 
@@ -33,6 +19,8 @@ uv tool install deep-search-agent
 # or standard pip
 pip install deep-search-agent
 ```
+
+Deep Search declares 3 direct dependencies in `pyproject.toml` (`ddgs`, `httpx`, `trafilatura`); see `uv.lock` for the exact resolved dependency closure.
 
 ---
 
@@ -52,7 +40,7 @@ deep-search "retrieval augmented generation" --profile academic --limit 5
 # Focus on specific technical domains
 deep-search "httpx connection reset" --site github.com --site stackoverflow.com
 
-# Open Source / Self-hosted discovery mode
+# Open Source discovery mode
 deep-search "document indexing" --mode oss --github
 
 # Extract clean, bounded Markdown from the top pages
@@ -87,12 +75,14 @@ Deep Search returns a strict, self-describing contract that agents can easily br
 }
 ```
 
+**Contract Versioning Policy (`schema_version`)**: The `schema_version` contract follows semantic versioning. Additive, backward-compatible fields will bump the minor version (e.g. `1.1`), while any breaking structural change or field removal will bump the major version (`2.0`).
+
 ---
 
 ## Typical Agent Scenarios
 
-### 🔍 Scenario A: Fact-Checking & Grounding
-When an agent needs to verify a fast factual question without hallucinating:
+### 🔍 Scenario A: Direct Python / Async Lookup
+When an agent needs to query search backends directly within an async workflow:
 ```python
 import asyncio
 from deep_search import DeepSearch
@@ -115,7 +105,7 @@ search_tool_definition = {
     "type": "function",
     "function": {
         "name": "web_search",
-        "description": "Search the web for up-to-date information, documentation, and error solutions. Keyless and returns ranked sources.",
+        "description": "Search the web for up-to-date information, documentation, and error solutions. Built on keyless backends and returns ranked sources.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -143,23 +133,43 @@ search_tool_definition = {
 
 ---
 
-## Benchmark Highlights
+## What the Wrapper Logic Does
 
-Tested against a frozen corpus of factual queries using TREC-style evaluation (see [docs/BENCHMARK.md](docs/BENCHMARK.md)):
+Deep Search sits between an agent runtime and underlying search backends (queried via `ddgs`). Its code path provides the following concrete operations:
 
-* **Speed**: **1.62s** mean latency (faster than `raw_ddgs` at 5.48s and `websearch-skill` at 3.22s, p < 0.0001).
-* **Quality**: **0.960 nDCG@10** (statistically tied with full-stack enterprise search wrappers).
-* **Footprint**: **< 1,000 lines of pure Python**, 3 dependencies (`ddgs`, `httpx`, `trafilatura`).
+1. **Parallel Group Fanout**: Queries backend groups concurrently via `asyncio.gather`, bounded by an explicit semaphore (`max_search_concurrency`).
+2. **URL Canonicalization & Deduplication**: Normalizes URLs across engines (stripping tracking parameters like `utm_*`, `gclid`, `fbclid`, `msclkid`, lowercasing hostnames, removing trailing slashes) so identical pages from different backends merge into a single result with unified provenance (`sources: ["bing", "duckduckgo"]`).
+3. **Deterministic Weighted RRF Fusion ($k=60$)**: Merges ranked lists from 2–3 active engines per query slot using Reciprocal Rank Fusion weighted by profile domain rules:
+   $$\text{score} = \sum_{i} \frac{w_i}{k + r_i}$$
+   where $k=60$ (Cormack et al. 2009), $r_i$ is the 1-based rank in provider $i$, and $w_i$ is a domain weight multiplier. Domain sets are explicitly defined per profile in `deep_search.engine` (`AUTHORITATIVE_DOMAINS_GENERAL`, `AUTHORITATIVE_DOMAINS_DEV`, `AUTHORITATIVE_DOMAINS_ACADEMIC` for official documentation, registries, and papers boosted at 1.2–1.4×; `SPAM_DOMAINS` penalized at 0.5–0.6× across all profiles). The default `general` profile boosts documentation domains and applies spam penalties.
+4. **Structured Error & Status Taxonomy**: Categorizes provider-level errors into exact `ErrorKind` literals (`"network"`, `"rate_limited"`, `"empty"`, `"parse"`, `"unknown"`) and sets top-level run `status` (`"complete"`, `"degraded"`, `"failed"`) so callers can branch deterministically on partial failures.
+5. **Bounded Content Extraction**: Fetches and converts HTML to Markdown via Trafilatura with strict byte limits (`max_download_bytes`, default 2MB) and character limits (`max_content_chars`, default 50k) to prevent context exhaustion in downstream models.
 
 ---
 
 ## Security & Safety
 
 Deep Search includes built-in SSRF protection when `--fetch` is enabled:
-- Blocks private, loopback, multicast, link-local (cloud metadata `169.254.169.254`), and CGNAT IP ranges.
-- Follows up to 6 redirects with validation at each hop.
-- Hard byte download limits (`max_download_bytes`) and extracted text limits (`max_content_chars`).
+- **IP Address Validation**: Resolves hostnames and blocks connections to private (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`), link-local (cloud metadata `169.254.169.254`), multicast, and CGNAT IP ranges.
+- **Redirect Validation**: Follows up to 6 redirects, validating every intermediate IP address before establishing the next TCP connection.
+- **Resource Bounds**: Enforces hard byte download limits before parsing HTML.
 - Read full details in [SECURITY.md](SECURITY.md).
+
+---
+
+## Why This Exists & What's Next
+
+### Current Scope & Design Boundaries
+Deep Search is intentionally a small, self-contained Python wrapper rather than a full search service or browser runtime:
+- **When Not to Use This**: If you need client-side JavaScript execution (SPAs), automated CAPTCHA solving, or guaranteed high-QPS uptime from datacenter IPs, deep-search is not the right tool.
+- **No Headless Browser**: Deep Search uses standard HTTP requests (`httpx`) and does not execute client-side JavaScript.
+- **Upstream Rate Limits**: Because queries rely on public search scraping backends via `ddgs`, requests from shared datacenter IP ranges can be throttled or blocked by upstream engines.
+- **Single Maintainer**: This is a pre-1.0 research project without multi-organization operational hardening.
+
+### Roadmap
+- **Near-Duplicate Content Hashing**: Adding MinHash/SimHash snippet deduplication for pages with different URLs that mirror the same syndicated text.
+- **Direct Connector Plugins**: Allowing callers to register custom backend coroutines alongside default `ddgs` scrapers.
+- **Pluggable Text Distillers**: Enabling alternative markdown converters for specialized document structures (e.g., API references or tabular data).
 
 ---
 
@@ -178,5 +188,5 @@ pytest -q
 ruff check .
 ```
 
-MIT Licensed. Built by Ali Bayest.
+MIT Licensed. Release notes and version history are tracked in [CHANGELOG.md](CHANGELOG.md). Built by Ali Bayest.
 

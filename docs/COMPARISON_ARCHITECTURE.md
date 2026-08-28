@@ -14,7 +14,7 @@ public search backends. What differs is **how they use it**:
 | Runner | What it is | Core abstraction | When it wins | When it loses |
 |---|---|---|---|---|
 | **raw ddgs** | Direct use of the `ddgs` Python client. | One method call per backend. | Transparency; zero wrapper logic. | You inherit all upstream noise, duplicates, and backend serialization. |
-| **Deep Search** | A 613-line async wrapper around `ddgs`. | One RRF pass over independent backend groups; strict bounds. | Speed, dedup, small footprint, auditable failure surface. | Empty runs when a wide backend pool throttles; no retry/re-rank beyond RRF. |
+| **Deep Search** | A ~1,350-line async wrapper around `ddgs`. | One RRF pass over independent backend groups; strict bounds. | Speed, dedup, small footprint, auditable failure surface. | Empty runs when a wide backend pool throttles; no retry/re-rank beyond RRF. |
 | **websearch-skill** | A contract-driven multi-layer search subsystem. | Router → adapters → correlation-group fusion → format pipeline. | Rich features (MCP, page store, SearXNG, quality scores); stronger result page when it succeeds. | Heavier; defaults to hard-fail when the adapter layer cannot reach engines; not as small/auditable. |
 
 The rest of this doc is the diagram and the "why" behind each row.
@@ -205,9 +205,9 @@ how each runner treats partial failure, not just engine quality.
 
 - **raw ddgs** is not a tool; it is a dependency. The "footprint" is
   whatever script the user writes around it.
-- **Deep Search** is ~613 lines of Python, 3 direct deps, one CLI.
+- **Deep Search** is ~1,350 lines of Python, 3 direct deps (28 resolved packages in closure), one CLI.
   Every backend call, every dedup decision, and every failure is in
-  one file and visible in the JSON output.
+  one package and visible in the JSON output.
 - **websearch-skill** is ~15k+ lines across layers (search, extract,
   format, agentio, tools, store, contracts). It can do far more
   (MCP, page store, quality scoring, arXiv/GitHub tools) but you
