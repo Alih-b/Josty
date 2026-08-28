@@ -670,3 +670,84 @@ def test_fetch_content_extracts_markdown_and_captures_error(monkeypatch):
     assert item_ok.fetched_at is not None
     assert item_fail.content is None
     assert "connection dropped" in (item_fail.fetch_error or "")
+
+
+def test_expand_with_max_query_variants_truncation_and_validation():
+    # Validation
+    with pytest.raises(ValueError, match="max_query_variants must be positive"):
+        DeepSearch.expand("test", max_query_variants=0)
+    with pytest.raises(ValueError, match="max_query_variants must be positive"):
+        DeepSearch.expand("test", max_query_variants=-1)
+
+    # OSS mode generates 4 variants by default; cap at 2
+    uncapped = DeepSearch.expand("test query", mode="oss")
+    assert len(uncapped) == 4
+    capped = DeepSearch.expand("test query", mode="oss", max_query_variants=2)
+    assert capped == uncapped[:2]
+    assert len(capped) == 2
+
+    # Multi-site exact generates 4 variants (2 sites x 2 variants); cap at 3
+    multi_site = DeepSearch.expand(
+        "test query", sites=["github.com", "gitlab.com"], mode="exact"
+    )
+    assert len(multi_site) == 4
+    capped_multi = DeepSearch.expand(
+        "test query",
+        sites=["github.com", "gitlab.com"],
+        mode="exact",
+        max_query_variants=3,
+    )
+    assert capped_multi == multi_site[:3]
+    assert len(capped_multi) == 3
+
+
+def test_constructor_max_query_variants_validation():
+    with pytest.raises(ValueError, match="max_query_variants must be positive"):
+        DeepSearch(max_query_variants=0)
+    with pytest.raises(ValueError, match="max_query_variants must be positive"):
+        DeepSearch(max_query_variants=-5)
+
+    engine = DeepSearch(max_query_variants=2)
+    assert engine.max_query_variants == 2
+
+
+def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
+    queries_seen = []
+
+    class MockDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            queries_seen.append(query)
+            return [{"title": "Title", "href": "https://github.com/doc", "body": "Snippet"}]
+
+    monkeypatch.setattr("deep_search.engine.DDGS", MockDDGS)
+
+    engine = DeepSearch(backends=("test-group",), enable_cache=True)
+
+    # Mode oss with 2 sites creates 8 variants uncapped; cap at 2
+    queries_seen.clear()
+    run1 = asyncio.run(
+        engine.search_run(
+            "my query",
+            sites=["github.com", "gitlab.com"],
+            mode="oss",
+            max_query_variants=2,
+        )
+    )
+    assert len(queries_seen) == 2
+    assert len(run1.results) == 1
+
+    # Same query with max_query_variants=3 should be a cache miss and execute 3 queries
+    queries_seen.clear()
+    run2 = asyncio.run(
+        engine.search_run(
+            "my query",
+            sites=["github.com", "gitlab.com"],
+            mode="oss",
+            max_query_variants=3,
+        )
+    )
+    assert len(queries_seen) == 3
+    assert len(run2.results) == 1

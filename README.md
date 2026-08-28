@@ -45,8 +45,8 @@ deep-search "FastAPI dependency injection" --profile dev --limit 5
 # Academic profile: boosts arXiv, PubMed, IEEE, Nature, OpenAlex
 deep-search "retrieval augmented generation" --profile academic --limit 5
 
-# Focus on specific technical domains
-deep-search "httpx connection reset" --site github.com --site stackoverflow.com
+# Focus on specific technical domains with capped query variants
+deep-search "httpx connection reset" --site github.com --site stackoverflow.com --max-query-variants 2
 
 # Open Source discovery mode
 deep-search "document indexing" --mode oss --github
@@ -66,15 +66,15 @@ Deep Search returns a strict, self-describing contract that agents can easily br
   "count": 3,
   "partial": false,
   "providers": [
-    { "provider": "bing", "ok": true, "result_count": 5 },
-    { "provider": "duckduckgo", "ok": true, "result_count": 5 }
+    { "provider": "bing,brave,duckduckgo", "ok": true, "result_count": 5 },
+    { "provider": "google,mojeek,startpage", "ok": true, "result_count": 5 }
   ],
   "results": [
     {
       "title": "What's New In Python 3.13 — Python 3.13.0 documentation",
       "url": "https://docs.python.org/3/whatsnew/3.13.html",
       "snippet": "Python 3.13 includes an experimental free-threaded build mode...",
-      "sources": ["bing", "duckduckgo"],
+      "sources": ["bing,brave,duckduckgo", "google,mojeek,startpage"],
       "score": 0.032787,
       "content": "## What's New In Python 3.13\n\nThis article explains the new features...",
       "extraction_method": "trafilatura"
@@ -143,11 +143,11 @@ search_tool_definition = {
 
 ## What the Wrapper Logic Does
 
-Deep Search sits between an agent runtime and underlying search backends (queried via `ddgs`). Its code path provides the following concrete operations:
+Deep Search sits between an agent runtime and underlying search backends (queried via `ddgs`). Deep Search queries backend groups (each internally multi-engine via `ddgs`); provenance and RRF fusion operate at the group level by design, trading finer attribution for fewer upstream requests and better partial-failure tolerance. Its code path provides the following concrete operations:
 
-1. **Parallel Group Fanout**: Queries backend groups concurrently via `asyncio.gather`, bounded by an explicit semaphore (`max_search_concurrency`).
-2. **URL Canonicalization & Deduplication**: Normalizes URLs across engines (stripping tracking parameters like `utm_*`, `gclid`, `fbclid`, `msclkid`, lowercasing hostnames, removing trailing slashes) so identical pages from different backends merge into a single result with unified provenance (`sources: ["bing", "duckduckgo"]`).
-3. **Deterministic Weighted RRF Fusion ($k=60$)**: Merges ranked lists from 2–3 active engines per query slot using Reciprocal Rank Fusion weighted by profile domain rules:
+1. **Parallel Group Fanout**: Queries backend groups concurrently via `asyncio.gather`, bounded by an explicit semaphore (`max_search_concurrency`) and optional query-variant cap (`max_query_variants`).
+2. **URL Canonicalization & Deduplication**: Normalizes URLs across engines (stripping tracking parameters like `utm_*`, `gclid`, `fbclid`, `msclkid`, lowercasing hostnames, removing trailing slashes) so identical pages from different backends merge into a single result with unified group provenance (`sources: ["bing,brave,duckduckgo", "google,mojeek,startpage"]`).
+3. **Deterministic Weighted RRF Fusion ($k=60$)**: Merges ranked lists from the configured backend groups per query slot using Reciprocal Rank Fusion weighted by profile domain rules:
    $$\text{score} = \sum_{i} \frac{w_i}{k + r_i}$$
    where $k=60$ (Cormack et al. 2009), $r_i$ is the 1-based rank in provider $i$, and $w_i$ is a domain weight multiplier. Domain sets are explicitly defined per profile in `deep_search.engine` (`AUTHORITATIVE_DOMAINS_GENERAL`, `AUTHORITATIVE_DOMAINS_DEV`, `AUTHORITATIVE_DOMAINS_ACADEMIC` for official documentation, registries, and papers boosted at 1.2–1.4×; `SPAM_DOMAINS` penalized at 0.5–0.6× across all profiles). The default `general` profile boosts documentation domains and applies spam penalties.
 4. **Structured Error & Status Taxonomy**: Categorizes provider-level errors into exact `ErrorKind` literals (`"network"`, `"rate_limited"`, `"empty"`, `"parse"`, `"unknown"`) and sets top-level run `status` (`"complete"`, `"degraded"`, `"failed"`) so callers can branch deterministically on partial failures.

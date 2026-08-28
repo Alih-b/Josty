@@ -423,7 +423,7 @@ def rrf(
     k: int = 60,
     profile: ProfileType = "general",
 ) -> list[SearchResult]:
-    """Fuse independent ranked lists with Reciprocal Rank Fusion."""
+    """Fuse independent backend-group ranked lists with Reciprocal Rank Fusion."""
     if k < 1:
         raise ValueError("k must be positive")
     merged: dict[str, SearchResult] = {}
@@ -638,7 +638,8 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
 
 
 class DeepSearch:
-    """Small, bounded metasearch with auditable fusion and safe text extraction."""
+    """Small, bounded metasearch querying backend groups in parallel with
+    group-level RRF fusion and safe text extraction."""
 
     DEFAULT_BACKENDS = (
         "bing,brave,duckduckgo",
@@ -671,6 +672,7 @@ class DeepSearch:
         max_fetch_concurrency: int = 4,
         max_download_bytes: int = 2_000_000,
         max_content_chars: int = 50_000,
+        max_query_variants: int | None = None,
         github_token: str | None = None,
         backends: tuple[str, ...] | None = None,
         news_backends: tuple[str, ...] | None = None,
@@ -681,6 +683,8 @@ class DeepSearch:
     ):
         if timeout <= 0 or max_search_concurrency < 1 or max_fetch_concurrency < 1:
             raise ValueError("timeout and concurrency limits must be positive")
+        if max_query_variants is not None and max_query_variants < 1:
+            raise ValueError("max_query_variants must be positive")
         if max_concurrency is not None:
             max_search_concurrency = max_concurrency
         if max_download_bytes < 1 or max_content_chars < 1:
@@ -692,6 +696,7 @@ class DeepSearch:
         self.max_fetch_concurrency = max_fetch_concurrency
         self.max_download_bytes = max_download_bytes
         self.max_content_chars = max_content_chars
+        self.max_query_variants = max_query_variants
         self.github_token = github_token
         self.backends = backends or self.DEFAULT_BACKENDS
         self.news_backends = news_backends or (
@@ -725,12 +730,15 @@ class DeepSearch:
         query: str,
         sites: list[str] | None = None,
         mode: SearchMode = "plain",
+        max_query_variants: int | None = None,
     ) -> list[str]:
         query = query.strip()
         if not query:
             raise ValueError("query must not be empty")
         if mode not in ("plain", "exact", "oss"):
             raise ValueError(f"unsupported search mode: {mode}")
+        if max_query_variants is not None and max_query_variants < 1:
+            raise ValueError("max_query_variants must be positive")
         variants = [query]
         if mode == "exact":
             variants.append(f'"{query}"')
@@ -743,7 +751,10 @@ class DeepSearch:
                 for site in normalized_sites
                 for variant in variants
             ]
-        return list(dict.fromkeys(variants))
+        deduped = list(dict.fromkeys(variants))
+        if max_query_variants is not None:
+            return deduped[:max_query_variants]
+        return deduped
 
     async def _ddgs(
         self,
@@ -809,6 +820,7 @@ class DeepSearch:
         region: str | None,
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
+        max_query_variants: int | None = None,
     ) -> tuple[list[list[SearchResult]], list[ProviderStatus], list[str]]:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
@@ -818,8 +830,18 @@ class DeepSearch:
             raise ValueError(f"unsupported safe-search mode: {safesearch}")
         if timelimit not in (None, "d", "w", "m", "y"):
             raise ValueError(f"unsupported time limit: {timelimit}")
+        effective_max_variants = (
+            max_query_variants if max_query_variants is not None else self.max_query_variants
+        )
+        if effective_max_variants is not None and effective_max_variants < 1:
+            raise ValueError("max_query_variants must be positive")
         normalized_sites = normalize_sites(sites)
-        queries = self.expand(query, normalized_sites, mode)
+        queries = self.expand(
+            query,
+            normalized_sites,
+            mode,
+            max_query_variants=effective_max_variants,
+        )
         backends = self.news_backends if category == "news" else self.backends
         batches = await asyncio.gather(
             *(
@@ -864,10 +886,16 @@ class DeepSearch:
         safesearch: SafeSearch = "moderate",
         timelimit: TimeLimit | None = None,
         profile: ProfileType | None = None,
+        max_query_variants: int | None = None,
     ) -> SearchRun:
         effective_profile = profile if profile is not None else self.profile
         if effective_profile not in ("general", "dev", "academic"):
             raise ValueError(f"unsupported profile: {effective_profile}")
+        effective_max_variants = (
+            max_query_variants if max_query_variants is not None else self.max_query_variants
+        )
+        if effective_max_variants is not None and effective_max_variants < 1:
+            raise ValueError("max_query_variants must be positive")
         cache_key = None
         normalized_sites = normalize_sites(sites)
         if self.enable_cache and self.cache:
@@ -885,6 +913,7 @@ class DeepSearch:
                 timelimit=timelimit,
                 backends=effective_backends,
                 profile=effective_profile,
+                max_query_variants=effective_max_variants,
             )
             cached_data = self.cache.get(cache_key)
             if cached_data is not None:
@@ -899,6 +928,7 @@ class DeepSearch:
             region=region,
             safesearch=safesearch,
             timelimit=timelimit,
+            max_query_variants=effective_max_variants,
         )
         results = self._filter_sites(
             rrf(lists, profile=effective_profile), normalized_sites
@@ -1154,10 +1184,16 @@ class DeepSearch:
         safesearch: SafeSearch = "moderate",
         timelimit: TimeLimit | None = None,
         profile: ProfileType | None = None,
+        max_query_variants: int | None = None,
     ) -> SearchRun:
         effective_profile = profile if profile is not None else self.profile
         if effective_profile not in ("general", "dev", "academic"):
             raise ValueError(f"unsupported profile: {effective_profile}")
+        effective_max_variants = (
+            max_query_variants if max_query_variants is not None else self.max_query_variants
+        )
+        if effective_max_variants is not None and effective_max_variants < 1:
+            raise ValueError("max_query_variants must be positive")
         cache_key = None
         normalized_sites = normalize_sites(sites)
         if self.enable_cache and self.cache:
@@ -1175,6 +1211,7 @@ class DeepSearch:
                 timelimit=timelimit,
                 backends=effective_backends,
                 profile=effective_profile,
+                max_query_variants=effective_max_variants,
             )
             cached_data = self.cache.get(cache_key)
             if cached_data is not None:
@@ -1189,6 +1226,7 @@ class DeepSearch:
             region=region,
             safesearch=safesearch,
             timelimit=timelimit,
+            max_query_variants=effective_max_variants,
         )
         if include_github:
             (lists, providers, normalized_sites), (github, github_status) = await asyncio.gather(
