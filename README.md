@@ -1,70 +1,92 @@
-# Josty
+<!--
+  name: Josty
+  description: Zero-config, keyless metasearch engine and autonomous AI agent skill.
+  repository: https://github.com/Alih-b/josty
+  license: MIT
+  specification: .agents/skills/josty/SKILL.md
+  keywords: metasearch, ai-agent, search-engine, keyless-search, rrf, rank-fusion, trafilatura, pi-agent, claude-code, gemini-agent, cursor, llm-tool
+-->
 
-[![CI](https://github.com/Alih-b/josty/actions/workflows/ci.yml/badge.svg)](https://github.com/Alih-b/josty/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Changelog](https://img.shields.io/badge/changelog-CHANGELOG.md-orange)](CHANGELOG.md)
-[![Ruff](https://img.shields.io/badge/code%20style-ruff-261230)](https://github.com/astral-sh/ruff)
+<div align="center">
 
-> **Claude Code / Codex / Antigravity Agent Skill Notice**:
-> If the user asked to install or use josty:
-> 1. Ensure the skill file `.agents/skills/josty/SKILL.md` is present in your active agent skills directory (e.g. `.agents/skills/josty/`, `~/.claude/skills/josty/`, or `~/.gemini/antigravity/custom_skills/josty/`).
-> 2. Run queries directly via: `uvx josty "<query>" --limit 10`
-> 3. If offline/sandboxed, ensure outbound network access is enabled.
+![Josty Logo](docs/assets/logo.svg)
+
+<p>
+  <strong>Zero-config, keyless metasearch and bounded content extraction for AI agents.</strong>
+</p>
+
+<p>
+  <a href="https://github.com/Alih-b/josty/actions/workflows/ci.yml"><img src="https://github.com/Alih-b/josty/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" /></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-CHANGELOG.md-orange" alt="Changelog" /></a>
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/code%20style-ruff-261230" alt="Code Style: Ruff" /></a>
+</p>
+
+</div>
 
 ---
 
-Small, auditable, keyless metasearch and bounded content extraction for AI agents. Single Python package (`josty`), 3 direct dependencies, zero API keys, no daemons, no background databases. Emits pure JSON with structured status and strict error taxonomy.
+> **AI Agent Skill Specification**:
+> - **Cross-Agent Standard**: Conforms to the open `.agents/skills/` specification.
+> - **Registered Skill Location**: `.agents/skills/josty/SKILL.md`
+> - **Supported Runtimes**: Pi Agent, Claude Code, OpenAI Codex, Gemini Antigravity, and Cursor.
+> - **Instant Execution**: `uvx josty "<query>" --limit 10`
+> - **Page Extraction**: `uvx josty "<query>" --fetch`
+
+---
 
 ## What It Is
 
-Josty queries keyless public search backends in parallel, fuses their rankings with Reciprocal Rank Fusion (RRF), strips tracking parameters, and returns a versioned JSON contract with structured Markdown extraction. It gives AI agents a predictable subprocess and Python interface for web search and page retrieval without requiring per-backend response parsing or ad-hoc deduplication.
+**Josty** (from Persian *جستن* / *Jostan* — to seek) queries keyless public search backends in parallel, fuses rankings with **Reciprocal Rank Fusion (RRF)**, canonicalizes URLs, strips tracking telemetry, and extracts bounded Markdown from target pages. 
+
+It provides autonomous AI agents, personal assistants, and developer workflows with a dependable, structured search subprocess and async Python API without requiring search API keys, background daemons, or heavy browser dependencies.
 
 ---
 
 ## Installation
 
 ```bash
-# Recommended for CLI / Agent runtimes
+# Recommended: Instant cached execution (zero persistent virtualenv overhead)
 uvx josty "Python 3.13 changes" --limit 5
 
-# Or install globally:
-pipx install josty
-# or with uv
+# Global CLI installation via uv:
 uv tool install josty
-# or standard pip
+
+# Alternative installation via pipx or standard pip:
+pipx install josty
 pip install josty
 ```
-
-Josty declares 3 direct dependencies in `pyproject.toml` (`ddgs`, `httpx`, `trafilatura`); see `uv.lock` for the exact resolved dependency closure.
 
 ---
 
 ## Quickstart
 
-### 1. Simple Search (CLI)
+### 1. CLI Usage
+
 ```bash
-# Basic web search with top 5 results
+# Basic web search (top 5 results)
 josty "Python 3.13 features" --limit 5
 
-# Developer profile: boosts GitHub, PyPI, crates.io, MDN, framework docs
+# Developer profile (boosts GitHub, PyPI, crates.io, MDN, StackOverflow)
 josty "FastAPI dependency injection" --profile dev --limit 5
 
-# Academic profile: boosts arXiv, PubMed, IEEE, Nature, OpenAlex
+# Academic profile (boosts arXiv, PubMed, IEEE, Nature, OpenAlex)
 josty "retrieval augmented generation" --profile academic --limit 5
 
-# Focus on specific technical domains with capped query variants
-josty "httpx connection reset" --site github.com --site stackoverflow.com --max-query-variants 2
+# Domain filtering (up to 5 domains)
+josty "httpx connection reset" --site github.com --site stackoverflow.com
 
 # Open Source discovery mode
 josty "document indexing" --mode oss --github
 
-# Extract clean, bounded Markdown from the top pages
+# Extract clean, bounded Markdown from top result pages
 josty "RRF rank fusion algorithm" --limit 3 --fetch
 ```
 
-### 2. Output Format (Versioned JSON)
-Josty returns a strict, self-describing contract that agents can easily branch on:
+### 2. Versioned JSON Output
+
+`stdout` emits pure, parseable JSON conforming to a strict schema contract (`schema_version: "1.0"`):
 
 ```json
 {
@@ -91,37 +113,58 @@ Josty returns a strict, self-describing contract that agents can easily branch o
 }
 ```
 
-**Contract Versioning Policy (`schema_version`)**: The `schema_version` contract follows semantic versioning. Additive, backward-compatible fields will bump the minor version (e.g. `1.1`), while any breaking structural change or field removal will bump the major version (`2.0`).
+---
+
+## Verified Agent Framework Guides
+
+### 🥧 Pi Agent (Inflection AI / Pi CLI)
+
+Pi Agent can execute Josty either through bash subprocess tool execution or by registering the `.agents/skills/josty/SKILL.md` skill definition in its active skill directory:
+
+```bash
+# 1. Fact retrieval & web search from Pi:
+uvx josty "latest release of pydantic" --limit 5
+
+# 2. Extract clean page text for deeper reasoning:
+uvx josty "how to implement reciprocal rank fusion in python" --fetch --limit 3
+
+# 3. Targeted technical debugging:
+uvx josty "asyncpg connection pool exhaustion" --site github.com --site stackoverflow.com
+```
+
+**Pi Agent Verification Rules**:
+1. Run `uvx josty "<query>" --limit 5` for real-time web verification.
+2. If snippet context is insufficient, append `--fetch` to extract full Markdown text.
+3. Check `status` (`complete`, `partial`, `failed`); provider failure is not evidence of absence.
+4. Cite primary source URLs directly in response output.
 
 ---
 
-## Typical Agent Scenarios
-
-### 🔍 Scenario A: Direct Python / Async Lookup
-When an agent needs to query search backends directly within an async workflow:
+### 🔍 Direct Async Python API
 ```python
 import asyncio
 from josty import DeepSearch
 
-async def verify_fact(query: str):
-    engine = DeepSearch()
-    run = await engine.research_run(query, limit=3)
-    if run.status == "failed":
-        return "Search failed; try alternative formulation."
-    return [(r.title, r.url, r.snippet) for r in run.results]
+async def main():
+    engine = DeepSearch(profile="dev")
+    run = await engine.research_run("Linux kernel initial release year", limit=3)
+    
+    if run.status != "failed":
+        for result in run.results:
+            print(f"[{result.title}]({result.url})\n{result.snippet}\n")
 
-print(asyncio.run(verify_fact("Linux kernel initial release year")))
+asyncio.run(main())
 ```
 
-### 🛠️ Scenario B: LLM Tool Calling (OpenAI / Anthropic Schema)
-Drop this directly into your agent's tool definitions:
+---
 
+### 🛠️ LLM Tool Calling Schema (OpenAI / Anthropic / Gemini)
 ```python
 search_tool_definition = {
     "type": "function",
     "function": {
         "name": "web_search",
-        "description": "Search the web for up-to-date information, documentation, and error solutions. Built on keyless backends and returns ranked sources.",
+        "description": "Search the web for up-to-date information, documentation, and technical solutions. Returns keyless ranked sources.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -131,13 +174,19 @@ search_tool_definition = {
                 },
                 "fetch": {
                     "type": "boolean",
-                    "description": "Set to true to fetch and extract bounded Markdown page text.",
+                    "description": "Set to true to fetch and extract clean Markdown page content.",
                     "default": False
+                },
+                "profile": {
+                    "type": "string",
+                    "enum": ["general", "dev", "academic"],
+                    "description": "Ranking profile boosting authoritative technical or academic domains.",
+                    "default": "general"
                 },
                 "mode": {
                     "type": "string",
                     "enum": ["plain", "exact", "oss"],
-                    "description": "Search mode. 'oss' searches for open-source repositories.",
+                    "description": "Search mode ('oss' filters for open-source repositories).",
                     "default": "plain"
                 }
             },
@@ -149,61 +198,40 @@ search_tool_definition = {
 
 ---
 
-## What the Wrapper Logic Does
+## Technical Specifications & Architecture
 
-Josty sits between an agent runtime and underlying search backends (queried via `ddgs`). Josty queries backend groups (each internally multi-engine via `ddgs`); provenance and RRF fusion operate at the group level by design, trading finer attribution for fewer upstream requests and better partial-failure tolerance. Its code path provides the following concrete operations:
-
-1. **Parallel Group Fanout**: Queries backend groups concurrently via `asyncio.gather`, bounded by an explicit semaphore (`max_search_concurrency`) and optional query-variant cap (`max_query_variants`).
-2. **URL Canonicalization & Deduplication**: Normalizes URLs across engines (stripping tracking parameters like `utm_*`, `gclid`, `fbclid`, `msclkid`, lowercasing hostnames, removing trailing slashes) so identical pages from different backends merge into a single result with unified group provenance (`sources: ["bing,brave,duckduckgo", "google,mojeek,startpage"]`).
-3. **Deterministic Weighted RRF Fusion ($k=60$)**: Merges ranked lists from the configured backend groups per query slot using Reciprocal Rank Fusion weighted by profile domain rules:
-   $$\text{score} = \sum_{i} \frac{w_i}{k + r_i}$$
-   where $k=60$ (Cormack et al. 2009), $r_i$ is the 1-based rank in provider $i$, and $w_i$ is a domain weight multiplier. Domain sets are explicitly defined per profile in `josty.engine` (`AUTHORITATIVE_DOMAINS_GENERAL`, `AUTHORITATIVE_DOMAINS_DEV`, `AUTHORITATIVE_DOMAINS_ACADEMIC` for official documentation, registries, and papers boosted at 1.2–1.4×; `SPAM_DOMAINS` penalized at 0.5–0.6× across all profiles). The default `general` profile boosts documentation domains and applies spam penalties.
-4. **Structured Error & Status Taxonomy**: Categorizes provider-level errors into exact `ErrorKind` literals (`"network"`, `"rate_limited"`, `"empty"`, `"parse"`, `"unknown"`) and sets top-level run `status` (`"complete"`, `"degraded"`, `"failed"`) so callers can branch deterministically on partial failures.
-5. **Bounded Content Extraction**: Fetches and converts HTML to Markdown via Trafilatura with strict byte limits (`max_download_bytes`, default 2MB) and character limits (`max_content_chars`, default 50k) to prevent context exhaustion in downstream models.
-
----
-
-## Security & Safety
-
-Josty includes built-in SSRF protection when `--fetch` is enabled:
-- **IP Address Validation**: Resolves hostnames and blocks connections to private (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`), link-local (cloud metadata `169.254.169.254`), multicast, and CGNAT IP ranges.
-- **Redirect Validation**: Follows up to 6 redirects, validating every intermediate IP address before establishing the next TCP connection.
-- **Resource Bounds**: Enforces hard byte download limits before parsing HTML.
-- Read full details in [SECURITY.md](SECURITY.md).
-
----
-
-## Why This Exists & What's Next
-
-### Current Scope & Design Boundaries
-Josty is intentionally a small, self-contained Python wrapper rather than a full search service or browser runtime:
-- **When Not to Use This**: If you need client-side JavaScript execution (SPAs), automated CAPTCHA solving, or guaranteed high-QPS uptime from datacenter IPs, josty is not the right tool.
-- **No Headless Browser**: Josty uses standard HTTP requests (`httpx`) and does not execute client-side JavaScript.
-- **Upstream Rate Limits**: Because queries rely on public search scraping backends via `ddgs`, requests from shared datacenter IP ranges can be throttled or blocked by upstream engines.
-- **Single Maintainer**: This is a pre-1.0 research project without multi-organization operational hardening.
-
-### Roadmap
-- **Near-Duplicate Content Hashing**: Adding MinHash/SimHash snippet deduplication for pages with different URLs that mirror the same syndicated text.
-- **Direct Connector Plugins**: Allowing callers to register custom backend coroutines alongside default `ddgs` scrapers.
-- **Pluggable Text Distillers**: Enabling alternative markdown converters for specialized document structures (e.g., API references or tabular data).
-- **Standalone Binaries (Considered & Deferred)**: Distributing precompiled single-file binaries (e.g. PyInstaller/Nuitka) was evaluated and deferred in favor of zero-overhead `uvx`/`pipx` package execution.
+| Parameter / Feature | Code Value / Contract | Description |
+| :--- | :--- | :--- |
+| **Schema Version** | `1.0` | Output format contract on `stdout` |
+| **Max Domain Filters** | `5` (`--site`) | Maximum concurrent site constraints per query |
+| **Search Concurrency** | `6` (`--search-concurrency`) | Default bounded semaphore for search backends |
+| **Fetch Concurrency** | `4` (`--fetch-concurrency`) | Default bounded semaphore for page content fetching |
+| **Max Content Size** | `8,000 chars` (`--max-content-chars`) | Extracted Markdown character ceiling per page (0 for unlimited) |
+| **Download Byte Limit** | `2,097,152 bytes` (2MB) | Hard ceiling on raw HTTP downloads before parsing |
+| **RRF Parameter** | $k=60$ | Cormack et al. (2009) reciprocal rank smoothing factor |
+| **SSRF Safeguards** | Verified | Blocks private subnets, loopback, RFC 1918, and `169.254.169.254` metadata |
 
 ---
 
 ## Development
 
 ```bash
-# Clone and set up dev environment
+# Clone repository
 git clone https://github.com/Alih-b/josty.git
 cd josty
+
+# Install in editable mode with dev dependencies
 python -m pip install -e ".[dev]"
 
 # Run test suite
 pytest -q
 
-# Run linter
+# Lint and check code style
 ruff check .
 ```
 
-MIT Licensed. Release notes and version history are tracked in [CHANGELOG.md](CHANGELOG.md). Built by Ali Bayest.
+---
 
+## License
+
+MIT © Ali Bayest. See [LICENSE](LICENSE) for details.

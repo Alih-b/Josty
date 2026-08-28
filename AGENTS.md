@@ -3,12 +3,12 @@
 ## Purpose & Protocol
 `josty` is a zero-config, keyless metasearch tool and Agent Skill designed specifically for AI agent workflows.
 
-## How to Install
+## How to Install & Configure
 If instructed to install this skill or tool:
-1. Ensure the skill file `.agents/skills/josty/SKILL.md` is registered in your active agent skills folder (e.g., `.agents/skills/josty/` or `~/.claude/skills/josty/`).
+1. Ensure the skill file `.agents/skills/josty/SKILL.md` is registered in your active agent skills folder (e.g., `.agents/skills/josty/`, `~/.claude/skills/josty/`, or your agent's runtime directory).
 2. Use `uvx josty "<query>"` for instant, cached execution without persistent virtual environment overhead.
 
-## Quick Invocations
+## Quick Invocations (Pi Agent / Claude Code / Codex / Antigravity)
 ```bash
 # 1. Preferred runner (uvx):
 uvx josty "query" --limit 10
