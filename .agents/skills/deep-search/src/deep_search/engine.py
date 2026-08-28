@@ -951,63 +951,20 @@ class DeepSearch:
         profile: ProfileType | None = None,
         max_query_variants: int | None = None,
     ) -> SearchRun:
-        effective_profile = profile if profile is not None else self.profile
-        if effective_profile not in ("general", "dev", "academic"):
-            raise ValueError(f"unsupported profile: {effective_profile}")
-        effective_max_variants = (
-            max_query_variants if max_query_variants is not None else self.max_query_variants
-        )
-        if effective_max_variants is not None and effective_max_variants < 1:
-            raise ValueError("max_query_variants must be positive")
-        cache_key = None
-        normalized_sites = normalize_sites(sites)
-        if self.enable_cache and self.cache:
-            effective_backends = tuple(self.news_backends if category == "news" else self.backends)
-            cache_key = self.cache.hash_key(
-                query,
-                sites=normalized_sites,
-                mode=mode,
-                limit=limit,
-                fetch=fetch,
-                include_github=False,
-                category=category,
-                region=region,
-                safesearch=safesearch,
-                timelimit=timelimit,
-                backends=effective_backends,
-                profile=effective_profile,
-                max_query_variants=effective_max_variants,
-            )
-            cached_data = self.cache.get(cache_key)
-            if cached_data is not None:
-                return _search_run_from_dict(cached_data)
-
-        lists, providers, normalized_sites = await self._search_parts(
+        return await self.research_run(
             query,
             sites=sites,
             mode=mode,
             limit=limit,
+            fetch=fetch,
+            include_github=False,
             category=category,
             region=region,
             safesearch=safesearch,
             timelimit=timelimit,
-            max_query_variants=effective_max_variants,
+            profile=profile,
+            max_query_variants=max_query_variants,
         )
-        results = self._filter_sites(
-            rrf(lists, profile=effective_profile), normalized_sites
-        )[:limit]
-        if fetch:
-            await self.fetch_content(results)
-        run = SearchRun(query=query, results=results, providers=providers)
-        if (
-            cache_key
-            and self.enable_cache
-            and self.cache
-            and run.status != "failed"
-            and len(run.results) > 0
-        ):
-            self.cache.set(cache_key, run.dict())
-        return run
 
     async def search(self, query: str, **kwargs: Any) -> list[SearchResult]:
         return (await self.search_run(query, **kwargs)).results

@@ -837,3 +837,26 @@ def test_domain_weights_expanded_authoritative_sets():
     # Spam domains are still penalized
     assert domain_weight("https://geeksforgeeks.org/article", profile="dev") == 0.5
 
+
+def test_search_run_and_research_run_behavior_parity(tmp_path, monkeypatch):
+    cache_file = tmp_path / "parity_cache.db"
+    engine = DeepSearch(cache_db=cache_file)
+
+    async def fake_search_parts(query, **kwargs):
+        res = [SearchResult(title=f"Result for {query}", url="https://example.com/res")]
+        status = [ProviderStatus("bing", query, True, 1)]
+        return [res], status, []
+
+    monkeypatch.setattr(engine, "_search_parts", fake_search_parts)
+
+    search_res = asyncio.run(engine.search_run("test parity query", limit=5, mode="exact"))
+    research_res = asyncio.run(
+        engine.research_run("test parity query", limit=5, mode="exact", include_github=False)
+    )
+
+    assert search_res.dict() == research_res.dict()
+    assert search_res.status == "complete"
+    assert len(search_res.results) == 1
+    assert search_res.results[0].title == "Result for test parity query"
+
+
