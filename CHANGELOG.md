@@ -7,6 +7,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- `--diagnose` CLI flag (and `DeepSearch.diagnose_run()`) that probes each search backend's
+  upstream host with a bare HTTP request instead of running ddgs, reporting per-provider HTTPS
+  reachability (`timeout` / `dns` / `tls` / `network` / `unknown`) in the versioned JSON contract.
 - `--search-concurrency` and `--fetch-concurrency` CLI flags (and `max_search_concurrency` /
   `max_fetch_concurrency` constructor params) to tune search and fetch ceilings independently.
 

@@ -56,6 +56,7 @@ quality scoring, see [docs/COMPARISON_ARCHITECTURE.md](docs/COMPARISON_ARCHITECT
 --github           also search official GitHub repositories
 --fetch            extract bounded page text
 --results-only     output only the result array
+--diagnose         probe backend host reachability instead of searching
 ```
 
 </details>

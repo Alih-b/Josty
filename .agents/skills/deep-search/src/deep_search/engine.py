@@ -4,6 +4,7 @@ import asyncio
 import ipaddress
 import re
 import socket
+import ssl
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -19,6 +20,7 @@ TimeLimit = Literal["d", "w", "m", "y"]
 
 SCHEMA_VERSION = "1.0"
 MAX_SITES = 5
+USER_AGENT = "deep-search/0.3 (+https://github.com/Alih-b/super-search)"
 TRACKING_QUERY_KEYS = {
     "dclid",
     "fbclid",
@@ -58,6 +60,57 @@ class ProviderStatus:
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass
+class HostStatus:
+    provider: str
+    host: str
+    ok: bool
+    http_status: int | None = None
+    error_kind: Literal["timeout", "dns", "tls", "network", "unknown"] | None = None
+    error: str | None = None
+
+    def dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def _classify_probe_error(exc: Exception) -> str:
+    if isinstance(exc, httpx.TimeoutException):
+        return "timeout"
+    if isinstance(exc, httpx.ConnectError):
+        if isinstance(exc.__cause__, (ssl.SSLError, ssl.SSLCertVerificationError)):
+            return "tls"
+        return "dns" if isinstance(exc.__cause__, socket.gaierror) else "network"
+    if isinstance(exc, httpx.HTTPError):
+        return "network"
+    return "unknown"
+
+
+@dataclass
+class DiagnoseRun:
+    providers: list[HostStatus] = field(default_factory=list)
+
+    @property
+    def reachable(self) -> int:
+        return sum(provider.ok for provider in self.providers)
+
+    @property
+    def status(self) -> str:
+        if not self.providers or self.reachable == 0:
+            return "failed"
+        if self.reachable < len(self.providers):
+            return "degraded"
+        return "complete"
+
+    def dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "status": self.status,
+            "reachable": self.reachable,
+            "count": len(self.providers),
+            "providers": [provider.dict() for provider in self.providers],
+        }
 
 
 @dataclass
@@ -223,6 +276,18 @@ class DeepSearch:
         "yandex,yahoo",
     )
     DEFAULT_NEWS_BACKENDS = ("bing,duckduckgo,yahoo",)
+
+    BACKEND_HOSTS = {
+        "bing": "www.bing.com",
+        "brave": "search.brave.com",
+        "duckduckgo": "duckduckgo.com",
+        "google": "www.google.com",
+        "mojeek": "www.mojeek.com",
+        "startpage": "www.startpage.com",
+        "yandex": "yandex.com",
+        "yahoo": "search.yahoo.com",
+        "github-api": "api.github.com",
+    }
 
     DEFAULT_SEARCH_CONCURRENCY = 6
     DEFAULT_FETCH_CONCURRENCY = 4
@@ -557,7 +622,7 @@ class DeepSearch:
         url = "https://api.github.com/search/repositories"
         headers = {
             "Accept": "application/vnd.github+json",
-            "User-Agent": "deep-search/0.3 (+https://github.com/Alih-b/super-search)",
+            "User-Agent": USER_AGENT,
             "X-GitHub-Api-Version": "2022-11-28",
         }
         if self.github_token:
@@ -584,6 +649,63 @@ class DeepSearch:
                 return [], ProviderStatus(
                     "github-api", query, False, error=f"{type(exc).__name__}: {exc}"
                 )
+
+    async def _probe_host(self, provider: str, host: str) -> HostStatus:
+        """Bare HTTPS probe; any HTTP response (even 3xx/4xx) means the host is reachable —
+        a status like 403/429 signals reachable-but-challenged, not blocked."""
+        if not host:
+            return HostStatus(
+                provider, host, False, None, "unknown", "no known upstream host"
+            )
+        async with self._search_semaphore():
+            url = f"https://{host}/"
+            headers = {"User-Agent": USER_AGENT}
+            try:
+                async with httpx.AsyncClient(
+                    timeout=self.timeout,
+                    headers=headers,
+                    follow_redirects=False,
+                    trust_env=False,
+                ) as client:
+                    response = await client.get(url)
+                return HostStatus(provider, host, True, response.status_code)
+            except Exception as exc:
+                return HostStatus(
+                    provider,
+                    host,
+                    False,
+                    None,
+                    _classify_probe_error(exc),
+                    f"{type(exc).__name__}: {exc}",
+                )
+
+    async def diagnose_run(
+        self,
+        *,
+        include_github: bool = False,
+        category: SearchCategory = "text",
+    ) -> DiagnoseRun:
+        """Probe each configured backend's upstream host without running ddgs.
+
+        Reports bare HTTPS reachability per provider so callers can distinguish
+        network-unreachable hosts from reachable-but-challenged ones. Probes only
+        the backends the current category would use, plus api.github.com when
+        ``include_github`` is set — mirroring ``research_run``.
+        """
+        groups = self.news_backends if category == "news" else self.backends
+        targets: list[tuple[str, str]] = []
+        seen_providers: set[str] = set()
+        for group in groups:
+            for name in group.split(","):
+                name = name.strip()
+                if name in seen_providers:
+                    continue
+                seen_providers.add(name)
+                targets.append((name, self.BACKEND_HOSTS.get(name, "")))
+        if include_github:
+            targets.append(("github-api", self.BACKEND_HOSTS["github-api"]))
+        statuses = await asyncio.gather(*(self._probe_host(name, host) for name, host in targets))
+        return DiagnoseRun(providers=list(statuses))
 
     async def research_run(
         self,
