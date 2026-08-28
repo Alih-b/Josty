@@ -1353,11 +1353,19 @@ class Josty:
             relaxed = query.replace('"', "") if '"' in query else " ".join(query.split()[:-1])
             if relaxed != query:
                 lists_rel, providers_rel, _ = await self._search_parts(
-                    relaxed, sites=sites, mode=mode, limit=limit, category=category,
-                    region=region, safesearch=safesearch, timelimit=timelimit, max_query_variants=effective_max_variants
+                    relaxed,
+                    sites=sites,
+                    mode=mode,
+                    limit=limit,
+                    category=category,
+                    region=region,
+                    safesearch=safesearch,
+                    timelimit=timelimit,
+                    max_query_variants=effective_max_variants,
                 )
                 providers.extend(providers_rel)
-                results = self._filter_sites(rrf(lists_rel, profile=effective_profile), normalized_sites)[:limit]
+                fused_rel = rrf(lists_rel, profile=effective_profile)
+                results = self._filter_sites(fused_rel, normalized_sites)[:limit]
         if fetch:
             await self.fetch_content(results)
         run = SearchRun(query=query, results=results, providers=providers)
