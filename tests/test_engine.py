@@ -672,6 +672,30 @@ def test_fetch_content_extracts_markdown_and_captures_error(monkeypatch):
     assert "connection dropped" in (item_fail.fetch_error or "")
 
 
+def test_fetch_content_concurrent_thread_safety(monkeypatch):
+    engine = DeepSearch(max_fetch_concurrency=10)
+    items = [result(f"https://example.com/page{i}") for i in range(20)]
+
+    async def allow(_self, _url):
+        return None
+
+    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
+
+    async def fake_download(_self, client, url):
+        html = f"<html><body><h1>Title for {url}</h1><p>Body paragraph content</p></body></html>"
+        return html, url
+
+    monkeypatch.setattr(DeepSearch, "_download", fake_download)
+
+    asyncio.run(engine.fetch_content(items))
+    assert len(items) == 20
+    for item in items:
+        assert item.content is not None
+        assert item.extraction_method in ("trafilatura", "html-text-fallback")
+        assert item.fetched_at is not None
+        assert item.fetch_error is None
+
+
 def test_expand_with_max_query_variants_truncation_and_validation():
     # Validation
     with pytest.raises(ValueError, match="max_query_variants must be positive"):

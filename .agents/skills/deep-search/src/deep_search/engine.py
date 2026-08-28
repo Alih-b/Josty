@@ -9,6 +9,7 @@ import re
 import socket
 import sqlite3
 import ssl
+import threading
 import time
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field, replace
@@ -44,6 +45,8 @@ TRACKING_QUERY_KEYS = {
     "mc_eid",
     "msclkid",
 }
+
+_EXTRACT_LOCK: threading.Lock = threading.Lock()
 
 AUTHORITATIVE_DOMAINS_GENERAL = {
     "github.com",
@@ -1056,24 +1059,25 @@ class DeepSearch:
 
     @staticmethod
     def _extract(html: str, url: str) -> tuple[str, str]:
-        try:
-            import trafilatura
+        with _EXTRACT_LOCK:
+            try:
+                import trafilatura
 
-            extracted = trafilatura.extract(
-                html, url=url, include_links=True, output_format="markdown"
+                extracted = trafilatura.extract(
+                    html, url=url, include_links=True, output_format="markdown"
+                )
+                if extracted and extracted.strip():
+                    return extracted.strip(), "trafilatura"
+            except Exception:
+                pass
+            without_noise = re.sub(
+                r"<(script|style|noscript)\b[^>]*>.*?</\1>",
+                " ",
+                html,
+                flags=re.IGNORECASE | re.DOTALL,
             )
-            if extracted and extracted.strip():
-                return extracted.strip(), "trafilatura"
-        except Exception:
-            pass
-        without_noise = re.sub(
-            r"<(script|style|noscript)\b[^>]*>.*?</\1>",
-            " ",
-            html,
-            flags=re.IGNORECASE | re.DOTALL,
-        )
-        fallback = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", without_noise)).strip()
-        return fallback, "html-text-fallback"
+            fallback = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", without_noise)).strip()
+            return fallback, "html-text-fallback"
 
     async def github_run(
         self, query: str, limit: int = 20
