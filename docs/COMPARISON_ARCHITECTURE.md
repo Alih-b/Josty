@@ -144,7 +144,7 @@ from the serial-vs-parallel fanout design.
   same URL.
 - **Deep Search** normalizes every URL through `canonical()`, strips
   `utm_*` and ad-tracking params, and fuses duplicates into a single
-  scored result. The fused result keeps provenance (`sources: ["bing", "google"]`) and the best snippet.
+  scored result. The fused result keeps backend-group provenance (`sources: ["bing,brave,duckduckgo", "google,mojeek,startpage"]`) and the best snippet.
 - **websearch-skill** also deduplicates and tracks provenance, but
   its fusion is more complex (correlation groups, weighted votes). On
   simple factual queries that complexity does not improve the top-10

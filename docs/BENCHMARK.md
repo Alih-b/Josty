@@ -101,9 +101,10 @@ count as zeros in the `all_runs` view and are filtered out in the
   occurrences (e.g. copyright years, package version tables, meeting agendas).
   Consequently, absolute nDCG scores represent upper bounds, and relative
   deltas between runners remain the primary signal.
-- **RRF Constant ($k=60$).** Deep Search uses the standard constant from
-  Cormack et al. (SIGIR 2009) to fuse results across 2–3 backend engines
-  per query slot.
+- **RRF Constant ($k=60$) & Group-Level Provenance.** Deep Search uses the standard constant from
+  Cormack et al. (SIGIR 2009) to fuse results across configured backend groups (e.g. 2–3 groups
+  per query slot). `ddgs` queries engines within each group in parallel threads and aggregates them
+  without per-engine origin tags, so RRF fusion and provenance operate at the group level by design.
 - **One network, one window.** Numbers shift with upstream engine state.
   The rank order and significance claims are the stable signals.
 - **No SearXNG / SaaS baseline.** SearXNG and commercial SaaS (Tavily/Exa)
@@ -111,6 +112,24 @@ count as zeros in the `all_runs` view and are filtered out in the
   their trade-offs are evaluated architecturally in `docs/COMPARISON_ARCHITECTURE.md`.
 - **No LLM judge in frozen corpus.** The frozen corpus uses the deterministic
   string grader; an LLM judge mode is available optionally for live runs.
+
+## Query-Variant Fanout & `--max-query-variants`
+
+### Fanout Mechanism & Rate-Limiting Risk
+`DeepSearch.expand()` generates $\text{len}(\text{sites}) \times \text{len}(\text{mode\_variants})$ query rewrites:
+- `plain` mode with no sites: 1 variant $\times$ 3 backend groups = 3 searches (~5 upstream requests).
+- `exact` mode with 3 sites: 6 variants $\times$ 3 backend groups = 18 searches (~30 upstream requests).
+- `oss` mode with 3 sites: 12 variants $\times$ 3 backend groups = 36 searches (~60 upstream requests).
+- `oss` mode with 5 sites: 20 variants $\times$ 3 backend groups = 60 searches (~100 upstream requests).
+
+Because the canonical 20-query factual benchmark uses `mode="plain"` and `sites=None` (1 variant per query), it does not stress query-variant fanout. To prevent burst throttling during multi-site or OSS discovery queries, `max_query_variants` (CLI: `--max-query-variants`) caps the maximum number of query variations dispatched.
+
+### Purpose-Built Fanout Evaluation Design
+To isolate the effect of variant capping on retrieval quality and throttling:
+1. **Targeted Query Set**: 10 purpose-built queries combining multi-site filters (`--site github.com --site gitlab.com --site stackoverflow.com`) and modes (`--mode oss`, `--mode exact`).
+2. **Cap Levels**: $C \in \{1, 2, 3, 4, \text{uncapped}\}$.
+3. **Metrics**: Total searches dispatched, upstream 429/empty rate, target repository recall, and latency distribution across repeated time windows.
+4. **Methodological Caveat**: Just as with the 20-query factual benchmark, a small labeled evaluation set (10 queries with hand-curated target repositories) is a directional diagnostic for trade-offs, not a large-scale statistical census.
 
 ## Reproducing
 

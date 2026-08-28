@@ -111,3 +111,15 @@ def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch
     assert parsed["status"] == "complete"
     assert parsed["query"] == "test"
 
+
+def test_parser_handles_max_query_variants_flag():
+    args_default = parser().parse_args(["query"])
+    assert args_default.max_query_variants is None
+
+    args = parser().parse_args(["query", "--max-query-variants", "3"])
+    assert args.max_query_variants == 3
+
+    with pytest.raises(SystemExit):
+        parser().parse_args(["query", "--max-query-variants", "invalid"])
+
+

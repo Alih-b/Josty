@@ -48,6 +48,9 @@ uvx deep-search-agent "query" --category news --time-limit w --region us-en
 # Extract bounded page text when snippets are insufficient
 uvx deep-search-agent "query" --fetch
 
+# Cap fanout during multi-site or OSS discovery searches (prevents rate limiting)
+uvx deep-search-agent "query" --mode oss --site github.com --site gitlab.com --max-query-variants 2
+
 # Tune concurrency for loop use; search (default 6) and fetch (default 4) are independent
 uvx deep-search-agent "query" --search-concurrency 12 --fetch-concurrency 8
 
