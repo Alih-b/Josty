@@ -92,15 +92,25 @@ count as zeros in the `all_runs` view and are filtered out in the
 
 - **Factual queries only.** No current events, multi-intent, adversarial,
   or non-English queries.
-- **String-grader bias.** The conservative substring grader affects all
-  runners equally; deltas are the durable signal.
+- **String-grader bias & upper-bound effect.** The deterministic substring
+  grader (canonical URL = 3, answer-string = 2) is reproducible and fair
+  across identically evaluated runners, but structurally rewards surface
+  substring co-occurrence regardless of semantic relevance. A manual spot
+  check of 24 realistic query-result candidates with score=2 hits showed an
+  estimated precision of ~33.3% for string-only matches due to incidental
+  occurrences (e.g. copyright years, package version tables, meeting agendas).
+  Consequently, absolute nDCG scores represent upper bounds, and relative
+  deltas between runners remain the primary signal.
+- **RRF Constant ($k=60$).** Deep Search uses the standard constant from
+  Cormack et al. (SIGIR 2009) to fuse results across 2–3 backend engines
+  per query slot.
 - **One network, one window.** Numbers shift with upstream engine state.
   The rank order and significance claims are the stable signals.
-- **No SearXNG baseline.** websearch-skill was run with its ddgs adapter
-  only; a local SearXNG instance would isolate wrapper quality from
-  engine throttling.
-- **No LLM judge.** The frozen corpus could be re-graded by an LLM to
-  surface grader bias.
+- **No SearXNG / SaaS baseline.** SearXNG and commercial SaaS (Tavily/Exa)
+  were not executed in the automated benchmark runner (`tests/benchmark.py`);
+  their trade-offs are evaluated architecturally in `docs/COMPARISON_ARCHITECTURE.md`.
+- **No LLM judge in frozen corpus.** The frozen corpus uses the deterministic
+  string grader; an LLM judge mode is available optionally for live runs.
 
 ## Reproducing
 
