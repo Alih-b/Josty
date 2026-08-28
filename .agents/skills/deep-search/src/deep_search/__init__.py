@@ -2,10 +2,13 @@
 
 from .engine import (
     DeepSearch,
+    ProfileType,
     ProviderStatus,
+    SearchCache,
     SearchResult,
     SearchRun,
     canonical,
+    domain_weight,
     merge_query_variants,
     normalize_sites,
     rrf,
@@ -13,10 +16,13 @@ from .engine import (
 
 __all__ = [
     "DeepSearch",
+    "ProfileType",
     "ProviderStatus",
+    "SearchCache",
     "SearchResult",
     "SearchRun",
     "canonical",
+    "domain_weight",
     "merge_query_variants",
     "normalize_sites",
     "rrf",

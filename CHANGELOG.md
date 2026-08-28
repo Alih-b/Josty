@@ -7,9 +7,21 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- `error_kind` field on each `providers[]` entry in the search JSON contract, classifying the
+  failure as `network`, `rate_limited`, `empty`, `parse`, or `unknown` so callers can distinguish
+  a TLS-layer rejection from a rate limit from a genuine empty result without manual bisection.
+  ddgs 9.15.0 flattens engine exceptions into a single string instead of chaining them via
+  `__cause__`/`__context__`, so classification uses `isinstance` for the outer class plus
+  substring matching of the flattened inner message; the original exception's type and repr are
+  still preserved in the existing `error` field.
 - `--diagnose` CLI flag (and `DeepSearch.diagnose_run()`) that probes each search backend's
   upstream host with a bare HTTP request instead of running ddgs, reporting per-provider HTTPS
   reachability (`timeout` / `dns` / `tls` / `network` / `unknown`) in the versioned JSON contract.
+- `SearchCache`: SQLite-backed local disk cache with configurable TTL (default 6 hours) to prevent redundant queries and upstream rate limits in agent loops. Supports `--no-cache` and `--clear-cache` CLI flags.
+- Ranking profiles and subdomain-aware authority weighting (`general`, `dev`, `academic` via `--profile` flag and `profile=` API param): Suffix-matches subdomains (e.g. `api.github.com`, `pubmed.ncbi.nlm.nih.gov`, `pkg.go.dev`) and applies tailored weights to developer frameworks and scholarly research repositories.
+- Domain-weighted Reciprocal Rank Fusion (RRF): Multiplies ranking scores for authoritative technical and documentation sources by 1.2x-1.4x and penalizes content farms by 0.5x-0.6x.
+- Structured Markdown page extraction: `--fetch` uses Trafilatura's native Markdown format to preserve headings, code blocks, and links for token-efficient LLM consumption.
+- Offline deterministic benchmark replay check integrated into CI test workflow.
 - `--search-concurrency` and `--fetch-concurrency` CLI flags (and `max_search_concurrency` /
   `max_fetch_concurrency` constructor params) to tune search and fetch ceilings independently.
 

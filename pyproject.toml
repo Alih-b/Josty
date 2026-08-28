@@ -8,13 +8,14 @@ version = "0.3.0"
 description = "Small, auditable, keyless metasearch for AI-agent research"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 authors = [{ name = "Ali Bayest" }]
 keywords = ["agent", "search", "research", "metasearch", "ddgs"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -27,11 +28,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Alih-b/super-search"
-Repository = "https://github.com/Alih-b/super-search"
-Issues = "https://github.com/Alih-b/super-search/issues"
-Changelog = "https://github.com/Alih-b/super-search/blob/main/CHANGELOG.md"
-Security = "https://github.com/Alih-b/super-search/security/policy"
+Homepage = "https://github.com/Alih-b/deep-search"
+Repository = "https://github.com/Alih-b/deep-search"
+Issues = "https://github.com/Alih-b/deep-search/issues"
+Changelog = "https://github.com/Alih-b/deep-search/blob/main/CHANGELOG.md"
+Security = "https://github.com/Alih-b/deep-search/security/policy"
 
 [project.optional-dependencies]
 dev = [
@@ -66,7 +67,7 @@ pythonpath = [".agents/skills/deep-search/src"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

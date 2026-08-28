@@ -41,3 +41,39 @@ def test_main_without_query_or_diagnose_fails(monkeypatch):
     with pytest.raises(SystemExit) as exit_info:
         main()
     assert exit_info.value.code == 2
+
+
+def test_main_clear_cache(monkeypatch, capsys):
+    cleared = False
+
+    def fake_clear(self):
+        nonlocal cleared
+        cleared = True
+
+    monkeypatch.setattr("deep_search.engine.DeepSearch.clear_cache", fake_clear)
+    monkeypatch.setattr("sys.argv", ["deep-search", "--clear-cache"])
+    main()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "cleared"
+    assert cleared is True
+
+
+def test_parser_handles_no_cache_flag():
+    args = parser().parse_args(["query", "--no-cache"])
+    assert args.no_cache is True
+    args_default = parser().parse_args(["query"])
+    assert args_default.no_cache is False
+
+
+def test_parser_handles_profile_flag():
+    args_default = parser().parse_args(["query"])
+    assert args_default.profile == "general"
+
+    args_dev = parser().parse_args(["query", "--profile", "dev"])
+    assert args_dev.profile == "dev"
+
+    args_academic = parser().parse_args(["query", "--profile", "academic"])
+    assert args_academic.profile == "academic"
+
+    with pytest.raises(SystemExit):
+        parser().parse_args(["query", "--profile", "invalid"])

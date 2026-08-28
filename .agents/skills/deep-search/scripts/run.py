@@ -60,12 +60,38 @@ def setup_lock(path: Path):
             path.rmdir()
 
 
+def has_required_modules(executable: Path) -> bool:
+    try:
+        proc = subprocess.run(
+            [str(executable), "-c", "import ddgs, httpx, trafilatura"],
+            capture_output=True,
+            timeout=5,
+        )
+        return proc.returncode == 0
+    except Exception:
+        return False
+
+
 def prepare_environment(environment: Path, requirements: Path) -> Path:
     executable = python_in(environment)
     marker = environment / ".requirements.sha256"
     digest = requirements_digest(requirements)
     if environment_ready(executable, marker, digest):
         return executable
+
+    # Fast path: if current runtime or parent venv already satisfies dependencies, use it
+    if has_required_modules(executable):
+        marker.write_text(digest, encoding="utf-8")
+        return executable
+
+    root_venv = environment.parent.parent.parent / ".venv"
+    root_executable = python_in(root_venv)
+    if root_executable.exists() and has_required_modules(root_executable):
+        return root_executable
+
+    current_python = Path(sys.executable)
+    if has_required_modules(current_python):
+        return current_python
 
     with setup_lock(environment.with_name(f"{environment.name}.lock")):
         if environment_ready(executable, marker, digest):

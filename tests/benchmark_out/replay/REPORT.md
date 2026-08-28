@@ -1,6 +1,6 @@
 # Deep Search benchmark — frozen-corpus replay
 
-**Corpus:** `tests\benchmark_corpus.jsonl`
+**Corpus:** `tests/benchmark_corpus.jsonl`
 
 **Grader:** string predicates from `benchmark_grade.string_grade` (canonical URL = 3, answer string = 2, weak subject = 1, else 0).
 
