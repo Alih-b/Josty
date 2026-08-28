@@ -1,6 +1,6 @@
 {
   "stats": {
-    "deep_search": {
+    "josty": {
       "queries": 17,
       "runs": 136,
       "empty_runs": 70,
@@ -370,7 +370,7 @@
   "coverage": {
     "total": 408,
     "by_runner": {
-      "deep_search": {
+      "josty": {
         "rows": 136,
         "distinct_queries": 17,
         "empty_runs": 70,
@@ -390,7 +390,7 @@
       }
     }
   },
-  "tests_vs_deep_search": {
+  "tests_vs_josty": {
     "raw_ddgs": {
       "all_paired": {
         "ndcg_at_10": {

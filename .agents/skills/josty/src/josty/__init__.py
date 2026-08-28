@@ -2,7 +2,6 @@
 
 from .engine import (
     Josty,
-    DeepSearch,
     ProfileType,
     ProviderStatus,
     SearchCache,
@@ -17,7 +16,6 @@ from .engine import (
 
 __all__ = [
     "Josty",
-    "DeepSearch",
     "ProfileType",
     "ProviderStatus",
     "SearchCache",

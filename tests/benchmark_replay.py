@@ -8,7 +8,7 @@ and writes:
   <out>/significance.json
   <out>/REPORT.md
 
-The report adds paired Wilcoxon signed-rank tests vs `deep_search` for
+The report adds paired Wilcoxon signed-rank tests vs `josty` for
 nDCG@10, MRR, and wall-clock latency. Bootstrap 95% CIs on mean
 differences are included alongside.
 """
@@ -199,7 +199,7 @@ def render_report(
     )
     a.append(
         "**Statistical test:** paired Wilcoxon signed-rank, two-sided, "
-        "deep_search as baseline. p-values are a normal approximation "
+        "josty as baseline. p-values are a normal approximation "
         "when n_nonzero ≥ 10; otherwise the test reports no p-value.\n"
     )
     a.append("")
@@ -260,10 +260,10 @@ def render_report(
         )
     a.append("")
 
-    a.append("## Paired Wilcoxon signed-rank tests vs `deep_search`\n")
+    a.append("## Paired Wilcoxon signed-rank tests vs `josty`\n")
     a.append(
-        "diffs = deep_search − other. Positive ΔnDCG@10 / ΔMRR means "
-        "deep_search is *better*; positive Δlatency means deep_search is "
+        "diffs = josty − other. Positive ΔnDCG@10 / ΔMRR means "
+        "josty is *better*; positive Δlatency means josty is "
         "*slower*. Two views: `all_paired` includes empty runs (zero "
         "scores); `successful_paired` keeps only pairs where both "
         "runners returned >0 results.\n"
@@ -359,11 +359,11 @@ def main() -> None:
         }
     coverage = {"total": len(rows), "by_runner": coverage_by_runner}
 
-    tests = paired_tests(rows, base="deep_search")
+    tests = paired_tests(rows, base="josty")
 
     with (args.out / "per_runner.json").open("w", encoding="utf-8") as f:
         json.dump(
-            {"stats": stats, "coverage": coverage, "tests_vs_deep_search": tests},
+            {"stats": stats, "coverage": coverage, "tests_vs_josty": tests},
             f,
             indent=2,
         )

@@ -1358,7 +1358,3 @@ class Josty:
 
     async def research(self, query: str, **kwargs: Any) -> list[SearchResult]:
         return (await self.research_run(query, **kwargs)).results
-
-
-# Backward compatibility alias
-DeepSearch = Josty

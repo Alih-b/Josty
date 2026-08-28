@@ -14,7 +14,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   `__cause__`/`__context__`, so classification uses `isinstance` for the outer class plus
   substring matching of the flattened inner message; the original exception's type and repr are
   still preserved in the existing `error` field.
-- `--diagnose` CLI flag (and `DeepSearch.diagnose_run()`) that probes each search backend's
+- `--diagnose` CLI flag (and `Josty.diagnose_run()`) that probes each search backend's
   upstream host with a bare HTTP request instead of running ddgs, reporting per-provider HTTPS
   reachability (`timeout` / `dns` / `tls` / `network` / `unknown`) in the versioned JSON contract.
 - `SearchCache`: SQLite-backed local disk cache with configurable TTL (default 6 hours) to prevent redundant queries and upstream rate limits in agent loops. Supports `--no-cache` and `--clear-cache` CLI flags.
