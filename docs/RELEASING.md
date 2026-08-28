@@ -1,6 +1,6 @@
 # Release checklist
 
-1. Update `CHANGELOG.md` and the version in `pyproject.toml` and `.agents/skills/deep-search/src/deep_search/__init__.py`.
+1. Update `CHANGELOG.md` and the version in `pyproject.toml` and `.agents/skills/josty/src/josty/__init__.py`.
 2. Confirm repository ownership, author metadata, and `[project.urls]` in `pyproject.toml`.
 3. Enable GitHub private vulnerability reporting so `SECURITY.md` has a working contact path.
 4. Review dependency licenses and upstream provider terms.

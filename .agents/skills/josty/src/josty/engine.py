@@ -585,12 +585,12 @@ class SearchCache:
         default_ttl: float = 21600.0,
     ):
         if db_path is None:
-            cache_dir = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache")) / "deep-search"
+            cache_dir = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache")) / "josty"
             try:
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 self.db_path = cache_dir / "cache.db"
             except Exception:
-                self.db_path = Path("/tmp/deep_search_cache.db")
+                self.db_path = Path("/tmp/josty_cache.db")
         else:
             self.db_path = Path(db_path)
             with suppress(Exception):

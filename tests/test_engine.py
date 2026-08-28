@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from deep_search.engine import (
+from josty.engine import (
     DeepSearch,
     ProviderStatus,
     SearchCache,
@@ -146,7 +146,7 @@ def test_site_results_are_post_filtered(monkeypatch):
                 {"title": "outside", "href": "https://example.com/a", "body": ""},
             ]
 
-    monkeypatch.setattr("deep_search.engine.DDGS", FakeDDGS)
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
     run = asyncio.run(
         DeepSearch(backends=("test",)).search_run("query", sites=["github.com"], limit=3)
     )
@@ -331,7 +331,7 @@ def test_provider_failures_are_reported_without_hidden_retry(monkeypatch):
             self.__class__.calls += 1
             raise RuntimeError("blocked")
 
-    monkeypatch.setattr("deep_search.engine.DDGS", BrokenDDGS)
+    monkeypatch.setattr("josty.engine.DDGS", BrokenDDGS)
     run = asyncio.run(DeepSearch(backends=("broken",)).search_run("query", limit=3))
     assert run.results == []
     assert run.status == "failed"
@@ -359,7 +359,7 @@ def test_news_metadata_and_filters_are_preserved(monkeypatch):
                 }
             ]
 
-    monkeypatch.setattr("deep_search.engine.DDGS", CapturingDDGS)
+    monkeypatch.setattr("josty.engine.DDGS", CapturingDDGS)
     run = asyncio.run(
         DeepSearch(backends=("test",)).search_run(
             "query",
@@ -631,7 +631,7 @@ def test_search_run_uses_cache_and_skips_network(tmp_path, monkeypatch):
             calls += 1
             return [{"title": "Hit", "href": "https://example.com/doc", "body": "Snippet"}]
 
-    monkeypatch.setattr("deep_search.engine.DDGS", CountingDDGS)
+    monkeypatch.setattr("josty.engine.DDGS", CountingDDGS)
 
     # First call - populates cache
     first_run = asyncio.run(engine.search_run("cached query", limit=1))
@@ -746,7 +746,7 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
             queries_seen.append(query)
             return [{"title": "Title", "href": "https://github.com/doc", "body": "Snippet"}]
 
-    monkeypatch.setattr("deep_search.engine.DDGS", MockDDGS)
+    monkeypatch.setattr("josty.engine.DDGS", MockDDGS)
 
     engine = DeepSearch(backends=("test-group",), enable_cache=True)
 
@@ -778,7 +778,7 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
 
 
 def test_fetch_content_browser_headers_and_truncation(monkeypatch):
-    from deep_search.engine import BROWSER_FETCH_HEADERS
+    from josty.engine import BROWSER_FETCH_HEADERS
 
     captured_headers = {}
 
@@ -821,7 +821,7 @@ def test_max_content_chars_validation():
 
 
 def test_domain_weights_expanded_authoritative_sets():
-    from deep_search.engine import domain_weight
+    from josty.engine import domain_weight
 
     # Dev profile boosts AI & modern dev domains
     assert domain_weight("https://huggingface.co/models", profile="dev") == 1.3

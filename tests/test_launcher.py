@@ -2,9 +2,9 @@ import importlib.util
 from pathlib import Path
 
 LAUNCHER_PATH = (
-    Path(__file__).parents[1] / ".agents" / "skills" / "deep-search" / "scripts" / "run.py"
+    Path(__file__).parents[1] / ".agents" / "skills" / "josty" / "scripts" / "run.py"
 )
-SPEC = importlib.util.spec_from_file_location("deep_search_launcher", LAUNCHER_PATH)
+SPEC = importlib.util.spec_from_file_location("josty_launcher", LAUNCHER_PATH)
 launcher = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(launcher)

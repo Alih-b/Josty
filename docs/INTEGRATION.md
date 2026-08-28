@@ -1,6 +1,6 @@
 # Integration
 
-Deep Search is intentionally shell-first. An agent calls one command and parses one versioned JSON
+Josty is intentionally shell-first. An agent calls one command and parses one versioned JSON
 object. MCP, an HTTP daemon, an LLM, and hosted credentials are not required.
 
 ## Portable skill launcher
@@ -15,9 +15,9 @@ the bundled requirements change, it creates or refreshes it from `requirements.t
 ## Installed CLI
 
 ```bash
-deep-search "open source search for AI agents" --limit 10
-deep-search "SearXNG skill" --site github.com --fetch
-deep-search "agent search" --mode oss --github
+josty "open source search for AI agents" --limit 10
+josty "SearXNG skill" --site github.com --fetch
+josty "agent search" --mode oss --github
 ```
 
 The default output envelope is:
@@ -45,7 +45,7 @@ information exists.
 
 ```python
 import asyncio
-from deep_search import DeepSearch
+from josty import DeepSearch
 
 run = asyncio.run(
     DeepSearch().research_run(
@@ -72,6 +72,6 @@ Supported controls:
 ## Trust boundary
 
 Fetched content is untrusted. URL checks and hard byte/character limits reduce risk but do not
-eliminate DNS rebinding because validation and connection resolve separately. Deep Search is a local
+eliminate DNS rebinding because validation and connection resolve separately. Josty is a local
 library and command, not a network service. Callers that wrap it in a service must add authentication,
 quotas, cancellation, monitoring, process isolation, and network-level egress controls.

@@ -3,8 +3,8 @@
 import json
 
 import pytest
-from deep_search.cli import main, parser
-from deep_search.engine import DiagnoseRun
+from josty.cli import main, parser
+from josty.engine import DiagnoseRun
 
 
 def test_query_defaults_are_explicit():
@@ -28,7 +28,7 @@ def test_main_prints_json_diagnosis(monkeypatch, capsys):
         captured.update(include_github=include_github, category=category)
         return DiagnoseRun()
 
-    monkeypatch.setattr("deep_search.engine.DeepSearch.diagnose_run", diagnose)
+    monkeypatch.setattr("josty.engine.DeepSearch.diagnose_run", diagnose)
     monkeypatch.setattr("sys.argv", ["deep-search", "--diagnose", "--github"])
     main()
     payload = json.loads(capsys.readouterr().out)
@@ -50,7 +50,7 @@ def test_main_clear_cache(monkeypatch, capsys):
         nonlocal cleared
         cleared = True
 
-    monkeypatch.setattr("deep_search.engine.DeepSearch.clear_cache", fake_clear)
+    monkeypatch.setattr("josty.engine.DeepSearch.clear_cache", fake_clear)
     monkeypatch.setattr("sys.argv", ["deep-search", "--clear-cache"])
     main()
     payload = json.loads(capsys.readouterr().out)
@@ -83,7 +83,7 @@ def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch
     """Assert stdout contains valid JSON and nothing else, even when stderr has warnings."""
     import sys
 
-    from deep_search.engine import SearchRun
+    from josty.engine import SearchRun
 
     async def fake_research(self, *args, **kwargs):
         # Simulate stderr output like rustls native root cert warnings or third-party loggers
@@ -93,7 +93,7 @@ def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch
         )
         return SearchRun(query="test", results=[], providers=[])
 
-    monkeypatch.setattr("deep_search.engine.DeepSearch.research_run", fake_research)
+    monkeypatch.setattr("josty.engine.DeepSearch.research_run", fake_research)
     monkeypatch.setattr("sys.argv", ["deep-search", "test"])
     main()
 

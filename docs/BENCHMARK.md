@@ -3,7 +3,7 @@
 The canonical benchmark compares three runners on a frozen corpus of
 factual queries:
 
-- `deep_search` — this project's async wrapper
+- `josty` — this project's async wrapper
 - `raw_ddgs` — direct `ddgs` client, serial per backend
 - `websearch_skill` — `websearch search --engines ddgs --json` subprocess
 
@@ -55,7 +55,7 @@ count as zeros in the `all_runs` view and are filtered out in the
 
 | runner | distinct queries | runs | empty | errors |
 |---|---:|---:|---:|---:|
-| `deep_search` | 17 | 136 | 70 | 0 |
+| `josty` | 17 | 136 | 70 | 0 |
 | `raw_ddgs` | 17 | 136 | 48 | 0 |
 | `websearch_skill` | 17 | 136 | 55 | 0 |
 
@@ -63,11 +63,11 @@ count as zeros in the `all_runs` view and are filtered out in the
 
 | runner | nDCG@10 | MRR | latency mean (s) |
 |---|---:|---:|---:|
-| `deep_search` | 0.960 ± 0.041 | 1.000 ± 0.000 | **1.62 ± 0.81** |
+| `josty` | 0.960 ± 0.041 | 1.000 ± 0.000 | **1.62 ± 0.81** |
 | `raw_ddgs` | 0.870 ± 0.136 | 0.989 ± 0.074 | 5.48 ± 4.07 |
 | `websearch_skill` | 0.954 ± 0.046 | 0.988 ± 0.078 | 3.22 ± 0.57 |
 
-### Paired Wilcoxon vs `deep_search` (successful pairs)
+### Paired Wilcoxon vs `josty` (successful pairs)
 
 | runner | metric | mean diff | 95% CI | p (approx) |
 |---|---|---:|---|---:|
@@ -78,13 +78,13 @@ count as zeros in the `all_runs` view and are filtered out in the
 
 ### What this proves
 
-1. Deep Search is significantly faster than both raw_ddgs and
+1. Josty is significantly faster than both raw_ddgs and
    websearch-skill (p < 0.0001).
-2. Deep Search's retrieval quality is significantly better than the
+2. Josty's retrieval quality is significantly better than the
    no-wrapper raw_ddgs baseline (p < 0.0001).
-3. Deep Search ties websearch-skill on retrieval quality on successful
+3. Josty ties websearch-skill on retrieval quality on successful
    runs (p ≈ 0.70, not significant).
-4. Deep Search has a higher empty-run rate under engine rotation because
+4. Josty has a higher empty-run rate under engine rotation because
    it surfaces `degraded` status instead of silently returning partial
    results.
 
@@ -101,7 +101,7 @@ count as zeros in the `all_runs` view and are filtered out in the
   occurrences (e.g. copyright years, package version tables, meeting agendas).
   Consequently, absolute nDCG scores represent upper bounds, and relative
   deltas between runners remain the primary signal.
-- **RRF Constant ($k=60$) & Group-Level Provenance.** Deep Search uses the standard constant from
+- **RRF Constant ($k=60$) & Group-Level Provenance.** Josty uses the standard constant from
   Cormack et al. (SIGIR 2009) to fuse results across configured backend groups (e.g. 2–3 groups
   per query slot). `ddgs` queries engines within each group in parallel threads and aggregates them
   without per-engine origin tags, so RRF fusion and provenance operate at the group level by design.

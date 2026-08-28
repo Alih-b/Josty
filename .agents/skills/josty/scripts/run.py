@@ -1,4 +1,4 @@
-"""Run the bundled Deep Search CLI in a private environment."""
+"""Run the bundled Josty CLI in a private environment."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def setup_lock(path: Path):
                 pass
             if time.monotonic() >= deadline:
                 raise TimeoutError(
-                    "timed out waiting for the Deep Search environment lock"
+                    "timed out waiting for the Josty environment lock"
                 ) from None
             time.sleep(0.1)
     try:
@@ -101,7 +101,7 @@ def _bootstrap_with_uv(executable: Path, environment: Path, requirements: Path) 
         )
         return True
     except (subprocess.CalledProcessError, OSError) as exc:
-        print(f"Deep Search uv bootstrap failed, falling back to pip: {exc}", file=sys.stderr)
+        print(f"Josty uv bootstrap failed, falling back to pip: {exc}", file=sys.stderr)
         return False
 
 
@@ -172,21 +172,21 @@ def main() -> None:
     skill_dir = Path(__file__).resolve().parent.parent
     source = skill_dir / "src"
     requirements = skill_dir / "requirements.txt"
-    if not (source / "deep_search" / "cli.py").is_file() or not requirements.is_file():
-        print("Deep Search skill is incomplete; reinstall it.", file=sys.stderr)
+    if not (source / "josty" / "cli.py").is_file() or not requirements.is_file():
+        print("Josty skill is incomplete; reinstall it.", file=sys.stderr)
         raise SystemExit(2)
 
     try:
         executable = prepare_environment(skill_dir / ".venv", requirements)
     except (OSError, subprocess.CalledProcessError, TimeoutError) as exc:
-        print(f"Deep Search environment setup failed: {exc}", file=sys.stderr)
+        print(f"Josty environment setup failed: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
 
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join(
         part for part in (str(source), env.get("PYTHONPATH", "")) if part
     )
-    command = [str(executable), "-m", "deep_search.cli", *sys.argv[1:]]
+    command = [str(executable), "-m", "josty.cli", *sys.argv[1:]]
     raise SystemExit(subprocess.call(command, env=env))
 
 

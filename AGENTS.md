@@ -1,26 +1,26 @@
 # AGENTS.md
 
 ## Purpose & Protocol
-`deep-search` is a zero-config, keyless metasearch tool and Agent Skill designed specifically for AI agent workflows.
+`josty` is a zero-config, keyless metasearch tool and Agent Skill designed specifically for AI agent workflows.
 
 ## How to Install
 If instructed to install this skill or tool:
-1. Ensure the skill file `.agents/skills/deep-search/SKILL.md` is registered in your active agent skills folder (e.g., `.agents/skills/deep-search/` or `~/.claude/skills/deep-search/`).
-2. Use `uvx deep-search-agent "<query>"` for instant, cached execution without persistent virtual environment overhead.
+1. Ensure the skill file `.agents/skills/josty/SKILL.md` is registered in your active agent skills folder (e.g., `.agents/skills/josty/` or `~/.claude/skills/josty/`).
+2. Use `uvx josty "<query>"` for instant, cached execution without persistent virtual environment overhead.
 
 ## Quick Invocations
 ```bash
 # 1. Preferred runner (uvx):
-uvx deep-search-agent "query" --limit 10
+uvx josty "query" --limit 10
 
 # 2. Extract clean markdown content:
-uvx deep-search-agent "query" --fetch
+uvx josty "query" --fetch
 
 # 3. Targeted domain search:
-uvx deep-search-agent "query" --site github.com --site stackoverflow.com
+uvx josty "query" --site github.com --site stackoverflow.com
 
 # 4. Fallback execution via bundled script:
-$(command -v python3 || command -v python) .agents/skills/deep-search/scripts/run.py "query"
+$(command -v python3 || command -v python) .agents/skills/josty/scripts/run.py "query"
 ```
 
 ## Output & Contract Guarantees

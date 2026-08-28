@@ -29,7 +29,7 @@ from contextlib import suppress
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SRC = HERE / ".agents" / "skills" / "deep-search" / "src"
+SRC = HERE / ".agents" / "skills" / "josty" / "src"
 sys.path.insert(0, str(SRC))
 
 from benchmark_grade import grade_run  # noqa: E402
@@ -41,7 +41,7 @@ from benchmark_metrics import (  # noqa: E402
 )
 from benchmark_queries import QUERIES  # noqa: E402
 from ddgs import DDGS  # type: ignore  # noqa: E402
-from deep_search.engine import DeepSearch, canonical  # noqa: E402
+from josty.engine import DeepSearch, canonical  # noqa: E402
 
 OUT_ROOT = HERE / "benchmark_out"
 OUT_ROOT.mkdir(exist_ok=True)

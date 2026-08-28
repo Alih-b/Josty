@@ -34,7 +34,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Changed
 
-- Repositioned Deep Search as a small shell/Python primitive: no MCP, HTTP daemon, cache, or browser.
+- Repositioned Josty as a small shell/Python primitive: no MCP, HTTP daemon, cache, or browser.
 - Made GitHub repository search explicit with `--github` and switched it to best-match ordering.
 - Made site filters strict and limited them to five validated hostnames.
 - Collapse query rewrites per backend before one cross-backend RRF pass.

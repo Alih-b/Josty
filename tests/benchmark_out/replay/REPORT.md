@@ -1,23 +1,23 @@
-# Deep Search benchmark — frozen-corpus replay
+# Josty benchmark — frozen-corpus replay
 
 **Corpus:** `tests/benchmark_corpus.jsonl`
 
 **Grader:** string predicates from `benchmark_grade.string_grade` (canonical URL = 3, answer string = 2, weak subject = 1, else 0).
 
-**Runners:** deep_search, raw_ddgs, websearch_skill
+**Runners:** josty, raw_ddgs, websearch_skill
 
 **Total scored (runner × query × repeat) tuples:** 408
 
 **Backend rotation:** each query slot uses one of three predefined backend groups cycled by index; `slot_backends` is logged per row in the JSONL.
 
-**Statistical test:** paired Wilcoxon signed-rank, two-sided, deep_search as baseline. p-values are a normal approximation when n_nonzero ≥ 10; otherwise the test reports no p-value.
+**Statistical test:** paired Wilcoxon signed-rank, two-sided, josty as baseline. p-values are a normal approximation when n_nonzero ≥ 10; otherwise the test reports no p-value.
 
 
 ## Coverage matrix
 
 | runner | distinct queries | runs | empty | errors |
 |---|---:|---:|---:|---:|
-| `deep_search` | 17 | 136 | 70 | 0 |
+| `josty` | 17 | 136 | 70 | 0 |
 | `raw_ddgs` | 17 | 136 | 48 | 0 |
 | `websearch_skill` | 17 | 136 | 55 | 0 |
 
@@ -27,7 +27,7 @@ Empty runs (engine returned 0 results, usually throttled) count as zeros.
 
 | runner | nDCG@10 | MRR | P@5 | graded_recall@10 | latency mean (s) |
 |---|---|---|---|---|---|
-| `deep_search` | 0.466 ± 0.480 (n=136) | 0.485 ± 0.500 (n=136) | 0.468 ± 0.485 (n=136) | 0.485 ± 0.500 (n=136) | 2.692 ± 2.770 (n=136) |
+| `josty` | 0.466 ± 0.480 (n=136) | 0.485 ± 0.500 (n=136) | 0.468 ± 0.485 (n=136) | 0.485 ± 0.500 (n=136) | 2.692 ± 2.770 (n=136) |
 | `raw_ddgs` | 0.563 ± 0.430 (n=136) | 0.640 ± 0.476 (n=136) | 0.624 ± 0.465 (n=136) | 0.465 ± 0.399 (n=136) | 5.443 ± 3.981 (n=136) |
 | `websearch_skill` | 0.568 ± 0.469 (n=136) | 0.588 ± 0.488 (n=136) | 0.577 ± 0.478 (n=136) | 0.596 ± 0.491 (n=136) | 4.409 ± 2.893 (n=136) |
 
@@ -37,13 +37,13 @@ Filters out empty runs so engine quality is judged separately from reliability.
 
 | runner | nDCG@10 | MRR | P@5 | graded_recall@10 | latency mean (s) |
 |---|---|---|---|---|---|
-| `deep_search` | 0.960 ± 0.041 (n=66) | 1.000 ± 0.000 (n=66) | 0.964 ± 0.077 (n=66) | 1.000 ± 0.000 (n=66) | 1.619 ± 0.812 (n=66) |
+| `josty` | 0.960 ± 0.041 (n=66) | 1.000 ± 0.000 (n=66) | 0.964 ± 0.077 (n=66) | 1.000 ± 0.000 (n=66) | 1.619 ± 0.812 (n=66) |
 | `raw_ddgs` | 0.870 ± 0.136 (n=88) | 0.989 ± 0.074 (n=88) | 0.964 ± 0.077 (n=88) | 0.719 ± 0.253 (n=88) | 5.476 ± 4.068 (n=88) |
 | `websearch_skill` | 0.954 ± 0.046 (n=81) | 0.988 ± 0.078 (n=81) | 0.968 ± 0.073 (n=81) | 1.000 ± 0.000 (n=81) | 3.219 ± 0.570 (n=81) |
 
-## Paired Wilcoxon signed-rank tests vs `deep_search`
+## Paired Wilcoxon signed-rank tests vs `josty`
 
-diffs = deep_search − other. Positive ΔnDCG@10 / ΔMRR means deep_search is *better*; positive Δlatency means deep_search is *slower*. Two views: `all_paired` includes empty runs (zero scores); `successful_paired` keeps only pairs where both runners returned >0 results.
+diffs = josty − other. Positive ΔnDCG@10 / ΔMRR means josty is *better*; positive Δlatency means josty is *slower*. Two views: `all_paired` includes empty runs (zero scores); `successful_paired` keeps only pairs where both runners returned >0 results.
 
 ### View: `successful_paired`
 

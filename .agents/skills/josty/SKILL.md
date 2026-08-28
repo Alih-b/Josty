@@ -1,11 +1,11 @@
 ---
-name: deep-search
+name: josty
 description: Small, auditable, keyless web search for current facts, OSS discovery, comparisons, and evidence-backed research. No account, daemon, MCP server, or search API key required.
 ---
 
-# Deep Search
+# Josty
 
-> **Network Access Required**: Deep Search queries external search backends in real time. Outbound internet access is required. The tool is untested in fully offline or strictly network-isolated sandbox environments. If executing in an agent sandbox, ensure network access / sandbox bypass is enabled.
+> **Network Access Required**: Josty queries external search backends in real time. Outbound internet access is required. The tool is untested in fully offline or strictly network-isolated sandbox environments. If executing in an agent sandbox, ensure network access / sandbox bypass is enabled.
 
 ## Quick Start & Invocation
 
@@ -13,10 +13,10 @@ Choose the first available command matching your environment (`uvx` is strongly 
 
 ```bash
 # 1. Preferred (Fastest, zero-config, isolated):
-uvx deep-search-agent "query" --limit 10
+uvx josty "query" --limit 10
 
 # 2. Installed CLI binary (if installed via pipx / pip):
-deep-search "query" --limit 10
+josty "query" --limit 10
 
 # 3. Fallback via bundled script (resolves python3/python automatically):
 $(command -v python3 || command -v python) "$SKILL_DIR/scripts/run.py" "query" --limit 10
@@ -24,35 +24,35 @@ $(command -v python3 || command -v python) "$SKILL_DIR/scripts/run.py" "query" -
 
 ## Agent Self-Install Bootstrap (Optional)
 
-If an agent needs to ensure `deep-search` is installed locally in the environment without user intervention:
+If an agent needs to ensure `josty` is installed locally in the environment without user intervention:
 
 ```bash
-command -v uv >/dev/null 2>&1 && uv tool install deep-search-agent || \
-command -v pipx >/dev/null 2>&1 && pipx install deep-search-agent || \
-$(command -v python3 || command -v python) -m pip install --user deep-search-agent
+command -v uv >/dev/null 2>&1 && uv tool install josty || \
+command -v pipx >/dev/null 2>&1 && pipx install josty || \
+$(command -v python3 || command -v python) -m pip install --user josty
 ```
 
 ## Options
 
 ```bash
 # Strict domain filters; repeatable up to five times
-uvx deep-search-agent "query" --site github.com --site reddit.com
+uvx josty "query" --site github.com --site reddit.com
 
 # Query rewrites for exact phrases or OSS discovery
-uvx deep-search-agent "query" --mode exact
-uvx deep-search-agent "query" --mode oss --github
+uvx josty "query" --mode exact
+uvx josty "query" --mode oss --github
 
 # Recent, regional, or news results
-uvx deep-search-agent "query" --category news --time-limit w --region us-en
+uvx josty "query" --category news --time-limit w --region us-en
 
 # Extract bounded page text when snippets are insufficient
-uvx deep-search-agent "query" --fetch
+uvx josty "query" --fetch
 
 # Cap fanout during multi-site or OSS discovery searches (prevents rate limiting)
-uvx deep-search-agent "query" --mode oss --site github.com --site gitlab.com --max-query-variants 2
+uvx josty "query" --mode oss --site github.com --site gitlab.com --max-query-variants 2
 
 # Tune concurrency for loop use; search (default 6) and fetch (default 4) are independent
-uvx deep-search-agent "query" --search-concurrency 12 --fetch-concurrency 8
+uvx josty "query" --search-concurrency 12 --fetch-concurrency 8
 
 # Using bundled fallback script instead of uvx:
 $(command -v python3 || command -v python) "$SKILL_DIR/scripts/run.py" "query" --site github.com
