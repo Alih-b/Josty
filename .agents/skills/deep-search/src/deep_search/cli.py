@@ -67,6 +67,12 @@ def parser() -> argparse.ArgumentParser:
         default=DeepSearch.DEFAULT_FETCH_CONCURRENCY,
         help="max concurrent page fetches (default: %(default)d)",
     )
+    command.add_argument(
+        "--max-content-chars",
+        type=int,
+        default=8000,
+        help="cap extracted markdown length per page (default: %(default)d, 0 for unlimited)",
+    )
     return command
 
 
@@ -75,6 +81,7 @@ async def run(args: argparse.Namespace) -> dict | list:
         github_token=os.getenv("GITHUB_TOKEN"),
         max_search_concurrency=args.search_concurrency,
         max_fetch_concurrency=args.fetch_concurrency,
+        max_content_chars=args.max_content_chars,
         max_query_variants=args.max_query_variants,
         profile=args.profile,
         enable_cache=not args.no_cache,

@@ -123,3 +123,18 @@ def test_parser_handles_max_query_variants_flag():
         parser().parse_args(["query", "--max-query-variants", "invalid"])
 
 
+def test_parser_handles_max_content_chars_flag():
+    args_default = parser().parse_args(["query"])
+    assert args_default.max_content_chars == 8000
+
+    args = parser().parse_args(["query", "--max-content-chars", "4000"])
+    assert args.max_content_chars == 4000
+
+    args_zero = parser().parse_args(["query", "--max-content-chars", "0"])
+    assert args_zero.max_content_chars == 0
+
+    with pytest.raises(SystemExit):
+        parser().parse_args(["query", "--max-content-chars", "invalid"])
+
+
+

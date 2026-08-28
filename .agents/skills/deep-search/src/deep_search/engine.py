@@ -9,6 +9,7 @@ import re
 import socket
 import sqlite3
 import ssl
+import threading
 import time
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field, replace
@@ -36,6 +37,25 @@ ProfileType = Literal["general", "dev", "academic"]
 SCHEMA_VERSION = "1.0"
 MAX_SITES = 5
 USER_AGENT = "deep-search/0.3 (+https://github.com/Alih-b/deep-search)"
+BROWSER_FETCH_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,*/*;q=0.8"
+    ),
+    "Accept-Language": "en-US,en;q=0.9",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+    "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Linux"',
+}
 TRACKING_QUERY_KEYS = {
     "dclid",
     "fbclid",
@@ -44,6 +64,8 @@ TRACKING_QUERY_KEYS = {
     "mc_eid",
     "msclkid",
 }
+
+_EXTRACT_LOCK: threading.Lock = threading.Lock()
 
 AUTHORITATIVE_DOMAINS_GENERAL = {
     "github.com",
@@ -114,6 +136,38 @@ AUTHORITATIVE_DOMAINS_DEV = {
     "redis.io",
     "mongodb.com",
     "linux.die.net",
+    # Modern AI/ML & LLM Frameworks & Hubs
+    "huggingface.co",
+    "hf.co",
+    "pytorch.org",
+    "tensorflow.org",
+    "keras.io",
+    "paperswithcode.com",
+    "kaggle.com",
+    "ollama.com",
+    "vllm.ai",
+    "unsloth.ai",
+    "modal.com",
+    "triton-lang.org",
+    "qdrant.tech",
+    "milvus.io",
+    "weaviate.io",
+    # Modern Language Toolchains, Web & Cloud
+    "astral.sh",
+    "bun.sh",
+    "deno.com",
+    "deno.land",
+    "ziglang.org",
+    "biomejs.dev",
+    "tailwindcss.com",
+    "shadcn.com",
+    "prisma.io",
+    "supabase.com",
+    "trpc.io",
+    "cloudflare.com",
+    "tailscale.com",
+    "fly.io",
+    "val.town",
 }
 
 AUTHORITATIVE_DOMAINS_ACADEMIC = {
@@ -146,6 +200,15 @@ AUTHORITATIVE_DOMAINS_ACADEMIC = {
     "pnas.org",
     "cambridge.org",
     "thelancet.com",
+    # Top AI/ML Conferences & Preprints
+    "openreview.net",
+    "paperswithcode.com",
+    "chemrxiv.org",
+    "hal.science",
+    "aclweb.org",
+    "neurips.cc",
+    "icml.cc",
+    "iclr.cc",
 }
 
 SPAM_DOMAINS = {
@@ -671,7 +734,7 @@ class DeepSearch:
         max_search_concurrency: int = 6,
         max_fetch_concurrency: int = 4,
         max_download_bytes: int = 2_000_000,
-        max_content_chars: int = 50_000,
+        max_content_chars: int | None = 50_000,
         max_query_variants: int | None = None,
         github_token: str | None = None,
         backends: tuple[str, ...] | None = None,
@@ -687,7 +750,7 @@ class DeepSearch:
             raise ValueError("max_query_variants must be positive")
         if max_concurrency is not None:
             max_search_concurrency = max_concurrency
-        if max_download_bytes < 1 or max_content_chars < 1:
+        if max_download_bytes < 1 or (max_content_chars is not None and max_content_chars < 0):
             raise ValueError("content limits must be positive")
         if profile not in ("general", "dev", "academic"):
             raise ValueError(f"unsupported profile: {profile}")
@@ -950,7 +1013,7 @@ class DeepSearch:
         return (await self.search_run(query, **kwargs)).results
 
     async def fetch_content(self, results: list[SearchResult]) -> None:
-        headers = {"User-Agent": USER_AGENT}
+        headers = BROWSER_FETCH_HEADERS.copy()
         async with httpx.AsyncClient(
             timeout=self.timeout,
             headers=headers,
@@ -963,7 +1026,10 @@ class DeepSearch:
                     try:
                         html, final_url = await self._download(client, item.url)
                         content, method = await asyncio.to_thread(self._extract, html, final_url)
-                        item.content = content[: self.max_content_chars]
+                        if self.max_content_chars and self.max_content_chars > 0:
+                            item.content = content[: self.max_content_chars]
+                        else:
+                            item.content = content
                         item.extraction_method = method
                         item.fetched_url = final_url
                         item.fetched_at = datetime.now(UTC).isoformat()
@@ -1056,24 +1122,25 @@ class DeepSearch:
 
     @staticmethod
     def _extract(html: str, url: str) -> tuple[str, str]:
-        try:
-            import trafilatura
+        with _EXTRACT_LOCK:
+            try:
+                import trafilatura
 
-            extracted = trafilatura.extract(
-                html, url=url, include_links=True, output_format="markdown"
+                extracted = trafilatura.extract(
+                    html, url=url, include_links=True, output_format="markdown"
+                )
+                if extracted and extracted.strip():
+                    return extracted.strip(), "trafilatura"
+            except Exception:
+                pass
+            without_noise = re.sub(
+                r"<(script|style|noscript)\b[^>]*>.*?</\1>",
+                " ",
+                html,
+                flags=re.IGNORECASE | re.DOTALL,
             )
-            if extracted and extracted.strip():
-                return extracted.strip(), "trafilatura"
-        except Exception:
-            pass
-        without_noise = re.sub(
-            r"<(script|style|noscript)\b[^>]*>.*?</\1>",
-            " ",
-            html,
-            flags=re.IGNORECASE | re.DOTALL,
-        )
-        fallback = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", without_noise)).strip()
-        return fallback, "html-text-fallback"
+            fallback = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", without_noise)).strip()
+            return fallback, "html-text-fallback"
 
     async def github_run(
         self, query: str, limit: int = 20
@@ -1122,7 +1189,7 @@ class DeepSearch:
             )
         async with self._search_semaphore():
             url = f"https://{host}/"
-            headers = {"User-Agent": USER_AGENT}
+            headers = BROWSER_FETCH_HEADERS.copy()
             try:
                 async with httpx.AsyncClient(
                     timeout=self.timeout,

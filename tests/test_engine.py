@@ -672,6 +672,30 @@ def test_fetch_content_extracts_markdown_and_captures_error(monkeypatch):
     assert "connection dropped" in (item_fail.fetch_error or "")
 
 
+def test_fetch_content_concurrent_thread_safety(monkeypatch):
+    engine = DeepSearch(max_fetch_concurrency=10)
+    items = [result(f"https://example.com/page{i}") for i in range(20)]
+
+    async def allow(_self, _url):
+        return None
+
+    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
+
+    async def fake_download(_self, client, url):
+        html = f"<html><body><h1>Title for {url}</h1><p>Body paragraph content</p></body></html>"
+        return html, url
+
+    monkeypatch.setattr(DeepSearch, "_download", fake_download)
+
+    asyncio.run(engine.fetch_content(items))
+    assert len(items) == 20
+    for item in items:
+        assert item.content is not None
+        assert item.extraction_method in ("trafilatura", "html-text-fallback")
+        assert item.fetched_at is not None
+        assert item.fetch_error is None
+
+
 def test_expand_with_max_query_variants_truncation_and_validation():
     # Validation
     with pytest.raises(ValueError, match="max_query_variants must be positive"):
@@ -751,3 +775,65 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
     )
     assert len(queries_seen) == 3
     assert len(run2.results) == 1
+
+
+def test_fetch_content_browser_headers_and_truncation(monkeypatch):
+    from deep_search.engine import BROWSER_FETCH_HEADERS
+
+    captured_headers = {}
+
+    async def allow(_self, _url):
+        return None
+
+    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
+
+    async def fake_download(_self, client, url):
+        captured_headers.update(dict(client.headers))
+        long_html = f"<html><body><p>{'a' * 5000}</p></body></html>"
+        return long_html, url
+
+    monkeypatch.setattr(DeepSearch, "_download", fake_download)
+
+    # 1. Test truncation at max_content_chars = 1000
+    engine_capped = DeepSearch(max_content_chars=1000)
+    item1 = result("https://example.com/test1")
+    asyncio.run(engine_capped.fetch_content([item1]))
+    assert item1.content is not None
+    assert len(item1.content) == 1000
+    assert captured_headers.get("user-agent") == BROWSER_FETCH_HEADERS["User-Agent"]
+    assert captured_headers.get("sec-ch-ua") == BROWSER_FETCH_HEADERS["sec-ch-ua"]
+    assert captured_headers.get("sec-ch-ua-platform") == BROWSER_FETCH_HEADERS["sec-ch-ua-platform"]
+
+    # 2. Test unlimited when max_content_chars = 0
+    engine_unlimited = DeepSearch(max_content_chars=0)
+    item2 = result("https://example.com/test2")
+    asyncio.run(engine_unlimited.fetch_content([item2]))
+    assert item2.content is not None
+    assert len(item2.content) > 1000
+
+
+def test_max_content_chars_validation():
+    with pytest.raises(ValueError, match="content limits must be positive"):
+        DeepSearch(max_content_chars=-1)
+
+    with pytest.raises(ValueError, match="content limits must be positive"):
+        DeepSearch(max_download_bytes=0)
+
+
+def test_domain_weights_expanded_authoritative_sets():
+    from deep_search.engine import domain_weight
+
+    # Dev profile boosts AI & modern dev domains
+    assert domain_weight("https://huggingface.co/models", profile="dev") == 1.3
+    assert domain_weight("https://docs.vllm.ai/quickstart", profile="dev") == 1.3
+    assert domain_weight("https://astral.sh/blog", profile="dev") == 1.3
+    assert domain_weight("https://ollama.com/library", profile="dev") == 1.3
+
+    # Academic profile boosts ML conference & preprint domains
+    assert domain_weight("https://openreview.net/forum?id=123", profile="academic") == 1.4
+    assert domain_weight("https://paperswithcode.com/sota", profile="academic") == 1.4
+    assert domain_weight("https://neurips.cc/virtual/2024", profile="academic") == 1.4
+
+    # Spam domains are still penalized
+    assert domain_weight("https://geeksforgeeks.org/article", profile="dev") == 0.5
+
