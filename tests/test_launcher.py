@@ -36,3 +36,22 @@ def test_setup_lock_is_released(tmp_path):
     with launcher.setup_lock(lock):
         assert lock.is_dir()
     assert not lock.exists()
+
+
+def test_has_required_modules_and_fast_path(tmp_path, monkeypatch):
+    assert launcher.has_required_modules(Path("/nonexistent/python")) is False
+
+    # Simulate ready runtime without running network pip
+    requirements = tmp_path / "requirements.txt"
+    requirements.write_text("ddgs\nhttpx\ntrafilatura\n", encoding="utf-8")
+    environment = tmp_path / ".venv"
+    executable = launcher.python_in(environment)
+    executable.parent.mkdir(parents=True, exist_ok=True)
+    executable.touch()
+
+    monkeypatch.setattr(launcher, "has_required_modules", lambda exe: True)
+    ready_exe = launcher.prepare_environment(environment, requirements)
+    assert ready_exe == executable
+    marker = environment / ".requirements.sha256"
+    assert marker.is_file()
+

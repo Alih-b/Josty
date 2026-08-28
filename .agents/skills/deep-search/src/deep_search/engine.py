@@ -12,10 +12,15 @@ import ssl
 import time
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 import httpx
 from ddgs import DDGS

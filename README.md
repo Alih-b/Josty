@@ -1,6 +1,6 @@
 # Deep Search
 
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Ruff](https://img.shields.io/badge/code%20style-ruff-261230)](https://github.com/astral-sh/ruff)
 
