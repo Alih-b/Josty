@@ -13,3 +13,7 @@ NUL
 # Benchmark per-run capture artifacts (keep frozen corpus + canonical report)
 tests/benchmark_out/*/
 !tests/benchmark_out/replay/
+
+.commandcode/
+uv.lock
+

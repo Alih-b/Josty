@@ -1,26 +1,36 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import ipaddress
+import json
+import os
 import re
 import socket
+import sqlite3
 import ssl
+import time
+from contextlib import suppress
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 import httpx
 from ddgs import DDGS
+from ddgs.exceptions import DDGSException, RatelimitException, TimeoutException
 
 SearchMode = Literal["plain", "exact", "oss"]
 SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]
+ErrorKind = Literal["network", "rate_limited", "empty", "parse", "unknown"]
+ProfileType = Literal["general", "dev", "academic"]
 
 SCHEMA_VERSION = "1.0"
 MAX_SITES = 5
-USER_AGENT = "deep-search/0.3 (+https://github.com/Alih-b/super-search)"
+USER_AGENT = "deep-search/0.3 (+https://github.com/Alih-b/deep-search)"
 TRACKING_QUERY_KEYS = {
     "dclid",
     "fbclid",
@@ -28,6 +38,118 @@ TRACKING_QUERY_KEYS = {
     "mc_cid",
     "mc_eid",
     "msclkid",
+}
+
+AUTHORITATIVE_DOMAINS_GENERAL = {
+    "github.com",
+    "gitlab.com",
+    "stackoverflow.com",
+    "superuser.com",
+    "serverfault.com",
+    "developer.mozilla.org",
+    "wikipedia.org",
+    "python.org",
+    "pypi.org",
+    "rust-lang.org",
+    "crates.io",
+    "go.dev",
+    "golang.org",
+    "archlinux.org",
+    "kernel.org",
+    "w3.org",
+    "ietf.org",
+}
+
+# Retained for backwards compatibility
+AUTHORITATIVE_DOMAINS = AUTHORITATIVE_DOMAINS_GENERAL
+
+AUTHORITATIVE_DOMAINS_DEV = {
+    "github.com",
+    "github.io",
+    "gitlab.com",
+    "bitbucket.org",
+    "codeberg.org",
+    "stackoverflow.com",
+    "superuser.com",
+    "serverfault.com",
+    "developer.mozilla.org",
+    "python.org",
+    "pypi.org",
+    "rust-lang.org",
+    "crates.io",
+    "go.dev",
+    "golang.org",
+    "pkg.go.dev",
+    "npmjs.com",
+    "rubygems.org",
+    "packagist.org",
+    "nuget.org",
+    "archlinux.org",
+    "kernel.org",
+    "w3.org",
+    "ietf.org",
+    "man7.org",
+    "react.dev",
+    "reactjs.org",
+    "vuejs.org",
+    "angular.dev",
+    "angular.io",
+    "svelte.dev",
+    "nextjs.org",
+    "djangoproject.com",
+    "rubyonrails.org",
+    "fastapi.tiangolo.com",
+    "flask.palletsprojects.com",
+    "spring.io",
+    "docker.com",
+    "kubernetes.io",
+    "apache.org",
+    "postgresql.org",
+    "sqlite.org",
+    "redis.io",
+    "mongodb.com",
+    "linux.die.net",
+}
+
+AUTHORITATIVE_DOMAINS_ACADEMIC = {
+    "arxiv.org",
+    "biorxiv.org",
+    "medrxiv.org",
+    "ncbi.nlm.nih.gov",
+    "nih.gov",
+    "nlm.nih.gov",
+    "ieee.org",
+    "ieeexplore.ieee.org",
+    "acm.org",
+    "dl.acm.org",
+    "nature.com",
+    "science.org",
+    "springer.com",
+    "sciencedirect.com",
+    "semanticscholar.org",
+    "openalex.org",
+    "doi.org",
+    "crossref.org",
+    "jstor.org",
+    "plos.org",
+    "cell.com",
+    "oup.com",
+    "tandfonline.com",
+    "wiley.com",
+    "frontiersin.org",
+    "mdpi.com",
+    "pnas.org",
+    "cambridge.org",
+    "thelancet.com",
+}
+
+SPAM_DOMAINS = {
+    "pinterest.com",
+    "quora.com",
+    "softonic.com",
+    "ehow.com",
+    "geeksforgeeks.org",
+    "experts-exchange.com",
 }
 
 
@@ -57,6 +179,7 @@ class ProviderStatus:
     ok: bool
     result_count: int = 0
     error: str | None = None
+    error_kind: ErrorKind | None = None
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -84,6 +207,67 @@ def _classify_probe_error(exc: Exception) -> str:
         return "dns" if isinstance(exc.__cause__, socket.gaierror) else "network"
     if isinstance(exc, httpx.HTTPError):
         return "network"
+    return "unknown"
+
+
+_RATE_LIMIT_TOKENS = ("rate limit", "too many", "429", "too many requests")
+_NETWORK_TOKENS = (
+    "connecterror",
+    "connection refused",
+    "connection reset",
+    "dns",
+    "getaddrinfo",
+    "name or service not known",
+    "timed out",
+    "timeout",
+    "network",
+)
+_TLS_TOKENS = (
+    "decodeerror",
+    "invalid peer certificate",
+    "certificate verify",
+    "handshake failure",
+    "ssl",
+    "tls",
+)
+_PARSE_TOKENS = ("failed to fetch", "parse", "decode", "json")
+_EMPTY_RESULTS_MESSAGE = "no results found"
+
+
+def _classify_search_error(exc: BaseException) -> ErrorKind:
+    """Map a ddgs-side (or GitHub-API) exception to an error_kind category.
+
+    ddgs 9.15.0 wraps engine exceptions in a flat ``DDGSException`` whose ``str``
+    contains the original exception's repr (e.g. ``"ConnectError: ...(Connection refused)"``)
+    but does not chain the original via ``__cause__``/``__context__``. We therefore
+    use ``isinstance`` for the outer class where we can, and substring-match the
+    flattened message otherwise. See issue #9 for the research behind this mapping.
+    """
+    if isinstance(exc, TimeoutException):
+        return "network"
+    if isinstance(exc, RatelimitException):
+        return "rate_limited"
+    if isinstance(exc, httpx.TimeoutException):
+        return "network"
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code if exc.response is not None else 0
+        if status in (429,) or 500 <= status < 600:
+            return "rate_limited" if status == 429 else "network"
+        return "parse"
+    if isinstance(exc, httpx.HTTPError):
+        return "network"
+    if isinstance(exc, DDGSException):
+        text = str(exc).lower()
+        if _EMPTY_RESULTS_MESSAGE in text:
+            return "empty"
+        if any(token in text for token in _RATE_LIMIT_TOKENS):
+            return "rate_limited"
+        if any(token in text for token in _TLS_TOKENS):
+            return "network"
+        if any(token in text for token in _NETWORK_TOKENS):
+            return "network"
+        if any(token in text for token in _PARSE_TOKENS):
+            return "parse"
     return "unknown"
 
 
@@ -179,7 +363,61 @@ def _merge_result(current: SearchResult, candidate: SearchResult) -> None:
     current.publisher = current.publisher or candidate.publisher
 
 
-def rrf(ranked: list[list[SearchResult]], k: int = 60) -> list[SearchResult]:
+def domain_weight(url: str, profile: ProfileType = "general") -> float:
+    """Return ranking multiplier for authoritative vs spam domains based on profile."""
+    try:
+        hostname = (urlsplit(url).hostname or "").lower()
+    except Exception:
+        return 1.0
+    if hostname.startswith("www."):
+        hostname = hostname[4:]
+    if not hostname:
+        return 1.0
+
+    def _matches_any(domains: set[str]) -> bool:
+        return any(hostname == d or hostname.endswith("." + d) for d in domains)
+
+    if _matches_any(SPAM_DOMAINS):
+        return 0.5 if profile in ("dev", "academic") else 0.6
+
+    if profile == "academic":
+        if _matches_any(AUTHORITATIVE_DOMAINS_ACADEMIC):
+            return 1.4
+        if (
+            hostname.startswith("docs.")
+            or hostname.endswith(".readthedocs.io")
+            or _matches_any(AUTHORITATIVE_DOMAINS_GENERAL)
+        ):
+            return 1.2
+        return 1.0
+
+    if profile == "dev":
+        if (
+            hostname.startswith("docs.")
+            or hostname.endswith(".readthedocs.io")
+            or _matches_any(AUTHORITATIVE_DOMAINS_DEV)
+        ):
+            return 1.3
+        if _matches_any(AUTHORITATIVE_DOMAINS_GENERAL):
+            return 1.2
+        return 1.0
+
+    # general (default)
+    if (
+        hostname.startswith("docs.")
+        or hostname.endswith(".readthedocs.io")
+        or _matches_any(AUTHORITATIVE_DOMAINS_GENERAL)
+    ):
+        return 1.2
+
+    return 1.0
+
+
+def rrf(
+    ranked: list[list[SearchResult]],
+    k: int = 60,
+    profile: ProfileType = "general",
+) -> list[SearchResult]:
     """Fuse independent ranked lists with Reciprocal Rank Fusion."""
     if k < 1:
         raise ValueError("k must be positive")
@@ -195,7 +433,10 @@ def rrf(ranked: list[list[SearchResult]], k: int = 60) -> list[SearchResult]:
             if not key or key in seen_in_list:
                 continue
             seen_in_list.add(key)
-            scores[key] = scores.get(key, 0.0) + 1 / (k + rank)
+            scores[key] = (
+                scores.get(key, 0.0)
+                + (1 / (k + rank)) * domain_weight(item.url, profile=profile)
+            )
             if key not in merged:
                 merged[key] = _clone(item)
             else:
@@ -267,6 +508,130 @@ def _site_matches(url: str, sites: list[str]) -> bool:
     return any(hostname == site or hostname.endswith(f".{site}") for site in sites)
 
 
+class SearchCache:
+    """Lightweight SQLite-backed cache for search runs with TTL."""
+
+    def __init__(
+        self,
+        db_path: Path | str | None = None,
+        default_ttl: float = 21600.0,
+    ):
+        if db_path is None:
+            cache_dir = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache")) / "deep-search"
+            try:
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                self.db_path = cache_dir / "cache.db"
+            except Exception:
+                self.db_path = Path("/tmp/deep_search_cache.db")
+        else:
+            self.db_path = Path(db_path)
+            with suppress(Exception):
+                self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.default_ttl = default_ttl
+        self._init_db()
+
+    def _get_conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(str(self.db_path), timeout=5.0)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        return conn
+
+    def _init_db(self) -> None:
+        with suppress(Exception), self._get_conn() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS search_cache (
+                    key TEXT PRIMARY KEY,
+                    created_at REAL,
+                    expires_at REAL,
+                    payload TEXT
+                );
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_expires_at ON search_cache(expires_at);"
+            )
+
+    @staticmethod
+    def hash_key(query: str, **kwargs: Any) -> str:
+        serialized = json.dumps(
+            {"q": query.strip().lower(), **kwargs}, sort_keys=True, default=str
+        )
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+    def get(self, key: str) -> dict[str, Any] | None:
+        try:
+            now = time.time()
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT payload, expires_at FROM search_cache WHERE key = ?",
+                    (key,),
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return None
+                payload_str, expires_at = row
+                if expires_at < now:
+                    conn.execute("DELETE FROM search_cache WHERE key = ?", (key,))
+                    return None
+                return json.loads(payload_str)
+        except Exception:
+            return None
+
+    def set(self, key: str, payload: dict[str, Any], ttl: float | None = None) -> None:
+        with suppress(Exception), self._get_conn() as conn:
+            now = time.time()
+            expires = now + (ttl if ttl is not None else self.default_ttl)
+            payload_str = json.dumps(payload, ensure_ascii=False)
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO search_cache (key, created_at, expires_at, payload)
+                VALUES (?, ?, ?, ?)
+                """,
+                (key, now, expires, payload_str),
+            )
+
+    def clear(self) -> None:
+        with suppress(Exception), self._get_conn() as conn:
+            conn.execute("DELETE FROM search_cache;")
+
+
+def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
+    results = [
+        SearchResult(
+            title=item.get("title", ""),
+            url=item.get("url", ""),
+            snippet=item.get("snippet", ""),
+            sources=list(item.get("sources", [])),
+            published_at=item.get("published_at"),
+            publisher=item.get("publisher"),
+            score=float(item.get("score", 0.0)),
+            content=item.get("content"),
+            extraction_method=item.get("extraction_method"),
+            fetched_url=item.get("fetched_url"),
+            fetched_at=item.get("fetched_at"),
+            fetch_error=item.get("fetch_error"),
+        )
+        for item in payload.get("results", [])
+    ]
+    providers = [
+        ProviderStatus(
+            provider=p.get("provider", ""),
+            query=p.get("query", ""),
+            ok=bool(p.get("ok", True)),
+            result_count=int(p.get("result_count", 0)),
+            error=p.get("error"),
+            error_kind=p.get("error_kind"),
+        )
+        for p in payload.get("providers", [])
+    ]
+    return SearchRun(
+        query=payload.get("query", ""),
+        results=results,
+        providers=providers,
+    )
+
+
 class DeepSearch:
     """Small, bounded metasearch with auditable fusion and safe text extraction."""
 
@@ -304,6 +669,10 @@ class DeepSearch:
         github_token: str | None = None,
         backends: tuple[str, ...] | None = None,
         news_backends: tuple[str, ...] | None = None,
+        profile: ProfileType = "general",
+        enable_cache: bool = True,
+        cache_ttl: float = 21600.0,
+        cache_db: Path | str | None = None,
     ):
         if timeout <= 0 or max_search_concurrency < 1 or max_fetch_concurrency < 1:
             raise ValueError("timeout and concurrency limits must be positive")
@@ -311,6 +680,8 @@ class DeepSearch:
             max_search_concurrency = max_concurrency
         if max_download_bytes < 1 or max_content_chars < 1:
             raise ValueError("content limits must be positive")
+        if profile not in ("general", "dev", "academic"):
+            raise ValueError(f"unsupported profile: {profile}")
         self.timeout = timeout
         self.max_search_concurrency = max_search_concurrency
         self.max_fetch_concurrency = max_fetch_concurrency
@@ -321,8 +692,18 @@ class DeepSearch:
         self.news_backends = news_backends or (
             backends if backends is not None else self.DEFAULT_NEWS_BACKENDS
         )
+        self.profile = profile
+        self.enable_cache = enable_cache
+        self.cache_ttl = cache_ttl
+        self.cache = (
+            SearchCache(cache_db, default_ttl=cache_ttl) if enable_cache else None
+        )
         self._search_sem: asyncio.Semaphore | None = None
         self._fetch_sem: asyncio.Semaphore | None = None
+
+    def clear_cache(self) -> None:
+        if self.cache:
+            self.cache.clear()
 
     def _search_semaphore(self) -> asyncio.Semaphore:
         if self._search_sem is None:
@@ -403,7 +784,11 @@ class DeepSearch:
                     return results, ProviderStatus(backend, query, True, len(results))
                 except Exception as exc:
                     return [], ProviderStatus(
-                        backend, query, False, error=f"{type(exc).__name__}: {exc}"
+                        backend,
+                        query,
+                        False,
+                        error=f"{type(exc).__name__}: {exc}",
+                        error_kind=_classify_search_error(exc),
                     )
 
             return await asyncio.to_thread(run)
@@ -473,7 +858,33 @@ class DeepSearch:
         region: str | None = None,
         safesearch: SafeSearch = "moderate",
         timelimit: TimeLimit | None = None,
+        profile: ProfileType | None = None,
     ) -> SearchRun:
+        effective_profile = profile if profile is not None else self.profile
+        if effective_profile not in ("general", "dev", "academic"):
+            raise ValueError(f"unsupported profile: {effective_profile}")
+        cache_key = None
+        normalized_sites = normalize_sites(sites)
+        if self.enable_cache and self.cache:
+            effective_backends = tuple(self.news_backends if category == "news" else self.backends)
+            cache_key = self.cache.hash_key(
+                query,
+                sites=normalized_sites,
+                mode=mode,
+                limit=limit,
+                fetch=fetch,
+                include_github=False,
+                category=category,
+                region=region,
+                safesearch=safesearch,
+                timelimit=timelimit,
+                backends=effective_backends,
+                profile=effective_profile,
+            )
+            cached_data = self.cache.get(cache_key)
+            if cached_data is not None:
+                return _search_run_from_dict(cached_data)
+
         lists, providers, normalized_sites = await self._search_parts(
             query,
             sites=sites,
@@ -484,16 +895,21 @@ class DeepSearch:
             safesearch=safesearch,
             timelimit=timelimit,
         )
-        results = self._filter_sites(rrf(lists), normalized_sites)[:limit]
+        results = self._filter_sites(
+            rrf(lists, profile=effective_profile), normalized_sites
+        )[:limit]
         if fetch:
             await self.fetch_content(results)
-        return SearchRun(query=query, results=results, providers=providers)
+        run = SearchRun(query=query, results=results, providers=providers)
+        if cache_key and self.enable_cache and self.cache and run.status != "failed":
+            self.cache.set(cache_key, run.dict())
+        return run
 
     async def search(self, query: str, **kwargs: Any) -> list[SearchResult]:
         return (await self.search_run(query, **kwargs)).results
 
     async def fetch_content(self, results: list[SearchResult]) -> None:
-        headers = {"User-Agent": "deep-search/0.3 (+https://github.com/Alih-b/super-search)"}
+        headers = {"User-Agent": USER_AGENT}
         async with httpx.AsyncClient(
             timeout=self.timeout,
             headers=headers,
@@ -602,7 +1018,9 @@ class DeepSearch:
         try:
             import trafilatura
 
-            extracted = trafilatura.extract(html, url=url, include_links=True)
+            extracted = trafilatura.extract(
+                html, url=url, include_links=True, output_format="markdown"
+            )
             if extracted and extracted.strip():
                 return extracted.strip(), "trafilatura"
         except Exception:
@@ -647,7 +1065,11 @@ class DeepSearch:
                 return results, ProviderStatus("github-api", query, True, len(results))
             except Exception as exc:
                 return [], ProviderStatus(
-                    "github-api", query, False, error=f"{type(exc).__name__}: {exc}"
+                    "github-api",
+                    query,
+                    False,
+                    error=f"{type(exc).__name__}: {exc}",
+                    error_kind=_classify_search_error(exc),
                 )
 
     async def _probe_host(self, provider: str, host: str) -> HostStatus:
@@ -720,7 +1142,33 @@ class DeepSearch:
         region: str | None = None,
         safesearch: SafeSearch = "moderate",
         timelimit: TimeLimit | None = None,
+        profile: ProfileType | None = None,
     ) -> SearchRun:
+        effective_profile = profile if profile is not None else self.profile
+        if effective_profile not in ("general", "dev", "academic"):
+            raise ValueError(f"unsupported profile: {effective_profile}")
+        cache_key = None
+        normalized_sites = normalize_sites(sites)
+        if self.enable_cache and self.cache:
+            effective_backends = tuple(self.news_backends if category == "news" else self.backends)
+            cache_key = self.cache.hash_key(
+                query,
+                sites=normalized_sites,
+                mode=mode,
+                limit=limit,
+                fetch=fetch,
+                include_github=include_github,
+                category=category,
+                region=region,
+                safesearch=safesearch,
+                timelimit=timelimit,
+                backends=effective_backends,
+                profile=effective_profile,
+            )
+            cached_data = self.cache.get(cache_key)
+            if cached_data is not None:
+                return _search_run_from_dict(cached_data)
+
         web_task = self._search_parts(
             query,
             sites=sites,
@@ -740,10 +1188,15 @@ class DeepSearch:
             providers.append(github_status)
         else:
             lists, providers, normalized_sites = await web_task
-        results = self._filter_sites(rrf(lists), normalized_sites)[:limit]
+        results = self._filter_sites(
+            rrf(lists, profile=effective_profile), normalized_sites
+        )[:limit]
         if fetch:
             await self.fetch_content(results)
-        return SearchRun(query=query, results=results, providers=providers)
+        run = SearchRun(query=query, results=results, providers=providers)
+        if cache_key and self.enable_cache and self.cache and run.status != "failed":
+            self.cache.set(cache_key, run.dict())
+        return run
 
     async def research(self, query: str, **kwargs: Any) -> list[SearchResult]:
         return (await self.research_run(query, **kwargs)).results

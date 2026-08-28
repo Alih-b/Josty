@@ -16,7 +16,7 @@ body:
     id: interface
     attributes:
       label: Interface
-      options: [Agent Skill launcher, CLI, Python API, HTTP API]
+      options: [Agent Skill launcher, CLI, Python API]
     validations:
       required: true
   - type: textarea

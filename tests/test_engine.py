@@ -10,13 +10,20 @@ import pytest
 from deep_search.engine import (
     DeepSearch,
     ProviderStatus,
+    SearchCache,
     SearchResult,
     SearchRun,
     canonical,
+    domain_weight,
     merge_query_variants,
     normalize_sites,
     rrf,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolate_test_cache(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
 
 
 def result(url, snippet="", source="test"):
@@ -423,7 +430,7 @@ def test_github_is_opt_in_and_fused_once(monkeypatch):
     assert combined.results[0].url == "https://example.com/a"
     assert combined.results[0].sources == ["one", "two"]
     assert combined.results[0].score == round(2 / 61, 6)
-    assert combined.results[1].score == round(1 / 61, 6)
+    assert combined.results[1].score == round(1.2 / 61, 6)
 
 
 def test_diagnose_probes_each_backend_group_host_with_bare_get(monkeypatch):
@@ -529,3 +536,137 @@ def test_diagnose_scopes_probes_to_category_and_github_opt_in(monkeypatch):
     got = asyncio.run(DeepSearch().diagnose_run(include_github=True)).dict()
     got_providers = {entry["provider"] for entry in got["providers"]}
     assert "github-api" in got_providers
+
+
+def test_domain_weights_boost_and_penalize_with_subdomains_and_profiles():
+    # General profile (default)
+    assert domain_weight("https://docs.python.org/3/") == 1.2
+    assert domain_weight("https://example.readthedocs.io/en/latest/") == 1.2
+    assert domain_weight("https://github.com/astral-sh/ruff") == 1.2
+    assert domain_weight("https://api.github.com/repos/astral-sh/ruff") == 1.2
+    assert domain_weight("https://stackoverflow.com/questions/123") == 1.2
+    assert domain_weight("https://pinterest.com/pin/123") == 0.6
+    assert domain_weight("https://quora.com/topic") == 0.6
+    assert domain_weight("https://example.com/blog/article") == 1.0
+
+    # Dev profile
+    assert domain_weight("https://github.com/python/cpython", profile="dev") == 1.3
+    assert domain_weight("https://api.github.com/repos", profile="dev") == 1.3
+    assert domain_weight("https://react.dev/reference/react", profile="dev") == 1.3
+    assert domain_weight("https://pkg.go.dev/net/http", profile="dev") == 1.3
+    assert domain_weight("https://npmjs.com/package/express", profile="dev") == 1.3
+    assert domain_weight("https://crates.io/crates/tokio", profile="dev") == 1.3
+    assert domain_weight("https://pinterest.com/pin/123", profile="dev") == 0.5
+    assert domain_weight("https://geeksforgeeks.org/python", profile="dev") == 0.5
+
+    # Academic profile
+    assert domain_weight("https://arxiv.org/abs/2301.00001", profile="academic") == 1.4
+    assert domain_weight("https://pubmed.ncbi.nlm.nih.gov/12345678/", profile="academic") == 1.4
+    assert domain_weight("https://ieeexplore.ieee.org/document/12345", profile="academic") == 1.4
+    assert domain_weight("https://dl.acm.org/doi/10.1145/123", profile="academic") == 1.4
+    assert domain_weight("https://nature.com/articles/s41586-023", profile="academic") == 1.4
+    # Documentation and encyclopedia retain authoritative baseline in academic mode
+    assert domain_weight("https://docs.python.org/3/", profile="academic") == 1.2
+    assert domain_weight("https://en.wikipedia.org/wiki/Search_engine", profile="academic") == 1.2
+    assert domain_weight("https://pinterest.com/pin/123", profile="academic") == 0.5
+
+
+def test_invalid_profile_raises_value_error():
+    with pytest.raises(ValueError, match="profile"):
+        DeepSearch(profile="unsupported")
+
+    engine = DeepSearch()
+    with pytest.raises(ValueError, match="profile"):
+        asyncio.run(engine.search_run("query", profile="unsupported"))
+
+    with pytest.raises(ValueError, match="profile"):
+        asyncio.run(engine.research_run("query", profile="unsupported"))
+
+
+def test_cache_keys_are_isolated_by_profile():
+    general_key = SearchCache.hash_key("query", profile="general")
+    dev_key = SearchCache.hash_key("query", profile="dev")
+    academic_key = SearchCache.hash_key("query", profile="academic")
+
+    assert general_key != dev_key
+    assert dev_key != academic_key
+    assert general_key != academic_key
+
+
+def test_search_cache_hit_and_miss_and_clear(tmp_path):
+    cache_file = tmp_path / "test_cache.db"
+    cache = SearchCache(cache_file, default_ttl=3600)
+    key = SearchCache.hash_key("test query", limit=5)
+
+    assert cache.get(key) is None
+
+    payload = {"query": "test query", "status": "complete", "results": []}
+    cache.set(key, payload)
+    assert cache.get(key) == payload
+
+    cache.clear()
+    assert cache.get(key) is None
+
+
+def test_search_cache_ttl_expiration(tmp_path):
+    cache_file = tmp_path / "test_cache_ttl.db"
+    cache = SearchCache(cache_file, default_ttl=0.01)
+    key = SearchCache.hash_key("query")
+    cache.set(key, {"cached": True}, ttl=-1.0)
+    assert cache.get(key) is None
+
+
+def test_search_run_uses_cache_and_skips_network(tmp_path, monkeypatch):
+    cache_file = tmp_path / "engine_cache.db"
+    engine = DeepSearch(cache_db=cache_file)
+
+    calls = 0
+
+    class CountingDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return [{"title": "Hit", "href": "https://example.com/doc", "body": "Snippet"}]
+
+    monkeypatch.setattr("deep_search.engine.DDGS", CountingDDGS)
+
+    # First call - populates cache
+    first_run = asyncio.run(engine.search_run("cached query", limit=1))
+    assert calls > 0
+    assert len(first_run.results) == 1
+
+    recorded_calls = calls
+
+    # Second call - returns from cache with 0 additional network calls
+    second_run = asyncio.run(engine.search_run("cached query", limit=1))
+    assert calls == recorded_calls
+    assert len(second_run.results) == 1
+    assert second_run.results[0].title == "Hit"
+
+
+def test_fetch_content_extracts_markdown_and_captures_error(monkeypatch):
+    engine = DeepSearch()
+    item_ok = result("https://example.com/ok")
+    item_fail = result("https://example.com/fail")
+
+    async def allow(_self, _url):
+        return None
+
+    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
+
+    async def fake_download(_self, client, url):
+        if "fail" in url:
+            raise ValueError("connection dropped")
+        return "<html><body><h1>Doc</h1><p>Text</p></body></html>", url
+
+    monkeypatch.setattr(DeepSearch, "_download", fake_download)
+
+    asyncio.run(engine.fetch_content([item_ok, item_fail]))
+    assert item_ok.content is not None
+    assert item_ok.extraction_method in ("trafilatura", "html-text-fallback")
+    assert item_ok.fetched_at is not None
+    assert item_fail.content is None
+    assert "connection dropped" in (item_fail.fetch_error or "")

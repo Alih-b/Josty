@@ -27,11 +27,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Alih-b/super-search"
-Repository = "https://github.com/Alih-b/super-search"
-Issues = "https://github.com/Alih-b/super-search/issues"
-Changelog = "https://github.com/Alih-b/super-search/blob/main/CHANGELOG.md"
-Security = "https://github.com/Alih-b/super-search/security/policy"
+Homepage = "https://github.com/Alih-b/deep-search"
+Repository = "https://github.com/Alih-b/deep-search"
+Issues = "https://github.com/Alih-b/deep-search/issues"
+Changelog = "https://github.com/Alih-b/deep-search/blob/main/CHANGELOG.md"
+Security = "https://github.com/Alih-b/deep-search/security/policy"
 
 [project.optional-dependencies]
 dev = [

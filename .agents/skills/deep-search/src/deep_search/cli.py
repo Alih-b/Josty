@@ -25,6 +25,12 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument(
         "--time-limit", choices=("d", "w", "m", "y"), help="day, week, month, or year"
     )
+    command.add_argument(
+        "--profile",
+        choices=("general", "dev", "academic"),
+        default="general",
+        help="ranking profile boosting dev/academic domains (default: %(default)s)",
+    )
     command.add_argument("--fetch", action="store_true", help="extract bounded text from results")
     command.add_argument(
         "--github", action="store_true", help="also search official GitHub repositories"
@@ -36,6 +42,12 @@ def parser() -> argparse.ArgumentParser:
         "--diagnose",
         action="store_true",
         help="probe backend host reachability instead of searching",
+    )
+    command.add_argument(
+        "--no-cache", action="store_true", help="bypass local disk cache"
+    )
+    command.add_argument(
+        "--clear-cache", action="store_true", help="clear cached search results and exit"
     )
     command.add_argument(
         "--search-concurrency",
@@ -57,6 +69,8 @@ async def run(args: argparse.Namespace) -> dict | list:
         github_token=os.getenv("GITHUB_TOKEN"),
         max_search_concurrency=args.search_concurrency,
         max_fetch_concurrency=args.fetch_concurrency,
+        profile=args.profile,
+        enable_cache=not args.no_cache,
     )
     if args.diagnose:
         return (
@@ -73,6 +87,7 @@ async def run(args: argparse.Namespace) -> dict | list:
         region=args.region,
         safesearch=args.safe_search,
         timelimit=args.time_limit,
+        profile=args.profile,
     )
     return [item.dict() for item in search.results] if args.results_only else search.dict()
 
@@ -80,8 +95,12 @@ async def run(args: argparse.Namespace) -> dict | list:
 def main() -> None:
     command = parser()
     args = command.parse_args()
+    if args.clear_cache:
+        DeepSearch().clear_cache()
+        print(json.dumps({"status": "cleared", "message": "Search cache cleared"}))
+        return
     if not args.query and not args.diagnose:
-        command.error("a query is required unless --diagnose is given")
+        command.error("a query is required unless --diagnose or --clear-cache is given")
     if args.diagnose and args.results_only:
         command.error("--results-only cannot be combined with --diagnose")
     try:
