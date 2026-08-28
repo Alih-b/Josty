@@ -1,14 +1,14 @@
-# Deep Search
+# Josty
 
 > Small, auditable, keyless metasearch CLI & Agent Skill.
 
 ## Agent Skill Installation
-Copy `.agents/skills/deep-search/SKILL.md` into your agent's skills directory (e.g. `.agents/skills/deep-search/`, `~/.claude/skills/deep-search/`, or `~/.gemini/antigravity/custom_skills/deep-search/`).
+Copy `.agents/skills/josty/SKILL.md` into your agent's skills directory (e.g. `.agents/skills/josty/`, `~/.claude/skills/deep-search/`, or `~/.gemini/antigravity/custom_skills/deep-search/`).
 
 ## Execution
-- Instant execution: `uvx deep-search-agent "<query>" --limit 10`
-- CLI package install: `pipx install deep-search-agent`
-- Fallback runner: `$(command -v python3 || command -v python) .agents/skills/deep-search/scripts/run.py "<query>"`
+- Instant execution: `uvx josty "<query>" --limit 10`
+- CLI package install: `pipx install josty`
+- Fallback runner: `$(command -v python3 || command -v python) .agents/skills/josty/scripts/run.py "<query>"`
 
 ## Key Options
 - `--limit <n>`: Number of results (default: 10)
@@ -20,4 +20,4 @@ Copy `.agents/skills/deep-search/SKILL.md` into your agent's skills directory (e
 - `--diagnose`: Probe reachability of search backend hosts
 
 ## Output Guarantees
-`stdout` is strictly versioned JSON conforming to the deep-search schema contract. All diagnostic logs and warnings are directed to `stderr`.
+`stdout` is strictly versioned JSON conforming to the josty schema contract. All diagnostic logs and warnings are directed to `stderr`.

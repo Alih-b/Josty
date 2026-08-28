@@ -180,7 +180,7 @@ def render_report(
     coverage: dict,
 ) -> str:
     a = []
-    a.append("# Deep Search benchmark — frozen-corpus replay\n")
+    a.append("# Josty benchmark — frozen-corpus replay\n")
     a.append(f"**Corpus:** `{corpus_path.relative_to(HERE.parent)}`\n")
     a.append(
         "**Grader:** string predicates from "

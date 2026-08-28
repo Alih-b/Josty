@@ -1,4 +1,4 @@
-"""Canonical live benchmark for Deep Search.
+"""Canonical live benchmark for Josty.
 
 Runs 20 fixed factual queries against three runners:
   - deep_search  : the project's async wrapper

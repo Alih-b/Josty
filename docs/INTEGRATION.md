@@ -45,10 +45,10 @@ information exists.
 
 ```python
 import asyncio
-from josty import DeepSearch
+from josty import Josty
 
 run = asyncio.run(
-    DeepSearch().research_run(
+    Josty().research_run(
         "agent search",
         mode="oss",
         include_github=True,

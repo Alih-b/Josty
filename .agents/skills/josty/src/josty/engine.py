@@ -36,7 +36,7 @@ ProfileType = Literal["general", "dev", "academic"]
 
 SCHEMA_VERSION = "1.0"
 MAX_SITES = 5
-USER_AGENT = "deep-search/0.3 (+https://github.com/Alih-b/deep-search)"
+USER_AGENT = "josty/0.3 (+https://github.com/Alih-b/josty)"
 BROWSER_FETCH_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "

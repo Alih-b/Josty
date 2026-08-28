@@ -15,7 +15,7 @@ def test_query_defaults_are_explicit():
 
 
 def test_results_only_conflicts_with_diagnose(monkeypatch):
-    monkeypatch.setattr("sys.argv", ["deep-search", "--diagnose", "--results-only", "query"])
+    monkeypatch.setattr("sys.argv", ["josty", "--diagnose", "--results-only", "query"])
     with pytest.raises(SystemExit) as exit_info:
         main()
     assert exit_info.value.code == 2
@@ -29,7 +29,7 @@ def test_main_prints_json_diagnosis(monkeypatch, capsys):
         return DiagnoseRun()
 
     monkeypatch.setattr("josty.engine.Josty.diagnose_run", diagnose)
-    monkeypatch.setattr("sys.argv", ["deep-search", "--diagnose", "--github"])
+    monkeypatch.setattr("sys.argv", ["josty", "--diagnose", "--github"])
     main()
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "failed"
@@ -37,7 +37,7 @@ def test_main_prints_json_diagnosis(monkeypatch, capsys):
 
 
 def test_main_without_query_or_diagnose_fails(monkeypatch):
-    monkeypatch.setattr("sys.argv", ["deep-search"])
+    monkeypatch.setattr("sys.argv", ["josty"])
     with pytest.raises(SystemExit) as exit_info:
         main()
     assert exit_info.value.code == 2
@@ -51,7 +51,7 @@ def test_main_clear_cache(monkeypatch, capsys):
         cleared = True
 
     monkeypatch.setattr("josty.engine.Josty.clear_cache", fake_clear)
-    monkeypatch.setattr("sys.argv", ["deep-search", "--clear-cache"])
+    monkeypatch.setattr("sys.argv", ["josty", "--clear-cache"])
     main()
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "cleared"
@@ -94,7 +94,7 @@ def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch
         return SearchRun(query="test", results=[], providers=[])
 
     monkeypatch.setattr("josty.engine.Josty.research_run", fake_research)
-    monkeypatch.setattr("sys.argv", ["deep-search", "test"])
+    monkeypatch.setattr("sys.argv", ["josty", "test"])
     main()
 
     captured = capsys.readouterr()
