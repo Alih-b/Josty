@@ -116,7 +116,7 @@ count as zeros in the `all_runs` view and are filtered out in the
 ## Query-Variant Fanout & `--max-query-variants`
 
 ### Fanout Mechanism & Rate-Limiting Risk
-`DeepSearch.expand()` generates $\text{len}(\text{sites}) \times \text{len}(\text{mode\_variants})$ query rewrites:
+`Josty.expand()` generates $\text{len}(\text{sites}) \times \text{len}(\text{mode\_variants})$ query rewrites:
 - `plain` mode with no sites: 1 variant $\times$ 3 backend groups = 3 searches (~5 upstream requests).
 - `exact` mode with 3 sites: 6 variants $\times$ 3 backend groups = 18 searches (~30 upstream requests).
 - `oss` mode with 3 sites: 12 variants $\times$ 3 backend groups = 36 searches (~60 upstream requests).

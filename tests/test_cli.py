@@ -1,4 +1,4 @@
-"""Unit tests for the deep-search CLI argument contract."""
+"""Unit tests for the Josty CLI argument contract."""
 
 import json
 

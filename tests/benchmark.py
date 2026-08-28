@@ -1,7 +1,7 @@
 """Canonical live benchmark for Josty.
 
 Runs 20 fixed factual queries against three runners:
-  - deep_search  : the project's async wrapper
+  - josty  : the project's async wrapper
   - raw_ddgs     : direct DDGS client, serial per backend
   - websearch_skill : the websearch-skill CLI subprocess
 
@@ -75,7 +75,7 @@ def backends_for_slot(slot_index: int) -> tuple[str, ...]:
 # --------------------------------------------------------------------------
 
 
-async def run_deep_search(query: str, backends: tuple[str, ...]) -> tuple[list[dict], float]:
+async def run_josty(query: str, backends: tuple[str, ...]) -> tuple[list[dict], float]:
     engine = Josty(timeout=TIMEOUT, backends=backends)
     started = time.perf_counter()
     run = await engine.search_run(query, limit=LIMIT)
@@ -164,7 +164,7 @@ def run_websearch_skill(query: str, backends: tuple[str, ...]) -> tuple[list[dic
 
 
 RUNNERS: dict[str, Callable] = {
-    "deep_search": run_deep_search,
+    "josty": run_josty,
     "raw_ddgs": run_raw_ddgs,
     "websearch_skill": run_websearch_skill,
 }

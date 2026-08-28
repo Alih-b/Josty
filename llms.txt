@@ -3,7 +3,7 @@
 > Small, auditable, keyless metasearch CLI & Agent Skill.
 
 ## Agent Skill Installation
-Copy `.agents/skills/josty/SKILL.md` into your agent's skills directory (e.g. `.agents/skills/josty/`, `~/.claude/skills/deep-search/`, or `~/.gemini/antigravity/custom_skills/deep-search/`).
+Copy `.agents/skills/josty/SKILL.md` into your agent's skills directory (e.g. `.agents/skills/josty/`, `~/.claude/skills/josty/`, or `~/.gemini/antigravity/custom_skills/josty/`).
 
 ## Execution
 - Instant execution: `uvx josty "<query>" --limit 10`
