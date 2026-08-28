@@ -801,6 +801,8 @@ def test_fetch_content_browser_headers_and_truncation(monkeypatch):
     assert item1.content is not None
     assert len(item1.content) == 1000
     assert captured_headers.get("user-agent") == BROWSER_FETCH_HEADERS["User-Agent"]
+    assert captured_headers.get("sec-ch-ua") == BROWSER_FETCH_HEADERS["sec-ch-ua"]
+    assert captured_headers.get("sec-ch-ua-platform") == BROWSER_FETCH_HEADERS["sec-ch-ua-platform"]
 
     # 2. Test unlimited when max_content_chars = 0
     engine_unlimited = DeepSearch(max_content_chars=0)
