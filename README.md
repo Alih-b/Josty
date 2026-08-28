@@ -170,6 +170,7 @@ Deep Search is intentionally a small, self-contained Python wrapper rather than 
 - **Near-Duplicate Content Hashing**: Adding MinHash/SimHash snippet deduplication for pages with different URLs that mirror the same syndicated text.
 - **Direct Connector Plugins**: Allowing callers to register custom backend coroutines alongside default `ddgs` scrapers.
 - **Pluggable Text Distillers**: Enabling alternative markdown converters for specialized document structures (e.g., API references or tabular data).
+- **Standalone Binaries (Considered & Deferred)**: Distributing precompiled single-file binaries (e.g. PyInstaller/Nuitka) was evaluated and deferred in favor of zero-overhead `uvx`/`pipx` package execution.
 
 ---
 
