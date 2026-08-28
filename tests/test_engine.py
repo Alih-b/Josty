@@ -9,7 +9,7 @@ import httpx
 import pytest
 from josty.engine import (
     CircuitBreaker,
-    DeepSearch,
+    Josty,
     ProviderStatus,
     SearchCache,
     SearchResult,
@@ -93,12 +93,12 @@ def test_query_variants_do_not_create_multiple_provider_votes():
 
 
 def test_query_modes_are_explicit():
-    assert DeepSearch.expand("company revenue history") == ["company revenue history"]
-    assert DeepSearch.expand("agent search", mode="exact") == [
+    assert Josty.expand("company revenue history") == ["company revenue history"]
+    assert Josty.expand("agent search", mode="exact") == [
         "agent search",
         '"agent search"',
     ]
-    assert DeepSearch.expand("agent search", mode="oss") == [
+    assert Josty.expand("agent search", mode="oss") == [
         "agent search",
         '"agent search"',
         "agent search open source",
@@ -107,7 +107,7 @@ def test_query_modes_are_explicit():
 
 
 def test_site_filters_scope_every_variant():
-    assert DeepSearch.expand("agent search", ["GitHub.com"], mode="exact") == [
+    assert Josty.expand("agent search", ["GitHub.com"], mode="exact") == [
         "site:github.com agent search",
         'site:github.com "agent search"',
     ]
@@ -149,28 +149,28 @@ def test_site_results_are_post_filtered(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
     run = asyncio.run(
-        DeepSearch(backends=("test",)).search_run("query", sites=["github.com"], limit=3)
+        Josty(backends=("test",)).search_run("query", sites=["github.com"], limit=3)
     )
     assert [item.url for item in run.results] == ["https://docs.github.com/a"]
 
 
 def test_invalid_search_options_and_content_bounds_are_rejected():
     with pytest.raises(ValueError):
-        asyncio.run(DeepSearch().search_run("query", limit=101))
+        asyncio.run(Josty().search_run("query", limit=101))
     with pytest.raises(ValueError, match="category"):
-        asyncio.run(DeepSearch().search_run("query", category="invalid"))
+        asyncio.run(Josty().search_run("query", category="invalid"))
     with pytest.raises(ValueError, match="safe-search"):
-        asyncio.run(DeepSearch().search_run("query", safesearch="invalid"))
+        asyncio.run(Josty().search_run("query", safesearch="invalid"))
     with pytest.raises(ValueError, match="time limit"):
-        asyncio.run(DeepSearch().search_run("query", timelimit="invalid"))
+        asyncio.run(Josty().search_run("query", timelimit="invalid"))
     with pytest.raises(ValueError):
-        DeepSearch(max_download_bytes=0)
+        Josty(max_download_bytes=0)
 
 
 def test_search_and_fetch_concurrency_have_independent_defaults():
-    assert DeepSearch.DEFAULT_SEARCH_CONCURRENCY == 6
-    assert DeepSearch.DEFAULT_FETCH_CONCURRENCY == 4
-    engine = DeepSearch()
+    assert Josty.DEFAULT_SEARCH_CONCURRENCY == 6
+    assert Josty.DEFAULT_FETCH_CONCURRENCY == 4
+    engine = Josty()
     assert engine.max_search_concurrency == 6
     assert engine.max_fetch_concurrency == 4
     search_sem = engine._search_semaphore()
@@ -180,15 +180,15 @@ def test_search_and_fetch_concurrency_have_independent_defaults():
 
 def test_concurrency_constructor_params_are_validated():
     with pytest.raises(ValueError):
-        DeepSearch(max_search_concurrency=0)
+        Josty(max_search_concurrency=0)
     with pytest.raises(ValueError):
-        DeepSearch(max_fetch_concurrency=0)
+        Josty(max_fetch_concurrency=0)
 
 
 def test_max_concurrency_alias_targets_search_slot():
-    engine = DeepSearch(max_concurrency=3)
+    engine = Josty(max_concurrency=3)
     assert engine.max_search_concurrency == 3
-    assert engine.max_fetch_concurrency == DeepSearch.DEFAULT_FETCH_CONCURRENCY
+    assert engine.max_fetch_concurrency == Josty.DEFAULT_FETCH_CONCURRENCY
 
 
 def test_search_and_fetch_semaphores_do_not_share_a_pool():
@@ -203,7 +203,7 @@ def test_search_and_fetch_semaphores_do_not_share_a_pool():
             counters[kind] -= 1
 
     async def scenario() -> None:
-        engine = DeepSearch(max_search_concurrency=2, max_fetch_concurrency=3)
+        engine = Josty(max_search_concurrency=2, max_fetch_concurrency=3)
         search_sem = engine._search_semaphore()
         fetch_sem = engine._fetch_semaphore()
         await asyncio.gather(
@@ -243,14 +243,14 @@ def test_ssrf_guard_blocks_reserved_addresses(monkeypatch, address, family):
         lambda *args, **kwargs: [(family, socket.SOCK_STREAM, 6, "", (address, 80))],
     )
     with pytest.raises(ValueError, match="private or reserved"):
-        asyncio.run(DeepSearch()._validate_public_url("http://example.test"))
+        asyncio.run(Josty()._validate_public_url("http://example.test"))
 
 
 def test_ssrf_guard_blocks_unsafe_schemes_and_credentials():
     with pytest.raises(ValueError, match="HTTP"):
-        asyncio.run(DeepSearch()._validate_public_url("file:///etc/passwd"))
+        asyncio.run(Josty()._validate_public_url("file:///etc/passwd"))
     with pytest.raises(ValueError, match="credentials"):
-        asyncio.run(DeepSearch()._validate_public_url("https://user:secret@example.com"))
+        asyncio.run(Josty()._validate_public_url("https://user:secret@example.com"))
 
 
 def test_public_network_is_allowed(monkeypatch):
@@ -261,14 +261,14 @@ def test_public_network_is_allowed(monkeypatch):
             (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
         ],
     )
-    asyncio.run(DeepSearch()._validate_public_url("https://example.com"))
+    asyncio.run(Josty()._validate_public_url("https://example.com"))
 
 
 def test_download_limit_is_enforced(monkeypatch):
     async def allow(_self, _url):
         return None
 
-    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
+    monkeypatch.setattr(Josty, "_validate_public_url", allow)
 
     async def download():
         transport = httpx.MockTransport(
@@ -277,7 +277,7 @@ def test_download_limit_is_enforced(monkeypatch):
             )
         )
         async with httpx.AsyncClient(transport=transport) as client:
-            await DeepSearch(max_download_bytes=3)._download(client, "https://example.com")
+            await Josty(max_download_bytes=3)._download(client, "https://example.com")
 
     with pytest.raises(ValueError, match="download limit"):
         asyncio.run(download())
@@ -287,7 +287,7 @@ def test_unsupported_content_type_is_blocked(monkeypatch):
     async def allow(_self, _url):
         return None
 
-    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
+    monkeypatch.setattr(Josty, "_validate_public_url", allow)
 
     async def download():
         transport = httpx.MockTransport(
@@ -296,7 +296,7 @@ def test_unsupported_content_type_is_blocked(monkeypatch):
             )
         )
         async with httpx.AsyncClient(transport=transport) as client:
-            await DeepSearch()._download(client, "https://example.com")
+            await Josty()._download(client, "https://example.com")
 
     with pytest.raises(ValueError, match="unsupported content type"):
         asyncio.run(download())
@@ -304,7 +304,7 @@ def test_unsupported_content_type_is_blocked(monkeypatch):
 
 def test_empty_trafilatura_result_uses_safe_fallback(monkeypatch):
     monkeypatch.setitem(sys.modules, "trafilatura", SimpleNamespace(extract=lambda *a, **k: None))
-    content, method = DeepSearch._extract(
+    content, method = Josty._extract(
         "<html><script>ignore()</script><main>Hello world</main></html>",
         "https://example.com",
     )
@@ -313,12 +313,12 @@ def test_empty_trafilatura_result_uses_safe_fallback(monkeypatch):
 
 
 def test_known_ad_redirects_are_filtered_without_substring_false_positive():
-    assert DeepSearch._is_ad_redirect("https://www.google.com/aclick?id=1")
-    assert DeepSearch._is_ad_redirect("https://ad.doubleclick.net/path")
-    assert not DeepSearch._is_ad_redirect(
+    assert Josty._is_ad_redirect("https://www.google.com/aclick?id=1")
+    assert Josty._is_ad_redirect("https://ad.doubleclick.net/path")
+    assert not Josty._is_ad_redirect(
         "https://example.com/article?topic=doubleclick.net"
     )
-    assert not DeepSearch._is_ad_redirect("https://notgoogle.com/aclick?id=1")
+    assert not Josty._is_ad_redirect("https://notgoogle.com/aclick?id=1")
 
 
 def test_provider_failures_are_reported_without_hidden_retry(monkeypatch):
@@ -333,7 +333,7 @@ def test_provider_failures_are_reported_without_hidden_retry(monkeypatch):
             raise RuntimeError("blocked")
 
     monkeypatch.setattr("josty.engine.DDGS", BrokenDDGS)
-    run = asyncio.run(DeepSearch(backends=("broken",)).search_run("query", limit=3))
+    run = asyncio.run(Josty(backends=("broken",)).search_run("query", limit=3))
     assert run.results == []
     assert run.status == "failed"
     assert run.providers[0].provider == "broken"
@@ -362,7 +362,7 @@ def test_news_metadata_and_filters_are_preserved(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", CapturingDDGS)
     run = asyncio.run(
-        DeepSearch(backends=("test",)).search_run(
+        Josty(backends=("test",)).search_run(
             "query",
             limit=3,
             category="news",
@@ -403,14 +403,14 @@ def test_github_uses_best_match_and_normalizes_results(monkeypatch):
         )
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
-    results, status = asyncio.run(DeepSearch().github_run("agent search", 5))
+    results, status = asyncio.run(Josty().github_run("agent search", 5))
     assert status.ok
     assert results[0].sources == ["github-api"]
     assert captured["params"] == {"q": "agent search", "per_page": 5}
 
 
 def test_github_is_opt_in_and_fused_once(monkeypatch):
-    engine = DeepSearch()
+    engine = Josty()
     a1 = result("https://example.com/a", source="one")
     a2 = result("https://example.com/a", source="two")
     repo = result("https://github.com/owner/repo", source="github-api")
@@ -442,11 +442,11 @@ def test_diagnose_probes_each_backend_group_host_with_bare_get(monkeypatch):
         return httpx.Response(200, request=httpx.Request("GET", url))
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
-    payload = asyncio.run(DeepSearch().diagnose_run()).dict()
+    payload = asyncio.run(Josty().diagnose_run()).dict()
 
     expected = {
-        DeepSearch.BACKEND_HOSTS[name]
-        for group in DeepSearch.DEFAULT_BACKENDS
+        Josty.BACKEND_HOSTS[name]
+        for group in Josty.DEFAULT_BACKENDS
         for name in group.split(",")
     }
     seen_hosts = {u for u in seen}
@@ -465,7 +465,7 @@ def test_diagnose_reports_http_status_for_challenged_hosts(monkeypatch):
         return httpx.Response(403, request=httpx.Request("GET", url))
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
-    payload = asyncio.run(DeepSearch().diagnose_run()).dict()
+    payload = asyncio.run(Josty().diagnose_run()).dict()
     entry = next(item for item in payload["providers"] if item["provider"] == "bing")
     assert entry["ok"] is True
     assert entry["http_status"] == 403
@@ -490,7 +490,7 @@ def test_diagnose_classifies_blocked_hosts(monkeypatch):
         return httpx.Response(200, request=httpx.Request("GET", url))
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
-    payload = asyncio.run(DeepSearch().diagnose_run()).dict()
+    payload = asyncio.run(Josty().diagnose_run()).dict()
 
     by_provider = {entry["provider"]: entry for entry in payload["providers"]}
     assert by_provider["bing"]["error_kind"] == "timeout"
@@ -511,7 +511,7 @@ def test_diagnose_reports_unknown_backends_instead_of_skipping(monkeypatch):
         raise AssertionError("no probe should run")
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fail_get)
-    payload = asyncio.run(DeepSearch(backends=("mystery",)).diagnose_run()).dict()
+    payload = asyncio.run(Josty(backends=("mystery",)).diagnose_run()).dict()
     by_provider = {entry["provider"]: entry for entry in payload["providers"]}
     assert set(by_provider) == {"mystery"}
     assert by_provider["mystery"]["ok"] is False
@@ -525,16 +525,16 @@ def test_diagnose_scopes_probes_to_category_and_github_opt_in(monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
 
-    text = asyncio.run(DeepSearch().diagnose_run()).dict()
+    text = asyncio.run(Josty().diagnose_run()).dict()
     text_providers = {entry["provider"] for entry in text["providers"]}
     assert "github-api" not in text_providers
     assert all(p in text_providers for p in ("bing", "google", "yandex"))
 
-    news = asyncio.run(DeepSearch().diagnose_run(category="news")).dict()
+    news = asyncio.run(Josty().diagnose_run(category="news")).dict()
     news_providers = {entry["provider"] for entry in news["providers"]}
     assert news_providers == {"bing", "duckduckgo", "yahoo"}
 
-    got = asyncio.run(DeepSearch().diagnose_run(include_github=True)).dict()
+    got = asyncio.run(Josty().diagnose_run(include_github=True)).dict()
     got_providers = {entry["provider"] for entry in got["providers"]}
     assert "github-api" in got_providers
 
@@ -574,9 +574,9 @@ def test_domain_weights_boost_and_penalize_with_subdomains_and_profiles():
 
 def test_invalid_profile_raises_value_error():
     with pytest.raises(ValueError, match="profile"):
-        DeepSearch(profile="unsupported")
+        Josty(profile="unsupported")
 
-    engine = DeepSearch()
+    engine = Josty()
     with pytest.raises(ValueError, match="profile"):
         asyncio.run(engine.search_run("query", profile="unsupported"))
 
@@ -619,7 +619,7 @@ def test_search_cache_ttl_expiration(tmp_path):
 
 def test_search_run_uses_cache_and_skips_network(tmp_path, monkeypatch):
     cache_file = tmp_path / "engine_cache.db"
-    engine = DeepSearch(cache_db=cache_file)
+    engine = Josty(cache_db=cache_file)
 
     calls = 0
 
@@ -649,21 +649,21 @@ def test_search_run_uses_cache_and_skips_network(tmp_path, monkeypatch):
 
 
 def test_fetch_content_extracts_markdown_and_captures_error(monkeypatch):
-    engine = DeepSearch()
+    engine = Josty()
     item_ok = result("https://example.com/ok")
     item_fail = result("https://example.com/fail")
 
     async def allow(_self, _url):
         return None
 
-    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
+    monkeypatch.setattr(Josty, "_validate_public_url", allow)
 
     async def fake_download(_self, client, url):
         if "fail" in url:
             raise ValueError("connection dropped")
         return "<html><body><h1>Doc</h1><p>Text</p></body></html>", url
 
-    monkeypatch.setattr(DeepSearch, "_download", fake_download)
+    monkeypatch.setattr(Josty, "_download", fake_download)
 
     asyncio.run(engine.fetch_content([item_ok, item_fail]))
     assert item_ok.content is not None
@@ -674,19 +674,19 @@ def test_fetch_content_extracts_markdown_and_captures_error(monkeypatch):
 
 
 def test_fetch_content_concurrent_thread_safety(monkeypatch):
-    engine = DeepSearch(max_fetch_concurrency=10)
+    engine = Josty(max_fetch_concurrency=10)
     items = [result(f"https://example.com/page{i}") for i in range(20)]
 
     async def allow(_self, _url):
         return None
 
-    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
+    monkeypatch.setattr(Josty, "_validate_public_url", allow)
 
     async def fake_download(_self, client, url):
         html = f"<html><body><h1>Title for {url}</h1><p>Body paragraph content</p></body></html>"
         return html, url
 
-    monkeypatch.setattr(DeepSearch, "_download", fake_download)
+    monkeypatch.setattr(Josty, "_download", fake_download)
 
     asyncio.run(engine.fetch_content(items))
     assert len(items) == 20
@@ -700,23 +700,23 @@ def test_fetch_content_concurrent_thread_safety(monkeypatch):
 def test_expand_with_max_query_variants_truncation_and_validation():
     # Validation
     with pytest.raises(ValueError, match="max_query_variants must be positive"):
-        DeepSearch.expand("test", max_query_variants=0)
+        Josty.expand("test", max_query_variants=0)
     with pytest.raises(ValueError, match="max_query_variants must be positive"):
-        DeepSearch.expand("test", max_query_variants=-1)
+        Josty.expand("test", max_query_variants=-1)
 
     # OSS mode generates 4 variants by default; cap at 2
-    uncapped = DeepSearch.expand("test query", mode="oss")
+    uncapped = Josty.expand("test query", mode="oss")
     assert len(uncapped) == 4
-    capped = DeepSearch.expand("test query", mode="oss", max_query_variants=2)
+    capped = Josty.expand("test query", mode="oss", max_query_variants=2)
     assert capped == uncapped[:2]
     assert len(capped) == 2
 
     # Multi-site exact generates 4 variants (2 sites x 2 variants); cap at 3
-    multi_site = DeepSearch.expand(
+    multi_site = Josty.expand(
         "test query", sites=["github.com", "gitlab.com"], mode="exact"
     )
     assert len(multi_site) == 4
-    capped_multi = DeepSearch.expand(
+    capped_multi = Josty.expand(
         "test query",
         sites=["github.com", "gitlab.com"],
         mode="exact",
@@ -728,11 +728,11 @@ def test_expand_with_max_query_variants_truncation_and_validation():
 
 def test_constructor_max_query_variants_validation():
     with pytest.raises(ValueError, match="max_query_variants must be positive"):
-        DeepSearch(max_query_variants=0)
+        Josty(max_query_variants=0)
     with pytest.raises(ValueError, match="max_query_variants must be positive"):
-        DeepSearch(max_query_variants=-5)
+        Josty(max_query_variants=-5)
 
-    engine = DeepSearch(max_query_variants=2)
+    engine = Josty(max_query_variants=2)
     assert engine.max_query_variants == 2
 
 
@@ -749,7 +749,7 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", MockDDGS)
 
-    engine = DeepSearch(backends=("test-group",), enable_cache=True)
+    engine = Josty(backends=("test-group",), enable_cache=True)
 
     # Mode oss with 2 sites creates 8 variants uncapped; cap at 2
     queries_seen.clear()
@@ -786,17 +786,17 @@ def test_fetch_content_browser_headers_and_truncation(monkeypatch):
     async def allow(_self, _url):
         return None
 
-    monkeypatch.setattr(DeepSearch, "_validate_public_url", allow)
+    monkeypatch.setattr(Josty, "_validate_public_url", allow)
 
     async def fake_download(_self, client, url):
         captured_headers.update(dict(client.headers))
         long_html = f"<html><body><p>{'a' * 5000}</p></body></html>"
         return long_html, url
 
-    monkeypatch.setattr(DeepSearch, "_download", fake_download)
+    monkeypatch.setattr(Josty, "_download", fake_download)
 
     # 1. Test truncation at max_content_chars = 1000
-    engine_capped = DeepSearch(max_content_chars=1000)
+    engine_capped = Josty(max_content_chars=1000)
     item1 = result("https://example.com/test1")
     asyncio.run(engine_capped.fetch_content([item1]))
     assert item1.content is not None
@@ -806,7 +806,7 @@ def test_fetch_content_browser_headers_and_truncation(monkeypatch):
     assert captured_headers.get("sec-ch-ua-platform") == BROWSER_FETCH_HEADERS["sec-ch-ua-platform"]
 
     # 2. Test unlimited when max_content_chars = 0
-    engine_unlimited = DeepSearch(max_content_chars=0)
+    engine_unlimited = Josty(max_content_chars=0)
     item2 = result("https://example.com/test2")
     asyncio.run(engine_unlimited.fetch_content([item2]))
     assert item2.content is not None
@@ -815,10 +815,10 @@ def test_fetch_content_browser_headers_and_truncation(monkeypatch):
 
 def test_max_content_chars_validation():
     with pytest.raises(ValueError, match="content limits must be positive"):
-        DeepSearch(max_content_chars=-1)
+        Josty(max_content_chars=-1)
 
     with pytest.raises(ValueError, match="content limits must be positive"):
-        DeepSearch(max_download_bytes=0)
+        Josty(max_download_bytes=0)
 
 
 def test_domain_weights_expanded_authoritative_sets():
@@ -840,7 +840,7 @@ def test_domain_weights_expanded_authoritative_sets():
 
 def test_search_run_and_research_run_behavior_parity(tmp_path, monkeypatch):
     cache_file = tmp_path / "parity_cache.db"
-    engine = DeepSearch(cache_db=cache_file)
+    engine = Josty(cache_db=cache_file)
 
     async def fake_search_parts(query, **kwargs):
         res = [SearchResult(title=f"Result for {query}", url="https://example.com/res")]
@@ -938,7 +938,7 @@ def test_search_run_skips_backend_in_cool_down(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", BrokenDDGS)
     breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
-    engine = DeepSearch(backends=("broken",), breaker=breaker)
+    engine = Josty(backends=("broken",), breaker=breaker)
     for _ in range(2):
         run = asyncio.run(engine.search_run("q", limit=3))
         assert run.providers[0].error == "RuntimeError: blocked"
@@ -959,7 +959,7 @@ def test_github_breaker_is_independent_from_search_backends(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", BrokenDDGS)
     breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
-    engine = DeepSearch(backends=("broken",), breaker=breaker)
+    engine = Josty(backends=("broken",), breaker=breaker)
 
     async def fake_get(self, url, **kwargs):
         return httpx.Response(

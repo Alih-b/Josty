@@ -41,7 +41,7 @@ from benchmark_metrics import (  # noqa: E402
 )
 from benchmark_queries import QUERIES  # noqa: E402
 from ddgs import DDGS  # type: ignore  # noqa: E402
-from josty.engine import DeepSearch, canonical  # noqa: E402
+from josty.engine import Josty, canonical  # noqa: E402
 
 OUT_ROOT = HERE / "benchmark_out"
 OUT_ROOT.mkdir(exist_ok=True)
@@ -76,7 +76,7 @@ def backends_for_slot(slot_index: int) -> tuple[str, ...]:
 
 
 async def run_deep_search(query: str, backends: tuple[str, ...]) -> tuple[list[dict], float]:
-    engine = DeepSearch(timeout=TIMEOUT, backends=backends)
+    engine = Josty(timeout=TIMEOUT, backends=backends)
     started = time.perf_counter()
     run = await engine.search_run(query, limit=LIMIT)
     wall = time.perf_counter() - started

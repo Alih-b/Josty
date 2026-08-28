@@ -754,7 +754,7 @@ class CircuitBreaker:
         self._open_until.pop((backend, error_class), None)
 
 
-class DeepSearch:
+class Josty:
     """Small, bounded metasearch querying backend groups in parallel with
     group-level RRF fusion and safe text extraction."""
 
@@ -1358,3 +1358,7 @@ class DeepSearch:
 
     async def research(self, query: str, **kwargs: Any) -> list[SearchResult]:
         return (await self.research_run(query, **kwargs)).results
+
+
+# Backward compatibility alias
+DeepSearch = Josty

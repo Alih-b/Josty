@@ -143,10 +143,10 @@ uvx josty "asyncpg connection pool exhaustion" --site github.com --site stackove
 ### 🔍 Direct Async Python API
 ```python
 import asyncio
-from josty import DeepSearch
+from josty import Josty
 
 async def main():
-    engine = DeepSearch(profile="dev")
+    engine = Josty(profile="dev")
     run = await engine.research_run("Linux kernel initial release year", limit=3)
     
     if run.status != "failed":

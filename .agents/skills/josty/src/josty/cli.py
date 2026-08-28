@@ -4,7 +4,7 @@ import json
 import os
 import sys
 
-from .engine import DeepSearch
+from .engine import Josty
 
 
 def parser() -> argparse.ArgumentParser:
@@ -58,13 +58,13 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument(
         "--search-concurrency",
         type=int,
-        default=DeepSearch.DEFAULT_SEARCH_CONCURRENCY,
+        default=Josty.DEFAULT_SEARCH_CONCURRENCY,
         help="max concurrent search backend requests (default: %(default)d)",
     )
     command.add_argument(
         "--fetch-concurrency",
         type=int,
-        default=DeepSearch.DEFAULT_FETCH_CONCURRENCY,
+        default=Josty.DEFAULT_FETCH_CONCURRENCY,
         help="max concurrent page fetches (default: %(default)d)",
     )
     command.add_argument(
@@ -77,7 +77,7 @@ def parser() -> argparse.ArgumentParser:
 
 
 async def run(args: argparse.Namespace) -> dict | list:
-    engine = DeepSearch(
+    engine = Josty(
         github_token=os.getenv("GITHUB_TOKEN"),
         max_search_concurrency=args.search_concurrency,
         max_fetch_concurrency=args.fetch_concurrency,
@@ -111,7 +111,7 @@ def main() -> None:
     command = parser()
     args = command.parse_args()
     if args.clear_cache:
-        DeepSearch().clear_cache()
+        Josty().clear_cache()
         print(json.dumps({"status": "cleared", "message": "Search cache cleared"}))
         return
     if not args.query and not args.diagnose:

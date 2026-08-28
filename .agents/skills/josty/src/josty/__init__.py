@@ -1,6 +1,7 @@
 """Lightweight, keyless metasearch for AI-agent research."""
 
 from .engine import (
+    Josty,
     DeepSearch,
     ProfileType,
     ProviderStatus,
@@ -15,6 +16,7 @@ from .engine import (
 )
 
 __all__ = [
+    "Josty",
     "DeepSearch",
     "ProfileType",
     "ProviderStatus",

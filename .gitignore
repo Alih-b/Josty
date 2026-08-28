@@ -17,3 +17,7 @@ tests/benchmark_out/*/
 .commandcode/
 uv.lock
 
+
+.agents/skills/wayfinder/
+.agents/skills/retro/
+docs/wayfinder/

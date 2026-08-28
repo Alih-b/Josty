@@ -28,7 +28,7 @@ def test_main_prints_json_diagnosis(monkeypatch, capsys):
         captured.update(include_github=include_github, category=category)
         return DiagnoseRun()
 
-    monkeypatch.setattr("josty.engine.DeepSearch.diagnose_run", diagnose)
+    monkeypatch.setattr("josty.engine.Josty.diagnose_run", diagnose)
     monkeypatch.setattr("sys.argv", ["deep-search", "--diagnose", "--github"])
     main()
     payload = json.loads(capsys.readouterr().out)
@@ -50,7 +50,7 @@ def test_main_clear_cache(monkeypatch, capsys):
         nonlocal cleared
         cleared = True
 
-    monkeypatch.setattr("josty.engine.DeepSearch.clear_cache", fake_clear)
+    monkeypatch.setattr("josty.engine.Josty.clear_cache", fake_clear)
     monkeypatch.setattr("sys.argv", ["deep-search", "--clear-cache"])
     main()
     payload = json.loads(capsys.readouterr().out)
@@ -93,7 +93,7 @@ def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch
         )
         return SearchRun(query="test", results=[], providers=[])
 
-    monkeypatch.setattr("josty.engine.DeepSearch.research_run", fake_research)
+    monkeypatch.setattr("josty.engine.Josty.research_run", fake_research)
     monkeypatch.setattr("sys.argv", ["deep-search", "test"])
     main()
 
