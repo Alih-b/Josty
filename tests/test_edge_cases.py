@@ -24,11 +24,11 @@ import pytest
 
 from josty.cli import main as cli_main
 from josty.engine import (
+    SCHEMA_VERSION,
     CircuitBreaker,
     DiagnoseRun,
     Josty,
     ProviderStatus,
-    SCHEMA_VERSION,
     SearchCache,
     SearchResult,
     SearchRun,
