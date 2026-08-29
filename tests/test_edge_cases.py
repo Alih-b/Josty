@@ -18,15 +18,12 @@ import socket
 import sqlite3
 import ssl
 from types import SimpleNamespace
-from urllib.parse import urlsplit
 
 import httpx
 import pytest
 
 from josty import cli as cli_module
-from josty.cli import parser
 from josty.engine import (
-    BROWSER_FETCH_HEADERS,
     SCHEMA_VERSION,
     CircuitBreaker,
     DiagnoseRun,
@@ -48,6 +45,9 @@ from josty.engine import (
 # --------------------------------------------------------------------------------------
 # Fixtures
 # --------------------------------------------------------------------------------------
+
+MOCK_PUBLIC_ADDRINFO = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
+
 
 @pytest.fixture(autouse=True)
 def isolate_test_cache(tmp_path, monkeypatch):
@@ -74,7 +74,7 @@ def make_parts(return_lists, providers, sites=()):
 class TestSchemaContract:
     """The README promises:
        - 'stdout emits only pure, valid, parseable JSON conforming to schema_version: 1.0'
-       - 'All errors, diagnostics, and third-party dependency warnings are strictly routed to stderr'
+       - 'All errors, diagnostics, and warnings are strictly routed to stderr'
     """
 
     def test_schema_version_constant(self):
@@ -624,9 +624,7 @@ class TestFetchContent:
         assert "too many redirects" in item.fetch_error
 
     def test_content_type_octet_stream_rejected_by_download(self, monkeypatch):
-        monkeypatch.setattr(
-            socket, "getaddrinfo", lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
-        )
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: MOCK_PUBLIC_ADDRINFO)
         engine = Josty()
         transport = httpx.MockTransport(
             lambda req: httpx.Response(
@@ -640,9 +638,7 @@ class TestFetchContent:
             asyncio.run(run())
 
     def test_content_length_over_limit_rejected_by_download(self, monkeypatch):
-        monkeypatch.setattr(
-            socket, "getaddrinfo", lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
-        )
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: MOCK_PUBLIC_ADDRINFO)
         engine = Josty(max_download_bytes=10)
         transport = httpx.MockTransport(
             lambda req: httpx.Response(
@@ -656,9 +652,7 @@ class TestFetchContent:
             asyncio.run(run())
 
     def test_stream_size_over_limit_rejected_by_download(self, monkeypatch):
-        monkeypatch.setattr(
-            socket, "getaddrinfo", lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
-        )
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: MOCK_PUBLIC_ADDRINFO)
         engine = Josty(max_download_bytes=10)
         transport = httpx.MockTransport(
             lambda req: httpx.Response(
@@ -675,7 +669,7 @@ class TestFetchContent:
         """A redirect to file:// should be rejected by _validate_public_url on
         the next iteration of the redirect loop."""
         orig = socket.getaddrinfo
-        socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
+        socket.getaddrinfo = lambda *a, **k: MOCK_PUBLIC_ADDRINFO
         try:
             transport = httpx.MockTransport(
                 lambda req: httpx.Response(302, headers={"location": "file:///etc/passwd"})
@@ -950,17 +944,20 @@ class TestClassifyError:
 
     def test_httpx_429_is_rate_limited(self):
         request = httpx.Request("GET", "u")
-        exc = httpx.HTTPStatusError("Too Many", request=request, response=httpx.Response(429, request=request))
+        resp = httpx.Response(429, request=request)
+        exc = httpx.HTTPStatusError("Too Many", request=request, response=resp)
         assert _classify_search_error(exc) == "rate_limited"
 
     def test_httpx_500_is_network(self):
         request = httpx.Request("GET", "u")
-        exc = httpx.HTTPStatusError("Server Error", request=request, response=httpx.Response(500, request=request))
+        resp = httpx.Response(500, request=request)
+        exc = httpx.HTTPStatusError("Server Error", request=request, response=resp)
         assert _classify_search_error(exc) == "network"
 
     def test_httpx_400_is_parse(self):
         request = httpx.Request("GET", "u")
-        exc = httpx.HTTPStatusError("Bad", request=request, response=httpx.Response(400, request=request))
+        resp = httpx.Response(400, request=request)
+        exc = httpx.HTTPStatusError("Bad", request=request, response=resp)
         assert _classify_search_error(exc) == "parse"
 
     def test_unknown_exception_is_unknown(self):
@@ -1030,8 +1027,8 @@ class TestGitHubRun:
                 json={
                     "items": [
                         {"full_name": "ok/repo", "html_url": "https://github.com/ok/repo"},
-                        {"full_name": "no-url", "html_url": ""},  # dropped: empty html_url
-                        {"full_name": "", "html_url": "https://github.com/empty"},  # dropped: empty full_name
+                        {"full_name": "no-url", "html_url": ""},  # empty url
+                        {"full_name": "", "html_url": "https://github.com/empty"},  # empty name
                         "not a dict",  # dropped: not a dict
                     ]
                 },
@@ -1050,7 +1047,7 @@ class TestGitHubRun:
         asyncio.run(Josty(github_token="secret-token").github_run("q", 5))
         # Header is lowercased by httpx
         assert "authorization" in captured
-        assert "Bearer secret-token" == captured["authorization"]
+        assert captured["authorization"] == "Bearer secret-token"
 
     def test_github_no_token_omits_authorization(self, monkeypatch):
         captured = {}
@@ -1140,7 +1137,8 @@ class TestResearchRun:
         calls = {"n": 0}
         async def parts(query, *, sites, mode, limit, category, **kw):
             calls["n"] += 1
-            return [[result("https://example.com/x")]], [ProviderStatus("test", query, True, 1)], sites or []
+            res = [[result("https://example.com/x")]]
+            return res, [ProviderStatus("test", query, True, 1)], sites or []
         monkeypatch.setattr(engine, "_search_parts", parts)
         # Different max_query_variants -> different cache keys -> two network calls
         asyncio.run(engine.search_run("q", max_query_variants=2))
@@ -1237,7 +1235,8 @@ class TestQueryRelaxation:
             if query == "alpha beta gamma":
                 return [[]], [ProviderStatus("test", query, True, 0)], []
             if query == "alpha beta":  # relaxed
-                return [[result("https://example.com/x")]], [ProviderStatus("test", query, True, 1)], []
+                res = [[result("https://example.com/x")]]
+                return res, [ProviderStatus("test", query, True, 1)], []
             return [[]], [ProviderStatus("test", query, True, 0)], []
 
         monkeypatch.setattr(engine, "_search_parts", parts)
