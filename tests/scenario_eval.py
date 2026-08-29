@@ -3,7 +3,7 @@
 Default: score ``tests/scenario_corpus.jsonl`` against ``scenario_queries.SCENARIOS``.
 Optional live recapture (not CI):
 
-    JOSTY_LIVE_EVAL=1 python tests/scenario_eval.py --live --out tests/scenario_out/live
+    JOSTY_LIVE_EVAL=1 python tests/scenario_eval.py --live
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from scenario_queries import SCENARIOS  # noqa: E402
 
 DEFAULT_CORPUS = HERE / "scenario_corpus.jsonl"
 DEFAULT_OUT = HERE / "scenario_out" / "replay"
+DEFAULT_LIVE_OUT = HERE / "scenario_out" / "live"
 
 CONTENT_KEEP_CHARS = 400
 
@@ -109,11 +110,14 @@ def _evaluate_diagnose(spec: dict[str, Any], payload: dict[str, Any]) -> list[st
     if spec.get("http_error_still_ok"):
         for item in providers:
             status = item.get("http_status")
-            if isinstance(status, int) and status >= 400 and not item.get("ok"):
-                issues.append(
-                    f"{item.get('provider')} http_status={status} ok=false "
-                    "(diagnose treats any HTTP response as reachable)"
-                )
+            if not isinstance(status, int) or status < 400:
+                continue
+            if item.get("ok") is True:
+                continue
+            issues.append(
+                f"{item.get('provider')} http_status={status} ok={item.get('ok')!r} "
+                "(diagnose treats any HTTP response as reachable)"
+            )
     return issues
 
 
@@ -146,22 +150,29 @@ def _evaluate_search(spec: dict[str, Any], payload: dict[str, Any]) -> list[str]
 
     include_content = bool(spec.get("search_content"))
     must_answer = spec.get("must_answer") or []
-    if must_answer and rows:
+    blob = ""
+    if rows and (must_answer or spec.get("forbid_if_missing_must")):
         blob = " ".join(result_text(item, include_content=include_content) for item in rows)
+    if must_answer and rows:
         missing = [token for token in must_answer if token.lower() not in blob]
         if missing:
             issues.append(f"missing answer tokens {missing}")
 
+    # Runs whenever forbid_if_missing_must is set — not only when must_answer
+    # is also present. If must_answer is set and missing, the message is a
+    # near-miss; otherwise the forbidden token alone is enough to fail.
     forbid_if_missing = spec.get("forbid_if_missing_must") or []
-    if forbid_if_missing and must_answer and rows:
-        blob = " ".join(result_text(item, include_content=include_content) for item in rows)
-        has_must = all(token.lower() in blob for token in must_answer)
-        if not has_must:
-            for token in forbid_if_missing:
-                if token.lower() in blob:
-                    issues.append(
-                        f"near-miss: found {token!r} but missing {must_answer}"
-                    )
+    if forbid_if_missing and rows:
+        missing_must = bool(must_answer) and any(
+            token.lower() not in blob for token in must_answer
+        )
+        for token in forbid_if_missing:
+            if token.lower() not in blob:
+                continue
+            if must_answer and missing_must:
+                issues.append(f"near-miss: found {token!r} but missing {must_answer}")
+            elif not must_answer:
+                issues.append(f"forbidden token {token!r} present in results")
 
     if spec.get("fetch_content_or_error") and rows:
         useful = [
@@ -199,6 +210,8 @@ def evaluate_corpus(corpus: dict[str, dict[str, Any]]) -> list[CaseResult]:
     for spec in SCENARIOS:
         row = corpus.get(spec["id"])
         if row is None:
+            # A missing frozen row is a harness contract break, not upstream
+            # quality: the spec promised a checked-in envelope.
             results.append(
                 CaseResult(
                     id=spec["id"],
@@ -215,13 +228,17 @@ def evaluate_corpus(corpus: dict[str, dict[str, Any]]) -> list[CaseResult]:
     return results
 
 
-def render_report(results: list[CaseResult]) -> str:
+def render_report(results: list[CaseResult], *, source: str = "frozen") -> str:
     failed = [row for row in results if row.verdict != "pass"]
+    origin = (
+        "Constraint checks against the frozen scenario corpus. "
+        if source == "frozen"
+        else "Constraint checks against a live recapture (frozen fixtures merged in). "
+    )
     lines = [
         "# Josty scenario eval",
         "",
-        "Constraint checks against the frozen scenario corpus. "
-        "Failures emit a taxonomy class from `docs/ISSUE_TAXONOMY.md`.",
+        origin + "Failures emit a taxonomy class from `docs/ISSUE_TAXONOMY.md`.",
         "",
         f"**{sum(row.verdict == 'pass' for row in results)}/{len(results)} constraints passed.**",
         "",
@@ -244,9 +261,22 @@ def render_report(results: list[CaseResult]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_outputs(out_dir: Path, results: list[CaseResult]) -> None:
+def live_output_dir(requested: Path) -> Path:
+    """Never write live recapture into the checked-in replay directory."""
+    replay = DEFAULT_OUT.resolve()
+    target = requested.resolve()
+    if target == replay or replay in target.parents:
+        return DEFAULT_LIVE_OUT
+    return target
+
+
+def write_outputs(
+    out_dir: Path, results: list[CaseResult], *, source: str = "frozen"
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "REPORT.md").write_text(render_report(results), encoding="utf-8")
+    (out_dir / "REPORT.md").write_text(
+        render_report(results, source=source), encoding="utf-8"
+    )
     (out_dir / "results.json").write_text(
         json.dumps([row.as_row() for row in results], indent=2),
         encoding="utf-8",
@@ -310,19 +340,29 @@ def main(argv: list[str] | None = None) -> int:
         "--live",
         action="store_true",
         help="recapture live envelopes (requires JOSTY_LIVE_EVAL=1); "
-        "does not overwrite the checked-in corpus",
+        "writes under scenario_out/live and does not overwrite the "
+        "checked-in corpus or replay report",
     )
     args = parser.parse_args(argv)
     if args.live:
         if os.environ.get("JOSTY_LIVE_EVAL") != "1":
             print("refusing --live without JOSTY_LIVE_EVAL=1", file=sys.stderr)
             return 2
-        live_path = capture_live(args.out)
+        live_out = live_output_dir(args.out)
+        if live_out.resolve() != args.out.resolve():
+            print(
+                f"redirecting --live output to {live_out} (will not clobber replay/)",
+                file=sys.stderr,
+            )
+        live_path = capture_live(live_out)
         print(f"wrote {live_path}", file=sys.stderr)
         corpus = load_corpus(args.corpus)
         corpus.update(load_corpus(live_path))
-    else:
-        corpus = load_corpus(args.corpus)
+        results = evaluate_corpus(corpus)
+        write_outputs(live_out, results, source="live")
+        print(render_report(results, source="live"), end="")
+        return 0
+    corpus = load_corpus(args.corpus)
     results = evaluate_corpus(corpus)
     write_outputs(args.out, results)
     print(render_report(results), end="")

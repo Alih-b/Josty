@@ -6,6 +6,10 @@ When a constraint fails, emit ``label_if_fail`` from docs/ISSUE_TAXONOMY.md.
 
 Do not reuse ``benchmark_grade.string_grade`` here: a news hit on ``"14"``
 would false-pass token-collision cases.
+
+``forbid_if_missing_must`` always runs when set. Alone, any listed token in
+the result text is a failure. Together with ``must_answer``, a listed token
+is reported as a near-miss only when a required answer token is also missing.
 """
 
 from __future__ import annotations

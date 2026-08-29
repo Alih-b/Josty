@@ -14,7 +14,9 @@ Walk the decision tree in [docs/ISSUE_TAXONOMY.md](docs/ISSUE_TAXONOMY.md) and p
 Optional live recapture (not CI):
 
 ```bash
-JOSTY_LIVE_EVAL=1 python tests/scenario_eval.py --live --out tests/scenario_out/live
+JOSTY_LIVE_EVAL=1 python tests/scenario_eval.py --live
 ```
+
+`--live` writes under `tests/scenario_out/live/` (even if `--out` points at the checked-in `replay/` dir). It does not overwrite `tests/scenario_corpus.jsonl` or `tests/scenario_out/replay/`.
 
 Do not add CAPTCHA, authentication, paywall, robots, or provider-control bypasses. New providers must expose failures and document credentials, terms, rate limits, and licensing implications.
