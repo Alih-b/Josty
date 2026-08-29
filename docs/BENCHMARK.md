@@ -88,10 +88,20 @@ count as zeros in the `all_runs` view and are filtered out in the
    it surfaces `degraded` status instead of silently returning partial
    results.
 
+## What this does not measure
+
+The TREC replay does not classify news irrelevance, weak `--profile`
+ranking, `--diagnose` reachability vs quota, or a `complete` status that
+an agent will misread. Those live-agent scenarios live in
+[ISSUE_TAXONOMY.md](ISSUE_TAXONOMY.md) and `tests/scenario_eval.py`
+(offline corpus + optional `--live` recapture). Do not reuse
+`benchmark_grade.string_grade` for news: a hit on `"14"` false-passes.
+
 ## Honest caveats
 
 - **Factual queries only.** No current events, multi-intent, adversarial,
-  or non-English queries.
+  or non-English queries. Label those misses with the
+  [issue taxonomy](ISSUE_TAXONOMY.md), not this nDCG table.
 - **String-grader bias & upper-bound effect.** The deterministic substring
   grader (canonical URL = 3, answer-string = 2) is reproducible and fair
   across identically evaluated runners, but structurally rewards surface

@@ -74,10 +74,15 @@ GitHub API limits.
 
 - Use focused queries and run independent searches concurrently only when useful.
 - Check `status`, `partial`, and `providers`; provider failure is not evidence of absence.
+- `status=complete` with empty or off-topic results is not evidence of absence. An `ok` provider with `result_count=0` is a successful empty branch, not a backend outage.
+- `--category news` can return token-collision junk (e.g. "3.14" matching "District 14"). Require the subject token in title or snippet before citing a news hit.
+- `--diagnose` `ok=true` means the host answered HTTP, including 403/429. Read `http_status`; it is not a search-quality signal.
+- `--fetch` 403 or a download-limit error is per-URL; try the next result.
 - Verify important claims against primary sources before citing them.
 - Treat Reddit, X, blogs, and forums as discovery or opinion evidence.
 - Distinguish observed facts from inference and note unresolved conflicts.
 - A URL or RRF score is ranking evidence, not proof that a source supports a claim.
+- Label a live miss with the repository issue taxonomy (`docs/ISSUE_TAXONOMY.md`) before changing engine code.
 
 ## Safety
 

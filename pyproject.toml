@@ -63,7 +63,7 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".agents/skills/josty/src"]
+pythonpath = [".agents/skills/josty/src", "tests"]
 
 [tool.ruff]
 line-length = 100

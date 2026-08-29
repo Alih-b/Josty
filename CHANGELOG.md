@@ -7,6 +7,11 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Issue taxonomy and offline scenario eval (`docs/ISSUE_TAXONOMY.md`,
+  `tests/scenario_eval.py`) so live misses can be labeled as `contract_bug`,
+  `intended_misleading`, `upstream_quality`, or `product_gap` without changing
+  ranking. Frozen corpus is scored in `pytest`; optional live recapture requires
+  `JOSTY_LIVE_EVAL=1`.
 - `error_kind` field on each `providers[]` entry in the search JSON contract, classifying the
   failure as `network`, `rate_limited`, `empty`, `parse`, or `unknown` so callers can distinguish
   a TLS-layer rejection from a rate limit from a genuine empty result without manual bisection.
