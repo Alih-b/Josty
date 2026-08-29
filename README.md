@@ -87,6 +87,7 @@ josty "RRF rank fusion algorithm" --limit 3 --fetch
   "status": "complete",
   "count": 3,
   "partial": false,
+  "cached": false,
   "providers": [
     { "provider": "bing,brave,duckduckgo", "ok": true, "result_count": 5 },
     { "provider": "google,mojeek,startpage", "ok": true, "result_count": 5 }
@@ -173,7 +174,7 @@ search_tool_definition = {
 
 ```mermaid
 graph TD
-    Query["<b>Search Query</b><br/>(sites, profile, mode)"] --> Cache{"<b>SQLite WAL Cache</b><br/>(6h TTL & LFU)"}
+    Query["Search Query"] --> Cache{"SQLite WAL Cache<br/>6h TTL, 5k row cap"}
     
     Cache -- Cache Hit --> Out["<b>Pure JSON Output</b><br/>(schema_version: 1.0)"]
     
@@ -193,7 +194,7 @@ graph TD
     
     Canon --> Fetch{"<b>--fetch Active?</b>"}
     
-    Fetch -- Yes --> Traf["<b>Trafilatura Extractor</b><br/>(Bounded Markdown & Code Slices)"]
+    Fetch -- Yes --> Traf["Trafilatura Extractor<br/>Bounded Markdown"]
     Fetch -- No --> Out
     Traf --> Out
 
@@ -217,7 +218,7 @@ graph TD
 
 ## Roadmap
 
-See **[ROADMAP.md](ROADMAP.md)** for `v0.4.0`, ordered **hot / high-ROI first**: surface `error_kind=empty`, finish Adaptive Query Relaxation, news lexical gate, academic/dev host floor — then diagnose `challenged`, bounded cache, and `--extract-code`.
+See **[ROADMAP.md](ROADMAP.md)** for `v0.4.0`: honest empty/`challenged` signals, no hidden query rewrite, and a bounded cache. Query relaxation, news engine filters, and hard host floors are out of scope.
 
 ---
 

@@ -4,7 +4,7 @@
     "layer": "news",
     "verdict": "fail",
     "taxonomy_class": "upstream_quality",
-    "pathway": "Lexical relevance gate or news-specific ranking; not a ddgs-call bug.",
+    "pathway": "Skill: require subject tokens before citing. Not an engine filter.",
     "issues": [
       "missing answer tokens ['python']"
     ],
@@ -15,7 +15,7 @@
     "layer": "news",
     "verdict": "fail",
     "taxonomy_class": "upstream_quality",
-    "pathway": "Lexical relevance gate or news-specific ranking; not a ddgs-call bug.",
+    "pathway": "Skill: require subject tokens before citing. Not an engine filter.",
     "issues": [
       "missing answer tokens ['3.14']",
       "near-miss: found '3.15' but missing ['3.14']"
@@ -27,7 +27,7 @@
     "layer": "rank",
     "verdict": "fail",
     "taxonomy_class": "product_gap",
-    "pathway": "Stronger academic rerank or hard host floor; 1.4x cannot beat 3-group RRF.",
+    "pathway": "Soft academic weights only; no hard host floor.",
     "issues": [
       "no result on required hosts ('arxiv.org', 'biorxiv.org', 'medrxiv.org', 'ncbi.nlm.nih.gov', 'nih.gov', 'ieee.org')\u2026"
     ],
@@ -38,7 +38,7 @@
     "layer": "rank",
     "verdict": "pass",
     "taxonomy_class": null,
-    "pathway": "Stronger dev rerank or hard host floor.",
+    "pathway": "Soft dev weights only; no hard host floor.",
     "issues": [],
     "confidence": "reproduced"
   },
@@ -74,7 +74,7 @@
     "layer": "diagnose",
     "verdict": "pass",
     "taxonomy_class": null,
-    "pathway": "Optional challenged bit or skill text on http_status; not a probe bug.",
+    "pathway": "challenged bit plus skill text on http_status; not a probe bug.",
     "issues": [],
     "confidence": "reproduced"
   },
@@ -83,7 +83,7 @@
     "layer": "fetch",
     "verdict": "pass",
     "taxonomy_class": null,
-    "pathway": "Factual fetch; add RFC-1 if over-constrained queries go empty.",
+    "pathway": "Factual fetch; over-constrained empties are caller rewrites, not RFC-1.",
     "issues": [],
     "confidence": "reproduced"
   },
@@ -92,7 +92,7 @@
     "layer": "status",
     "verdict": "pass",
     "taxonomy_class": null,
-    "pathway": "Surface error_kind=empty on ProviderStatus (schema 1.0 compatible).",
+    "pathway": "error_kind=empty on ProviderStatus (schema 1.0 compatible).",
     "issues": [],
     "confidence": "reproduced"
   }
