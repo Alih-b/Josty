@@ -1,0 +1,99 @@
+[
+  {
+    "id": "news_token_collision",
+    "layer": "news",
+    "verdict": "fail",
+    "taxonomy_class": "upstream_quality",
+    "pathway": "Lexical relevance gate or news-specific ranking; not a ddgs-call bug.",
+    "issues": [
+      "missing answer tokens ['python']"
+    ],
+    "confidence": "reproduced"
+  },
+  {
+    "id": "news_near_miss",
+    "layer": "news",
+    "verdict": "fail",
+    "taxonomy_class": "upstream_quality",
+    "pathway": "Lexical relevance gate or news-specific ranking; not a ddgs-call bug.",
+    "issues": [
+      "missing answer tokens ['3.14']",
+      "near-miss: found '3.15' but missing ['3.14']"
+    ],
+    "confidence": "reproduced"
+  },
+  {
+    "id": "academic_profile_rag",
+    "layer": "rank",
+    "verdict": "fail",
+    "taxonomy_class": "product_gap",
+    "pathway": "Stronger academic rerank or hard host floor; 1.4x cannot beat 3-group RRF.",
+    "issues": [
+      "no result on required hosts ('arxiv.org', 'biorxiv.org', 'medrxiv.org', 'ncbi.nlm.nih.gov', 'nih.gov', 'ieee.org')\u2026"
+    ],
+    "confidence": "reproduced"
+  },
+  {
+    "id": "dev_profile_fastapi",
+    "layer": "rank",
+    "verdict": "pass",
+    "taxonomy_class": null,
+    "pathway": "Stronger dev rerank or hard host floor.",
+    "issues": [],
+    "confidence": "reproduced"
+  },
+  {
+    "id": "site_filter_httpx",
+    "layer": "cli",
+    "verdict": "pass",
+    "taxonomy_class": null,
+    "pathway": "Site post-filter already exists; a leak is a contract bug.",
+    "issues": [],
+    "confidence": "reproduced"
+  },
+  {
+    "id": "exact_free_threading",
+    "layer": "rank",
+    "verdict": "pass",
+    "taxonomy_class": null,
+    "pathway": "Exact-mode ranking; investigate if docs.python.org drops out.",
+    "issues": [],
+    "confidence": "reproduced"
+  },
+  {
+    "id": "fetch_rrf",
+    "layer": "fetch",
+    "verdict": "pass",
+    "taxonomy_class": null,
+    "pathway": "Keep 403 / download-limit as fetch_error; skill retries the next URL.",
+    "issues": [],
+    "confidence": "reproduced"
+  },
+  {
+    "id": "diagnose_reachability",
+    "layer": "diagnose",
+    "verdict": "pass",
+    "taxonomy_class": null,
+    "pathway": "Optional challenged bit or skill text on http_status; not a probe bug.",
+    "issues": [],
+    "confidence": "reproduced"
+  },
+  {
+    "id": "linux_kernel_year",
+    "layer": "fetch",
+    "verdict": "pass",
+    "taxonomy_class": null,
+    "pathway": "Factual fetch; add RFC-1 if over-constrained queries go empty.",
+    "issues": [],
+    "confidence": "reproduced"
+  },
+  {
+    "id": "empty_provider_complete",
+    "layer": "status",
+    "verdict": "pass",
+    "taxonomy_class": null,
+    "pathway": "Surface error_kind=empty on ProviderStatus (schema 1.0 compatible).",
+    "issues": [],
+    "confidence": "reproduced"
+  }
+]

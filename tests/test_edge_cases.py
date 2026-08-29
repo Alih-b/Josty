@@ -21,7 +21,6 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-
 from josty.cli import main as cli_main
 from josty.engine import (
     SCHEMA_VERSION,
@@ -40,7 +39,6 @@ from josty.engine import (
     normalize_sites,
     rrf,
 )
-
 
 # --------------------------------------------------------------------------------------
 # Fixtures
