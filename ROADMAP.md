@@ -2,7 +2,7 @@
 
 **Josty** is a zero-config, keyless metasearch engine and bounded content extraction tool designed specifically for AI agent runtimes and developer workflows.
 
-This document serves as the roadmap, technical specification reference, and tracking guide for release milestones and future GitHub issues.
+This document is the release plan for `v0.4.0`. Features are ordered by **hot / high-ROI first**: live agent failure impact × fix size × how often the failure fires. Do not ship token-saving or cache-hygiene work ahead of empty-result and junk-result fixes.
 
 ---
 
@@ -16,136 +16,143 @@ Every feature added to Josty must adhere to these invariants:
 
 ---
 
-## Milestone: v0.4.0 — Adaptive & Bounded Retrieval
+## Priority stack (hot / high-ROI first)
 
-The goal of `v0.4.0` is to eliminate empty-result retrieval failures on complex queries, provide token-budgeted code extraction, and bound disk cache growth.
+Evidence: frozen scenario eval (7/10), benchmark empty-run rate (51%), live probes 2026-08-29. Taxonomy classes from [`docs/ISSUE_TAXONOMY.md`](docs/ISSUE_TAXONOMY.md).
+
+| Rank | ID | Hot? | ROI | Why this order | Size |
+|---|---|---|---|---|---|
+| **1** | **RFC-0a** Surface `error_kind=empty` | 🔥 | ★★★★★ | Tiny 1.0-compatible change; stops agents treating empty-ok branches as “unknown health” | XS |
+| **2** | **RFC-1** Adaptive Query Relaxation | 🔥 | ★★★★★ | Live: overconstrained → `status=complete` + `count=0`. Stub already in `research_run` (strip quotes / drop last token) and still fails — finish the 3-stage pipeline + `expansion_trace` | M |
+| **3** | **RFC-0b** News lexical relevance gate | 🔥 | ★★★★☆ | 2 of 3 scenario failures (`news_token_collision`, `news_near_miss`); stops false citations without new backends | S |
+| **4** | **RFC-0c** Academic/dev hard host floor | 🔥 | ★★★★☆ | Scenario + live: Wikipedia/AWS beat arXiv under `--profile academic`; 1.3–1.4× RRF weight is too weak | S–M |
+| **5** | **RFC-0d** Diagnose `challenged` bit | warm | ★★★☆☆ | Brave HTTP 429 still `ok=true`; skill can already read `http_status`, so lower urgency than 1–4 | XS |
+| **6** | **RFC-4** Bounded SQLite cache + `cached` | cool | ★★★☆☆ | Ops hygiene; cache exists but is unbounded. Prevents disk growth in agent loops — not a live miss | S |
+| **7** | **RFC-2** `--extract-code` | cool | ★★☆☆☆ | Token savings on `--fetch`; does **not** fix empty/junk/throttle failures. Demoted from earlier `priority:high` | M |
+
+**Ship order for `v0.4.0`:** `0a → 1 → 0b → 0c` as the hot tranche; then `0d → 4 → 2`.
 
 ```mermaid
 graph TD
-    classDef card fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,text-align:left;
+    classDef hot fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,text-align:left;
+    classDef warm fill:#ffedd5,stroke:#c2410c,stroke-width:1px,text-align:left;
+    classDef cool fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,text-align:left;
     classDef title fill:#dbeafe,stroke:#1e40af,stroke-width:2px,font-weight:bold;
 
-    V4["<b>v0.4.0: Adaptive & Bounded Retrieval</b>"]:::title
+    V4["<b>v0.4.0 — hot failures first</b>"]:::title
 
-    RFC1["<b>RFC-1: Adaptive Query Relaxation</b><br/>• Auto 3-stage fallback on 0 hits<br/>• Strip dates & version anchors<br/>• Drop punctuation & boolean operators<br/>• Drop low-IDF modifier tokens<br/>• Emit <code>expansion_trace</code> in JSON"]:::card
+    R0a["<b>1. RFC-0a</b> error_kind=empty on ProviderStatus"]:::hot
+    R1["<b>2. RFC-1</b> Adaptive Query Relaxation + expansion_trace"]:::hot
+    R0b["<b>3. RFC-0b</b> News lexical relevance gate"]:::hot
+    R0c["<b>4. RFC-0c</b> Academic/dev hard host floor"]:::hot
+    R0d["<b>5. RFC-0d</b> Diagnose challenged bit"]:::warm
+    R4["<b>6. RFC-4</b> Bounded cache + cached flag"]:::cool
+    R2["<b>7. RFC-2</b> --extract-code slicing"]:::cool
 
-    RFC4["<b>RFC-4: Bounded SQLite Cache</b><br/>• Track access count & last accessed<br/>• Auto-prune ceiling (5,000 entries)<br/>• <code>cached: bool</code> telemetry flag<br/>• 6-hour default TTL (WAL mode)"]:::card
-
-    RFC2["<b>RFC-2: Token-Budgeted Code Slicing</b><br/>• <code>--extract-code</code> CLI flag<br/>• Zero-dependency fenced block parser<br/>• Language tagging (python, rust, etc.)<br/>• <code>code_blocks</code> JSON array"]:::card
-
-    V4 --> RFC1
-    V4 --> RFC4
-    V4 --> RFC2
+    V4 --> R0a --> R1 --> R0b --> R0c --> R0d --> R4 --> R2
 ```
 
 ---
 
-## Feature Specifications & Issue Guide
+## Milestone: v0.4.0 — Fix empty & junk, then bound & slice
 
-### Feature 1 (RFC-1): Adaptive Query Relaxation Pipeline (AQRP)
+### Hot tranche (do first)
 
-- **Suggested Issue Title**: `[RFC-1] Adaptive Query Relaxation Pipeline (AQRP) on 0-result searches`
-- **Labels**: `enhancement`, `rfc`, `priority:high`
-- **Component**: `.agents/skills/josty/src/josty/engine.py`
+#### RFC-0a — Surface `error_kind=empty` on empty-ok providers
 
-#### Problem
-Reasoning models frequently construct over-constrained queries with trailing years (e.g. `2026`), strict quotes, or 8+ keyword terms. Because underlying search engines treat multi-word queries as strict boolean conjunctions, this frequently causes empty results.
+- **Labels**: `enhancement`, `priority:critical`, `schema`
+- **Component**: `engine.py` `_ddgs`
+- **Problem**: Empty backends return `ok=true`, `result_count=0` with `error_kind` dropped. Agents cannot tell empty branch from healthy branch without reading counts carefully; taxonomy labels this `intended_misleading`.
+- **Solution**: When ddgs raises the empty-results message, keep `ok=true` (contract preserved) but set `error_kind="empty"`.
+- **Acceptance**:
+  - [ ] Empty successful branches emit `error_kind: "empty"`.
+  - [ ] Non-empty successes still have `error_kind: null`.
+  - [ ] Scenario / unit coverage; no schema_version bump.
 
-#### Solution
-1. Implement pure-Python relaxation helper `relax_query(query: str, step: int) -> str | None`:
-   - **Stage 1 (Temporal/Version Stripping):** Strip trailing year and release version tokens (e.g. `2025`, `2026`, `latest`, `v2`, `v3.1`).
-   - **Stage 2 (Quote/Syntax Normalization):** Strip exact-match quotes, boolean operators (`AND`, `OR`), and punctuation noise.
-   - **Stage 3 (Progressive Keyword Dropping):** Drop lowest IDF/modifier tokens to isolate core noun phrases.
-2. In `Josty.research_run()`:
-   - If initial parallel fanout returns 0 results and error is not a network failure, iteratively execute relaxation stages 1 to 3.
-   - Stop at the first stage that returns non-empty fused results.
-   - Populate `expansion_trace: list[str]` in `SearchRun` (e.g. `["original query", "stage 1 query"]`).
+#### Feature 1 (RFC-1) — Adaptive Query Relaxation Pipeline (AQRP)
 
-#### Acceptance Criteria
-- [ ] Automatically triggers on 0 results from initial search pass.
-- [ ] `expansion_trace: list[str]` emitted in `SearchRun` dataclass and JSON contract.
-- [ ] Original `query` field remains untouched to preserve caller contract.
-- [ ] Unit tests in `tests/test_engine.py` verifying each relaxation stage.
+- **Labels**: `enhancement`, `rfc`, `priority:critical`
+- **Component**: `engine.py`
+- **Problem**: Reasoning models emit over-constrained queries (years, quotes, version tokens). Engines return 0 hits → `status=complete` + `count=0`. A one-shot stub already exists in `research_run` and is insufficient.
+- **Solution**: Replace the stub with `relax_query(query, step)` stages:
+  1. Strip trailing year / version anchors (`2026`, `latest`, `v3.1`).
+  2. Strip quotes, boolean ops, punctuation noise.
+  3. Drop lowest-IDF / modifier tokens.
+  Stop at first non-empty fused result. Emit `expansion_trace: list[str]` on `SearchRun`; leave `query` untouched.
+- **Acceptance**:
+  - [ ] Triggers only on 0 fused results when providers are not all hard-failed.
+  - [ ] `expansion_trace` in JSON; original `query` unchanged.
+  - [ ] Unit tests per stage; live overconstrained probe returns ≥1 result or traces all stages.
 
----
+#### RFC-0b — News lexical relevance gate
 
-### Feature 2 (RFC-4): Enhanced Bounded SQLite Cache with Access Telemetry
+- **Labels**: `enhancement`, `priority:high`, `news`
+- **Component**: `engine.py` (post-ddgs / pre-RRF or post-RRF filter for `category=news`)
+- **Problem**: `ddgs.news("Python 3.14")` returns District 14 / iPhone 14. Upstream quality; josty can gate.
+- **Solution**: Require subject query tokens (minus stopwords) to appear in title or snippet before a news hit is kept / ranked. Near-miss version tokens (found `3.15`, missing `3.14`) demote or drop.
+- **Acceptance**:
+  - [ ] Scenario cases `news_token_collision` and `news_near_miss` pass on frozen corpus after re-capture or synthetic rows.
+  - [ ] Text category ranking unchanged.
 
-- **Suggested Issue Title**: `[RFC-4] Enhanced Bounded SQLite Cache with Access Telemetry & cached Flag`
+#### RFC-0c — Academic / dev hard host floor
+
+- **Labels**: `enhancement`, `priority:high`, `rank`
+- **Component**: `rrf` / post-fusion rerank
+- **Problem**: Soft 1.3–1.4× domain weights cannot beat 3-group RRF consensus. Academic RAG queries surface Wikipedia / AWS ahead of arXiv.
+- **Solution**: When `profile` is `academic` or `dev` and ≥1 result is on a profile authority host, force those hosts into a top-k floor (or additive boost large enough to outrank single-list consensus).
+- **Acceptance**:
+  - [ ] `academic_profile_rag` scenario passes (required host in top results).
+  - [ ] `dev_profile_fastapi` remains passing.
+
+### Warm / cool tranche (after hot)
+
+#### RFC-0d — Diagnose `challenged` bit
+
+- **Labels**: `enhancement`, `priority:medium`, `diagnose`
+- **Problem**: HTTP 403/429 probes report `ok=true` with no challenge signal.
+- **Solution**: Add optional `challenged: bool` (or document-only skill rule). Prefer a bool on `HostStatus` if agents still misread `http_status`.
+- **Acceptance**:
+  - [ ] 429/403 set `challenged=true` while keeping reachability `ok=true`, **or** SKILL.md unambiguously requires reading `http_status`.
+
+#### Feature 2 (RFC-4) — Bounded SQLite cache + `cached` flag
+
 - **Labels**: `enhancement`, `rfc`, `priority:medium`
-- **Component**: `.agents/skills/josty/src/josty/engine.py`
+- **Problem**: Cache has TTL but no row ceiling / access telemetry / envelope `cached` flag.
+- **Solution**: `hit_count` + `last_accessed`; prune when rows > 5,000; emit `cached: bool` on `SearchRun`.
+- **Acceptance**:
+  - [ ] `cached` in JSON; hit tracking; auto-eviction ≤ 5,000 rows; regression tests.
 
-#### Problem
-Repeated queries across agent execution loops should be served locally without hitting network rate limits, while preventing unbounded disk database growth.
+#### Feature 3 (RFC-2) — Token-budgeted code slicing (`--extract-code`)
 
-#### Solution
-1. **Schema Migration:**
-   ```sql
-   ALTER TABLE search_cache ADD COLUMN hit_count INTEGER DEFAULT 0;
-   ALTER TABLE search_cache ADD COLUMN last_accessed REAL DEFAULT 0;
-   ```
-2. **Access Tracking:** On cache hit, increment `hit_count` and update `last_accessed = time.time()`.
-3. **Bounded Auto-Pruning:** When total cache rows exceed 5,000, prune expired and least frequently accessed records:
-   ```sql
-   DELETE FROM search_cache WHERE key IN (
-       SELECT key FROM search_cache ORDER BY expires_at ASC, hit_count ASC LIMIT 500
-   );
-   ```
-4. **Envelope Telemetry:** Add `cached: bool = False` to `SearchRun` dataclass and JSON output envelope.
-
-#### Acceptance Criteria
-- [ ] `cached: bool` flag added to `SearchRun` JSON output schema.
-- [ ] Cache hits update `hit_count` and `last_accessed`.
-- [ ] Auto-eviction prevents cache table from exceeding 5,000 entries.
-- [ ] Full regression test coverage in `tests/test_engine.py`.
+- **Labels**: `enhancement`, `rfc`, `priority:low` *(demoted: not a failure fix)*
+- **Problem**: `--fetch` injects large narrative markdown when agents only need fenced code.
+- **Solution**: `--extract-code` + zero-dep fenced-block parser → `code_blocks` on `SearchResult`.
+- **Acceptance**:
+  - [ ] Flag wired; `code_blocks` populated; no new deps; edge-case tests.
 
 ---
 
-### Feature 3 (RFC-2): Token-Budgeted Code Slicing (TBCS)
+## Explicitly deferred (not v0.4.0)
 
-- **Suggested Issue Title**: `[RFC-2] Token-Budgeted Code Slicing (--extract-code) for Bounded Markdown`
-- **Labels**: `enhancement`, `rfc`, `priority:high`
-- **Component**: `.agents/skills/josty/src/josty/engine.py`, `.agents/skills/josty/src/josty/cli.py`
-
-#### Problem
-When agents query technical documentation or code examples, fetching full markdown pages injects 10KB–50KB of surrounding narrative text when only a 10-line code snippet is needed.
-
-#### Solution
-1. **CLI & API Ergonomics:**
-   - Add CLI flag `--extract-code` in `josty.cli`.
-   - Add `extract_code: bool = False` parameter in `Josty.research_run()`.
-2. **Zero-Dependency Markdown Parser:**
-   - State-machine / regex parser extracting fenced code blocks: ````(\w+)?\n([\s\S]*?)````.
-   - Extracts programming language tag (`python`, `rust`, `bash`, `typescript`, etc.) and code body.
-3. **Data Model:**
-   ```python
-   @dataclass
-   class CodeBlock:
-       language: str
-       code: str
-   ```
-   Add `code_blocks: list[dict[str, str]] | None = None` to `SearchResult`.
-
-#### Acceptance Criteria
-- [ ] `--extract-code` flag added to `josty.cli` (activates code extraction on `--fetch`).
-- [ ] `code_blocks` populated in `SearchResult` JSON output when enabled.
-- [ ] Zero new runtime dependencies added to `pyproject.toml`.
-- [ ] Tests covering single-language, multi-language, and empty-code edge cases.
+- Returning thin partials instead of empty under throttle (reliability trade-off; needs benchmark re-run).
+- Default `--max-query-variants` for `oss`/multi-site (ops; document until measured).
+- MCP / browser / paid search APIs — still non-goals.
 
 ---
 
 ## Out of Scope / Non-Goals
 
-- ❌ **In-Process MCP Server Mode**: Keeping Josty focused strictly as a clean CLI and Python library primitive.
-- ❌ **Heavy Browser Automation**: No Puppeteer/Playwright/Selenium runtimes.
-- ❌ **Paid API Key Integrations**: No mandatory paid third-party search APIs.
+- ❌ **In-Process MCP Server Mode**
+- ❌ **Heavy Browser Automation**
+- ❌ **Paid API Key Integrations**
 
 ---
 
 ## Release Checklist (When Merging to Main)
 
-1. **Changelog**: Add entries under `## [0.4.0]` in `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/).
-2. **Skill Definition**: Synchronize `.agents/skills/josty/SKILL.md` with new flags (`--extract-code`).
-3. **Version Bump**: Increment version in `pyproject.toml` (`0.3.0` $\to$ `0.4.0`).
-4. **Git Tag & Release**: Tag release (`git tag v0.4.0`) and create GitHub Release (`gh release create v0.4.0`).
-5. **Auto-Close Issues**: Link PR commits to close corresponding tracking issues (`Closes #1`).
+1. **Changelog**: Add entries under `## [0.4.0]` in `CHANGELOG.md`.
+2. **Skill Definition**: Sync `.agents/skills/josty/SKILL.md` (relaxation, news gate, `error_kind=empty`, new flags).
+3. **Version Bump**: `0.3.0` → `0.4.0` in `pyproject.toml`.
+4. **Git Tag & Release**: `git tag v0.4.0` + GitHub Release.
+5. **Scenario eval**: Hot tranche must not regress `tests/scenario_eval.py` (target ≥ 9/10 before tagging).
+6. **Auto-Close Issues**: Link PR commits to tracking issues.

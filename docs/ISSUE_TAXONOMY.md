@@ -69,17 +69,19 @@ The scenario report’s `pathway` column is the improvement backlog. Do not
 implement these in the same change as a new eval case unless the class is
 `contract_bug`.
 
-| Finding | Pathway |
-|---|---|
-| News token-collision / near-miss | Lexical relevance gate or news-specific ranking. Not a ddgs-call bug. |
-| Academic / dev profile losses | Stronger profile rerank or a hard host floor. 1.3–1.4× cannot beat 3-group RRF consensus (`k=60`). |
-| Diagnose 429 `ok=true` | Optional `challenged` bit, or teach the skill to read `http_status`. Not a probe bug. |
-| Empty `complete` + swallowed `error_kind=empty` | Surface `empty` on `ProviderStatus` (1.0-compatible). |
-| Fetch 403 / download-limit | Keep. Skill: retry the next URL. |
-| Over-constrained 0-hit queries | [ROADMAP.md](../ROADMAP.md) RFC-1 (`expansion_trace`). |
+**Ship order matches [ROADMAP.md](../ROADMAP.md) (hot / high-ROI first):**
 
-RFC-2 (code extract) and RFC-4 (cache telemetry) stay on the roadmap; they
-are not in the seed scenario set.
+| Rank | Finding | Pathway | Roadmap ID |
+|---|---|---|---|
+| 1 | Empty `complete` + swallowed `error_kind=empty` | Surface `empty` on `ProviderStatus` (schema 1.0 compatible). | RFC-0a |
+| 2 | Over-constrained 0-hit queries | Finish AQRP + `expansion_trace` (replace one-shot stub). | RFC-1 |
+| 3 | News token-collision / near-miss | Lexical relevance gate or news-specific ranking. Not a ddgs-call bug. | RFC-0b |
+| 4 | Academic / dev profile losses | Stronger profile rerank or hard host floor; 1.3–1.4× cannot beat 3-group RRF. | RFC-0c |
+| 5 | Diagnose 429 `ok=true` | Optional `challenged` bit, or teach the skill to read `http_status`. | RFC-0d |
+| — | Fetch 403 / download-limit | Keep. Skill: retry the next URL. | — |
+
+RFC-4 (cache bounds) and RFC-2 (`--extract-code`) stay on the roadmap as the
+**cool** tranche after the hot failure fixes; they are not in the seed scenario set.
 
 ## What the scenario eval is not
 

@@ -217,7 +217,7 @@ graph TD
 
 ## Roadmap
 
-See **[ROADMAP.md](ROADMAP.md)** for planned milestones (**RFC-1: Adaptive Query Relaxation**, **RFC-4: Bounded SQLite Cache**, **RFC-2: Token-Budgeted Code Slicing**), technical specifications, and future issue tracking.
+See **[ROADMAP.md](ROADMAP.md)** for `v0.4.0`, ordered **hot / high-ROI first**: surface `error_kind=empty`, finish Adaptive Query Relaxation, news lexical gate, academic/dev host floor — then diagnose `challenged`, bounded cache, and `--extract-code`.
 
 ---
 
