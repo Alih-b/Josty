@@ -1,0 +1,170 @@
+{
+  "schema_version": "1.0",
+  "query": "josty nocache confound probe isolated margin",
+  "status": "complete",
+  "count": 8,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "josty nocache confound probe isolated margin",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "josty nocache confound probe isolated margin",
+      "ok": true,
+      "result_count": 8,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "josty nocache confound probe isolated margin",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md - GitHub",
+      "url": "https://github.com/mj-jpgt/morpheus/blob/main/NOTEBOOK_ENTRIES/PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md",
+      "snippet": "New module v2/calibra/nonlinear_confound_probe.py, imported — nothing computed inline in a shell. Folds, label encoding, balanced accuracy and the permutation machinery are imported from confound_certificate.py so the probe and the certificate share fold assignment and scoring exactly.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.039344,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What Are Isolated Margin and Cross Margin in Crypto Trading?",
+      "url": "https://www.binance.com/en/academy/articles/what-are-isolated-margin-and-cross-margin-in-crypto-trading",
+      "snippet": "May 7, 2026 · Isolated margin and cross margin are two different margin types available on many cryptocurrency trading platforms. Each mode has its own use cases and risks. In isolated margin mode, the amount of margin is limited to a specific position.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032258,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is Isolated Margin and Cross Margin in Crypto Trading?",
+      "url": "https://www.binance.com/en/square/post/1324863",
+      "snippet": "What Is Margin Trading? Before discussing isolated margin and cross margin, let's review a summary of margin trading. In margin trading, investors borrow funds from an exchange or broker to buy or sell assets for more than their own capabilities. They use the assets in their accounts as collateral to take on bigger debts and bets in the hope that they will make bigger profits.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031498,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MarginProbe | MarginProbe for Lumpectomy - Dilon Technologies",
+      "url": "https://dilon.com/marginprobe/",
+      "snippet": "The goal of every lumpectomy is to get clean or clear margins. This means to remove the cancerous tissue with a small rim of normal tissues surrounding it, called the margin. With MarginProbe, surgeons have greater confidence that they can get clean margins in the first lumpectomy procedure.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031258,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is Isolated Margin? - cube.exchange",
+      "url": "https://www.cube.exchange/what-is/isolated-margin",
+      "snippet": "Mar 21, 2026 · Learn what isolated margin is, how it works in leveraged trading, how liquidation behaves, and why traders use it to limit losses to one position.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.03101,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "rocm.github.io",
+      "url": "https://rocm.github.io/aorta/recipes/probe/probe-flag-sweep.yaml",
+      "snippet": "# No explicit `confound:` block: Phase 1's verdict is exit-code only and # `trials: 1` carries no statistical content. The probe recipe-builder # auto-discovers the `none-none` cell as the baseline when `confound:` is # absent. Once Phase 2 lands a step-time confound classifier, bump # `trials:` above 1 and add the block back with an explicit threshold.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.029851,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Cross Margin And Isolated Margin In Crypto Trading - KoinX",
+      "url": "https://www.koinx.com/blog/cross-margin-and-isolated-margin-in-crypto-trading",
+      "snippet": "Sep 10, 2024 · The cross margin vs isolated margin difference lies in the funds allocated as collateral damage and the associated risk factors. Here are a few concise points of difference between the cross-margin and Isolated margin",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Marlin 2.1.2 and BL Touch outside bed area : r/ender3 - Reddit",
+      "url": "https://www.reddit.com/r/ender3/comments/10g5s13/marlin_212_and_bl_touch_outside_bed_area/",
+      "snippet": "I am current running 2.1.2 with a BLTOUCH on an ender 3. Pictures help. It sounds like you probe offset is still wrong. Without seeing it and knowing what your offset is it's impossible to say. My probe is in the left side of my hot end and the offset is #define NOZZLE_TO_PROBE_OFFSET { -41, -15, 0 } I have no probing margins defined.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

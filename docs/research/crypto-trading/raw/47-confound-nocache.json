@@ -1,0 +1,148 @@
+{
+  "schema_version": "1.0",
+  "query": "josty nocache confound probe isolated margin",
+  "status": "complete",
+  "count": 7,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "josty nocache confound probe isolated margin",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "josty nocache confound probe isolated margin",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "josty nocache confound probe isolated margin",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md",
+      "url": "https://github.com/mj-jpgt/morpheus/blob/main/NOTEBOOK_ENTRIES/PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md",
+      "snippet": "If a confound persists as a second-moment or interaction effect, the forest is the family that should see it and the certificate's two classifiers are the family that cannot.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019672,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - Alih-b/Josty: Keyless, citation-oriented metasearch ...",
+      "url": "https://github.com/Alih-b/Josty",
+      "snippet": "What It Is Josty (from Persian جستن / Jostan — to seek) queries keyless public search backends in parallel, fuses rankings with Reciprocal Rank Fusion (RRF), canonicalizes URLs, strips tracking telemetry, and extracts bounded Markdown from target pages.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.01875,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What Are Isolated Margin and Cross Margin in Crypto Trading?",
+      "url": "https://www.binance.com/en/academy/articles/what-are-isolated-margin-and-cross-margin-in-crypto-trading",
+      "snippet": "May 7, 2026 · Isolated margin and cross margin are two different margin types available on many cryptocurrency trading platforms. Each mode has its own use cases and risks. In isolated margin mode, the amount of margin is limited to a specific position.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is Isolated Margin and Cross Margin in Crypto Trading?",
+      "url": "https://www.binance.com/en/square/post/1324863",
+      "snippet": "Oct 12, 2023 · Isolated margin and cross margin are two types of margin available on most cryptocurrency trading platforms. In isolated margin, investors decide the amount of funds to allocate as collateral for a particular position, and the remaining account balance is not affected by these trades.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is Isolated Margin? - cube.exchange",
+      "url": "https://www.cube.exchange/what-is/isolated-margin",
+      "snippet": "Mar 21, 2026 · Learn what isolated margin is, how it works in leveraged trading, how liquidation behaves, and why traders use it to limit losses to one position.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MarginProbe | MarginProbe for Lumpectomy - Dilon Technologies",
+      "url": "https://dilon.com/marginprobe/",
+      "snippet": "The goal of every lumpectomy is to get clean or clear margins. This means to remove the cancerous tissue with a small rim of normal tissues surrounding it, called the margin. With MarginProbe, surgeons have greater confidence that they can get clean margins in the first lumpectomy procedure.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Cross Margin And Isolated Margin In Crypto Trading - KoinX",
+      "url": "https://www.koinx.com/blog/cross-margin-and-isolated-margin-in-crypto-trading",
+      "snippet": "Sep 10, 2024 · The cross margin vs isolated margin difference lies in the funds allocated as collateral damage and the associated risk factors. Here are a few concise points of difference between the cross-margin and Isolated margin",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Crypto trading research: spot, futures, and margin
 
-**Method:** live Josty metasearch (`schema_version: "1.0"`), including site-capped fanout, news/time/region, OSS+GitHub, academic ranking, `--fetch` of bounded page text, and retries when `complete`+empty. Raw envelopes: `raw/`. URL catalog: `SOURCES.md`. Tool stress log: `JOSTY_LIMITS.md`.
+**Method:** live Josty metasearch (`schema_version: "1.0"`). Flag sweep: `run_josty_campaign.py`. Cause isolation: `run_josty_isolation.py`. Josty does not rewrite empty queries; follow-up CLI calls with shorter strings are the intended agent pattern (`SKILL.md`), not a workaround. Tool contracts and citation rules: `JOSTY_LIMITS.md`. URL catalog: `SOURCES.md`.
 
 **How to read this:** **Observed** = stated in a Josty result title, snippet, or fetched body. **Inference** = synthesis across sources. Blogs, Reddit, and news wires are discovery, not proof. News hits were kept only when the subject token (liquidation, squeeze, funding, bitcoin/crypto) appears in title or snippet.
 
@@ -18,7 +18,7 @@ Venue docs appear under five-site filter `--site binance.com --site kraken.com -
 
 ### Market structure (inference + mixed sources)
 
-A typical CEX spot stack: matching engine, order types (limit, market, stop), maker/taker fees, and an order book of bids/asks. A long “matching engine” query returned **empty complete** (`02-spot-matching.json`); a shorter retry found OSS matching-engine repos (`22-retry-matching.json`, e.g. `github.com/ArjunVachhani/order-matcher`) — software discovery, not a venue spec.
+A typical CEX spot stack: matching engine, order types (limit, market, stop), maker/taker fees, and an order book of bids/asks. One campaign call of a long matching-engine query was **empty complete** (`02-spot-matching.json`). Josty left that envelope as-is; a **new** shorter search (`22-retry-matching.json`) ranked OSS matching-engine repos (e.g. `github.com/ArjunVachhani/order-matcher`) — software discovery, not a venue spec. Re-running the original `02` string later returned `n=7` (`41-empty-a/b`), so that empty is not a stable query property.
 
 **Not verified here:** any specific exchange’s matching-priority rules (price-time vs pro-rata) from primary matching-engine documentation; Binance Academy fetch was a JS/bot wall (`29-fetch-spot.json`).
 
@@ -72,11 +72,11 @@ Week-window news (`10-liq-cascade-news.json`) includes liquidation and squeeze l
 - **Cross margin:** collateral is **shared** across positions in an account (or coin wallet). One position’s loss can drain margin backing others.
 - **Isolated margin:** collateral is **capped to one position**. Liquidation of that position does not automatically consume the rest of the account’s free balance (beyond what was assigned).
 
-SoFi’s fetched page uses the same isolated/shared distinction in a broker-general way (`35`). Crypto-native blogs (Alphapoint, Bitunix) apply it to leveraged crypto. First fetch attempt `27-fetch-margin.json` was empty `complete` — another empty-branch retry.
+SoFi’s fetched page uses the same isolated/shared distinction in a broker-general way (`35`). Crypto-native blogs (Alphapoint, Bitunix) apply it to leveraged crypto. First fetch attempt `27-fetch-margin.json` was empty `complete`; the agent issued a new query (`35-fetch-margin2`) rather than expecting Josty to retry.
 
 ### Borrowing / interest (observed after retry)
 
-Initial “loan-to-value” query was empty (`09-margin-borrow.json`). Retry (`23-retry-borrow.json`) ranked academy-style pages on **borrowing, interest, and liquidation** (e.g. Blofin academy). **No primary exchange interest-rate table was fetched** in this campaign.
+Initial “loan-to-value” query was empty on that invocation (`09-margin-borrow.json`). A new, shorter search (`23-retry-borrow.json`) ranked academy-style pages on **borrowing, interest, and liquidation** (e.g. Blofin academy). **No primary exchange interest-rate table was fetched** in this campaign.
 
 ### Liquidation, insurance fund, ADL (observed from fetch)
 
@@ -140,8 +140,9 @@ MiCA / EU (`12-mica.json`, region `de-de`, `time-limit y`) ranked EU crypto-regu
 | CME numeric specs | Ranked but fetch unusable |
 | Binance/OKX official education | JS challenge on fetch |
 | Funding formulas | Explainers agree on “longs pay shorts when premium” qualitatively; **no single canonical formula** extracted from a named venue |
-| `limit=100` | Not a promise of 100 URLs |
-| Cache | `--clear-cache` works; a follow-up search after `--no-cache` did not demonstrate `cached: true` in `31` |
+| Fused count vs `--limit 100` | Tool claim lives in `JOSTY_LIMITS.md`: cite `24` / `40-limit-100-*` (`n` 16–20), **not** `17-limit-100` (`n=0` empty branch) |
+| Cache | Isolated hits in `44`/`46` (`cached: true`). `31-bis-cached` is confounded (prior `--no-cache` does not write) |
+| Regulation URLs | Ranked official pages only; PDFs unfetched — catalog, not holdings |
 | Japanese region query | `18-region-jp.json` returned 10 results; not used as legal/venue fact without translation QA |
 
 ---

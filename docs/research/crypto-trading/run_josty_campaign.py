@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Orchestrate a full-capability Josty campaign for crypto trading research."""
+"""Orchestrate a full-capability Josty campaign for crypto trading research.
+
+Concurrent flag sweep only. Sequential cache/limit/empty isolation is
+`run_josty_isolation.py` — do not fold those jobs into the batches here.
+"""
 
 from __future__ import annotations
 

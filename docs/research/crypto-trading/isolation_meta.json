@@ -1,0 +1,521 @@
+[
+  {
+    "id": "39-limit-101",
+    "args": [
+      "crypto futures trading",
+      "--limit",
+      "101"
+    ],
+    "returncode": 2,
+    "elapsed_s": 0.379,
+    "stdout_bytes": 0,
+    "stderr_bytes": 45,
+    "stderr_head": "{\"error\": \"limit must be between 1 and 100\"}\n"
+  },
+  {
+    "id": "40-limit-100-a",
+    "args": [
+      "crypto futures trading",
+      "--limit",
+      "100",
+      "--search-concurrency",
+      "16",
+      "--no-cache"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.177,
+    "stdout_bytes": 13905,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "count_field": 20,
+    "result_count": 20,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 10,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 9,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 7,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "40-limit-100-b",
+    "args": [
+      "crypto futures trading",
+      "--limit",
+      "100",
+      "--search-concurrency",
+      "16",
+      "--no-cache"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.147,
+    "stdout_bytes": 10946,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "count_field": 16,
+    "result_count": 16,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 9,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 7,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "41-empty-a",
+    "args": [
+      "crypto spot exchange matching engine limit market order execution",
+      "--limit",
+      "15",
+      "--profile",
+      "academic",
+      "--no-cache"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.454,
+    "stdout_bytes": 5986,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "count_field": 7,
+    "result_count": 7,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 7,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "41-empty-b",
+    "args": [
+      "crypto spot exchange matching engine limit market order execution",
+      "--limit",
+      "15",
+      "--profile",
+      "academic",
+      "--no-cache"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.437,
+    "stdout_bytes": 5881,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "count_field": 7,
+    "result_count": 7,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 7,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "42-cache-clear",
+    "args": [
+      "--clear-cache"
+    ],
+    "returncode": 0,
+    "elapsed_s": 0.376,
+    "stdout_bytes": 57,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "cleared",
+    "schema_version": null,
+    "partial": null,
+    "cached": null,
+    "count_field": null,
+    "result_count": 0,
+    "error": null,
+    "providers": []
+  },
+  {
+    "id": "43-cache-miss",
+    "args": [
+      "josty cache isolation probe perpetual funding rate",
+      "--limit",
+      "10"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.182,
+    "stdout_bytes": 5755,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "count_field": 8,
+    "result_count": 8,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 8,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "44-cache-hit-a",
+    "args": [
+      "josty cache isolation probe perpetual funding rate",
+      "--limit",
+      "10"
+    ],
+    "returncode": 0,
+    "elapsed_s": 0.378,
+    "stdout_bytes": 5754,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": true,
+    "count_field": 8,
+    "result_count": 8,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 8,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "45-cache-nocache",
+    "args": [
+      "josty cache isolation probe perpetual funding rate",
+      "--limit",
+      "10",
+      "--no-cache"
+    ],
+    "returncode": 0,
+    "elapsed_s": 0.792,
+    "stdout_bytes": 5755,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "count_field": 8,
+    "result_count": 8,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 8,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "46-cache-hit-b",
+    "args": [
+      "josty cache isolation probe perpetual funding rate",
+      "--limit",
+      "10"
+    ],
+    "returncode": 0,
+    "elapsed_s": 0.374,
+    "stdout_bytes": 5754,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": true,
+    "count_field": 8,
+    "result_count": 8,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 8,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "47-confound-nocache",
+    "args": [
+      "josty nocache confound probe isolated margin",
+      "--limit",
+      "8",
+      "--no-cache"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.089,
+    "stdout_bytes": 5690,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "count_field": 7,
+    "result_count": 7,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 7,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "48-confound-second",
+    "args": [
+      "josty nocache confound probe isolated margin",
+      "--limit",
+      "8"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.37,
+    "stdout_bytes": 7015,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "count_field": 8,
+    "result_count": 8,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 8,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 7,
+        "error": null
+      }
+    ]
+  },
+  {
+    "id": "49-confound-third",
+    "args": [
+      "josty nocache confound probe isolated margin",
+      "--limit",
+      "8"
+    ],
+    "returncode": 0,
+    "elapsed_s": 0.379,
+    "stdout_bytes": 7014,
+    "stderr_bytes": 0,
+    "stderr_head": "",
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": true,
+    "count_field": 8,
+    "result_count": 8,
+    "error": null,
+    "providers": [
+      {
+        "provider": "bing,brave,duckduckgo",
+        "ok": true,
+        "error_kind": "empty",
+        "result_count": 0,
+        "error": null
+      },
+      {
+        "provider": "google,mojeek,startpage",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 8,
+        "error": null
+      },
+      {
+        "provider": "yandex,yahoo",
+        "ok": true,
+        "error_kind": null,
+        "result_count": 7,
+        "error": null
+      }
+    ]
+  }
+]

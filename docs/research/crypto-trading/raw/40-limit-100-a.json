@@ -1,0 +1,362 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto futures trading",
+  "status": "complete",
+  "count": 20,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "crypto futures trading",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "crypto futures trading",
+      "ok": true,
+      "result_count": 9,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "crypto futures trading",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Cryptocurrency Futures | Crypto Futures Trading - Binance",
+      "url": "https://www.binance.com/en/futures/home",
+      "snippet": "Binance Futures - The world's largest crypto derivatives exchange. Open an account in under 30 seconds to start crypto futures trading.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032787,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "How to trade crypto futures - Kraken",
+      "url": "https://www.kraken.com/learn/how-to-trade-crypto-futures",
+      "snippet": "Dec 3, 2025 · Learn how to trade crypto futures with key strategies, risk management tips and expert insights.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032258,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Futures Trading: A Complete Beginner's Guide",
+      "url": "https://crypto.news/crypto-futures-trading/",
+      "snippet": "Crypto futures are a popular way to trade crypto assets, enabling traders and investors to take leveraged positions in bitcoin and other cryptocurrencies without having to own the underlying asset. Read on to learn what crypto futures are, how they work, and how you can use them to trade crypto. Information current as of June 2022. What Are Futures? A futures contract is a legal agreement ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031746,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Futures Trading Explained | Strategies & Brokers",
+      "url": "https://www.daytrading.com/crypto-futures",
+      "snippet": "Mar 4, 2026 · Learn how to speculate on the cryptocurrency markets with crypto futures, a type of derivative that allows leverage and cash-settlement. Find out the best strategies, tips and platforms for trading crypto futures in 2025.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.03125,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Futures Trading | Guide & Platforms For Beginners",
+      "url": "https://wrtrading.com/learn/crypto/futures/",
+      "snippet": "Crypto futures are contracts that allow traders to speculate on the future price of a cryptocurrency without owning the asset itself. These contracts work by agreeing to buy or sell a specific cryptocurrency at a set price on a future date. Whether the price rises or falls, traders can profit if they predict the direction correctly, making crypto futures a popular choice for those looking to ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.030536,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "12 Best Crypto Futures Trading Platforms in August 2026",
+      "url": "https://cryptonews.com/cryptocurrency/crypto-futures-trading-platforms/",
+      "snippet": "Jun 24, 2026 · To help you navigate these options, we tested and analyzed more than 40 crypto futures platforms – and in this guide, we’ll provide in-depth reviews of the top 12 best crypto futures trading platforms in 2026.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.029644,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Monthly Closing Gold and Crypto Live - Stream 11 - YouTube",
+      "url": "https://www.youtube.com/watch",
+      "snippet": "1 day ago · On this channel, we discuss topics related to: Stock Market, Cryptocurrency, Futures & Options, Nifty, Bank Nifty, and individual stocks — ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin Tops $80K as Bullish Mood Returns to Crypto Market",
+      "url": "https://finance.yahoo.com/video/bitcoin-tops-80k-bullish-mood-195312930.html",
+      "snippet": "4 days ago · Bloomberg's Isabelle Lee joins Scarlet Fu and Tim Stenovec on \"Bloomberg Crypto.\" Bitcoin briefly climbed above $80000 for the first time ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Trading Nvidia's mega moment: The Investment Committee ...",
+      "url": "https://www.cnbc.com/video/2026/08/27/trading-nvidias-mega-moment-the-investment-committee-weighs-in.html",
+      "snippet": "2 days ago · Cryptocurrency · Futures & Commodities · Bonds · Funds & ETFs · Business · Economy · Finance · Health & Science · Media · Real Estate · Energy ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin ETF inflows, crypto narratives begin to brighten amid ...",
+      "url": "https://finance.yahoo.com/video/bitcoin-etf-inflows-crypto-narratives-173000102.html",
+      "snippet": "2 days ago · Futures · Currencies · World indices · ETFs · Mutual funds · Calendars ... GC=F · Trade BTC on Coinbase Trading disclosure. Scott Melker discusses ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Weekly: Bitcoin's rise, crypto-backed midterms",
+      "url": "https://finance.yahoo.com/video/crypto-weekly-bitcoins-rise-crypto-093500274.html",
+      "snippet": "3 days ago · ... trading partners. It did not list specific countries that would be ... Futures · Currencies · World indices · ETFs · Mutual funds · Calendars.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Cryptocurrency Futures - CME Group",
+      "url": "https://www.cmegroup.com/markets/cryptocurrencies/cryptocurrency-futures",
+      "snippet": "Explore Cryptocurrency at CME Group, with futures and options available around the clock in a choice of sizes and expirations, tools and a trading simulator.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Nvidia reportedly looking to buy Hugging Face - CNBC",
+      "url": "https://www.cnbc.com/video/2026/08/27/nvidia-reportedly-looking-to-buy-hugging-face.html",
+      "snippet": "2 days ago · How soccer's crypto sponsorship gold rush unraveled. 5 hours ago. watch now. Trading Nvidia's mega moment: The Investment Committee weighs in.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Futures Trading 2025: 7 Steps to Get Started in No Time",
+      "url": "https://3commas.io/blog/how-to-start-crypto-futures-trading",
+      "snippet": "Jun 7, 2023 · Learn the basics of crypto futures trading with Binance.com, from signing up to closing positions. Follow the seven steps and get tips on leverage, hedging, diversification, and more.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin soars, nears $80K after posting largest weekly gain in ...",
+      "url": "https://finance.yahoo.com/video/bitcoin-soars-nears-80k-posting-162000339.html",
+      "snippet": "5 days ago · Explore crypto on Coinbase Trading disclosure. Scott Melker discusses ... Nasdaq Futures. 29,554.50 +265.00 (+0.90%) · Russell 2000 Futures.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Trade crypto perpetual futures on Kraken Pro",
+      "url": "https://www.kraken.com/features/futures",
+      "snippet": "Go long or short on crypto perpetual futures with Kraken Pro. Transparent funding and pro-grade execution on a regulated platform for active traders.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Final Trades: DICK'S Sporting Goods, BlackRock INC, iShares ...",
+      "url": "https://www.cnbc.com/video/2026/08/24/final-trades-dicks-sporting-goods-blackrock-inc-ishares-u-s-industrials-etf-and-charles-schwab.html",
+      "snippet": "5 days ago · How soccer's crypto sponsorship gold rush unraveled. watch now. VIDEO09 ... Trading Nvidia's mega moment: The Investment Committee weighs in.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Understanding Cryptocurrency Futures: How They Work on Exchanges",
+      "url": "https://www.investopedia.com/articles/investing/012215/how-invest-bitcoin-exchange-futures.asp",
+      "snippet": "Learn how cryptocurrency futures work on exchanges, allowing investors to speculate on future prices without owning the digital asset directly. Discover key platforms and risks.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Traders double down on microchips - CNBC",
+      "url": "https://www.cnbc.com/video/2026/08/24/traders-double-down-on-microchips.html",
+      "snippet": "5 days ago · Data is a real-time snapshot *Data is delayed at least 15 minutes. Global Business and Financial News, Stock Quotes, and Market Data and ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What Is Crypto Futures Trading? Complete Guide",
+      "url": "https://leverage.trading/what-is-crypto-futures-trading/",
+      "snippet": "Learn how crypto futures work, why traders use them, and what risks to avoid. Real examples, tips, and calculators for safer trading.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

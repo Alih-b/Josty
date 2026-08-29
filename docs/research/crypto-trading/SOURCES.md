@@ -3,13 +3,13 @@
 Generated from `docs/research/crypto-trading/raw/*.json`.
 
 ## `00-diagnose-github.json`
-- status: `complete` schema: `1.0` reachable: `9` count: `9` message: `None`
+- status: `complete` schema: `1.0` reachable: `9` count: `9` message: `None` error: `None`
 
 ## `00-diagnose-news.json`
-- status: `complete` schema: `1.0` reachable: `3` count: `3` message: `None`
+- status: `complete` schema: `1.0` reachable: `3` count: `3` message: `None` error: `None`
 
 ## `00-diagnose-text.json`
-- status: `complete` schema: `1.0` reachable: `8` count: `8` message: `None`
+- status: `complete` schema: `1.0` reachable: `8` count: `8` message: `None` error: `None`
 
 ## `01-spot-orderbook.json`
 - query: cryptocurrency spot trading order book bid ask spread maker taker fee
@@ -438,6 +438,9 @@ Generated from `docs/research/crypto-trading/raw/*.json`.
 - [How to Reduce Futures Liquidation Risk – CoinEx Help Center](https://support.coinex.com/hc/en-us/articles/900004764323-How-to-Reduce-Futures-Liquidation-Risk)
 - [Liquidation vs Bankruptcy Price in Crypto Futures - Mudrex Learn](https://mudrex.com/learn/liquidation-vs-bankruptcy-price-crypto/)
 
+## `21-six-sites.json`
+- empty stdout; see matching `.err`
+
 ## `22-retry-matching.json`
 - query: crypto matching engine order book
 - status: `complete` cached: `False` results: `7`
@@ -646,7 +649,7 @@ Generated from `docs/research/crypto-trading/raw/*.json`.
 - [planet-winter/ccxt-kraken](https://github.com/planet-winter/ccxt-kraken)
 
 ## `34-clear-cache.json`
-- status: `cleared` schema: `None` reachable: `None` count: `None` message: `Search cache cleared`
+- status: `cleared` schema: `None` reachable: `None` count: `None` message: `Search cache cleared` error: `None`
 
 ## `35-fetch-margin2.json`
 - query: cross margin isolated margin crypto
@@ -699,3 +702,191 @@ Generated from `docs/research/crypto-trading/raw/*.json`.
 - [CCXT Documentation](https://docs.ccxt.com/docs/index)
 - [rapmd73/JackrabbitRelay](https://github.com/rapmd73/JackrabbitRelay)
 - [oilst/kraken-mcp](https://github.com/oilst/kraken-mcp)
+
+## `39-limit-101.json`
+- empty stdout; see matching `.err`
+
+## `40-limit-100-a.json`
+- query: crypto futures trading
+- status: `complete` cached: `False` results: `20`
+- provider `bing,brave,duckduckgo`: ok=True n=10 kind=None err=None
+- provider `google,mojeek,startpage`: ok=True n=9 kind=None err=None
+- provider `yandex,yahoo`: ok=True n=7 kind=None err=None
+- [Cryptocurrency Futures | Crypto Futures Trading - Binance](https://www.binance.com/en/futures/home)
+- [How to trade crypto futures - Kraken](https://www.kraken.com/learn/how-to-trade-crypto-futures)
+- [Crypto Futures Trading: A Complete Beginner's Guide](https://crypto.news/crypto-futures-trading/)
+- [Crypto Futures Trading Explained | Strategies & Brokers](https://www.daytrading.com/crypto-futures)
+- [Crypto Futures Trading | Guide & Platforms For Beginners](https://wrtrading.com/learn/crypto/futures/)
+- [12 Best Crypto Futures Trading Platforms in August 2026](https://cryptonews.com/cryptocurrency/crypto-futures-trading-platforms/)
+- [Monthly Closing Gold and Crypto Live - Stream 11 - YouTube](https://www.youtube.com/watch)
+- [Bitcoin Tops $80K as Bullish Mood Returns to Crypto Market](https://finance.yahoo.com/video/bitcoin-tops-80k-bullish-mood-195312930.html)
+- [Trading Nvidia's mega moment: The Investment Committee ...](https://www.cnbc.com/video/2026/08/27/trading-nvidias-mega-moment-the-investment-committee-weighs-in.html)
+- [Bitcoin ETF inflows, crypto narratives begin to brighten amid ...](https://finance.yahoo.com/video/bitcoin-etf-inflows-crypto-narratives-173000102.html)
+- [Crypto Weekly: Bitcoin's rise, crypto-backed midterms](https://finance.yahoo.com/video/crypto-weekly-bitcoins-rise-crypto-093500274.html)
+- [Cryptocurrency Futures - CME Group](https://www.cmegroup.com/markets/cryptocurrencies/cryptocurrency-futures)
+- [Nvidia reportedly looking to buy Hugging Face - CNBC](https://www.cnbc.com/video/2026/08/27/nvidia-reportedly-looking-to-buy-hugging-face.html)
+- [Crypto Futures Trading 2025: 7 Steps to Get Started in No Time](https://3commas.io/blog/how-to-start-crypto-futures-trading)
+- [Bitcoin soars, nears $80K after posting largest weekly gain in ...](https://finance.yahoo.com/video/bitcoin-soars-nears-80k-posting-162000339.html)
+- [Trade crypto perpetual futures on Kraken Pro](https://www.kraken.com/features/futures)
+- [Final Trades: DICK'S Sporting Goods, BlackRock INC, iShares ...](https://www.cnbc.com/video/2026/08/24/final-trades-dicks-sporting-goods-blackrock-inc-ishares-u-s-industrials-etf-and-charles-schwab.html)
+- [Understanding Cryptocurrency Futures: How They Work on Exchanges](https://www.investopedia.com/articles/investing/012215/how-invest-bitcoin-exchange-futures.asp)
+- [Traders double down on microchips - CNBC](https://www.cnbc.com/video/2026/08/24/traders-double-down-on-microchips.html)
+- [What Is Crypto Futures Trading? Complete Guide](https://leverage.trading/what-is-crypto-futures-trading/)
+
+## `40-limit-100-b.json`
+- query: crypto futures trading
+- status: `complete` cached: `False` results: `16`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=9 kind=None err=None
+- provider `yandex,yahoo`: ok=True n=7 kind=None err=None
+- [Cryptocurrency Futures | Crypto Futures Trading - Binance](https://www.binance.com/en/futures/home)
+- [Monthly Closing Gold and Crypto Live - Stream 11 - YouTube](https://www.youtube.com/watch)
+- [Bitcoin Tops $80K as Bullish Mood Returns to Crypto Market](https://finance.yahoo.com/video/bitcoin-tops-80k-bullish-mood-195312930.html)
+- [How to trade crypto futures - Kraken](https://www.kraken.com/learn/how-to-trade-crypto-futures)
+- [Crypto Futures Trading: A Complete Beginner’s Guide](https://crypto.news/crypto-futures-trading/)
+- [Trading Nvidia's mega moment: The Investment Committee ...](https://www.cnbc.com/video/2026/08/27/trading-nvidias-mega-moment-the-investment-committee-weighs-in.html)
+- [Bitcoin ETF inflows, crypto narratives begin to brighten amid ...](https://finance.yahoo.com/video/bitcoin-etf-inflows-crypto-narratives-173000102.html)
+- [Crypto Futures Trading Explained | Strategies & Brokers](https://www.daytrading.com/crypto-futures)
+- [Crypto Weekly: Bitcoin's rise, crypto-backed midterms](https://finance.yahoo.com/video/crypto-weekly-bitcoins-rise-crypto-093500274.html)
+- [Crypto Futures Trading | Guide & Platforms For Beginners](https://wrtrading.com/learn/crypto/futures/)
+- [12 Best Crypto Futures Trading Platforms in August 2026](https://cryptonews.com/cryptocurrency/crypto-futures-trading-platforms/)
+- [Nvidia reportedly looking to buy Hugging Face - CNBC](https://www.cnbc.com/video/2026/08/27/nvidia-reportedly-looking-to-buy-hugging-face.html)
+- [Crypto Futures Trading 2025: 7 Steps to Get Started in No Time](https://3commas.io/blog/how-to-start-crypto-futures-trading)
+- [Bitcoin soars, nears $80K after posting largest weekly gain in ...](https://finance.yahoo.com/video/bitcoin-soars-nears-80k-posting-162000339.html)
+- [Final Trades: DICK'S Sporting Goods, BlackRock INC, iShares ...](https://www.cnbc.com/video/2026/08/24/final-trades-dicks-sporting-goods-blackrock-inc-ishares-u-s-industrials-etf-and-charles-schwab.html)
+- [Traders double down on microchips - CNBC](https://www.cnbc.com/video/2026/08/24/traders-double-down-on-microchips.html)
+
+## `41-empty-a.json`
+- query: crypto spot exchange matching engine limit market order execution
+- status: `complete` cached: `False` results: `7`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=0 kind=empty err=None
+- provider `yandex,yahoo`: ok=True n=7 kind=None err=None
+- [GitHub - ArjunVachhani/order-matcher: simple, fast and ...](https://github.com/ArjunVachhani/order-matcher)
+- [Order Matching Engine for Crypto Exchange | Millisecond ...](https://www.dappfort.com/blog/order-matching-engine-for-crypto-exchange/)
+- [Order Matching Engine in Crypto Exchanges: Why Every ...](https://cryptiecraft.com/order-matching-engine-in-crypto-exchange/)
+- [Matching Engine for Crypto Exchanges: System Architecture ...](https://whitelabelexchange.io/blog/crypto-exchange-matching-engine-explained/)
+- [Crypto Exchange Matching Engine: How Order Books Work at ...](https://www.spencerlogic.com/blog/crypto-exchange-matching-engine-order-books-scale/)
+- [Crypto Exchange Matching Engine: Build vs. Buy Guide (2026)](https://www.troniextechnologies.com/blog/order-matching-engine-in-crypto-exchange)
+- [Crypto Exchange Matching Engine — 1M+ TPS, Sub-Millisecond ...](https://www.cryptobeex.com/crypto-matching-engine)
+
+## `41-empty-b.json`
+- query: crypto spot exchange matching engine limit market order execution
+- status: `complete` cached: `False` results: `7`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=0 kind=empty err=None
+- provider `yandex,yahoo`: ok=True n=7 kind=None err=None
+- [GitHub - ArjunVachhani/order-matcher: simple, fast and ...](https://github.com/ArjunVachhani/order-matcher)
+- [Order Matching Engine for Crypto Exchange | Millisecond ...](https://www.dappfort.com/blog/order-matching-engine-for-crypto-exchange/)
+- [Order Matching Engine in Crypto Exchanges: Why Every ...](https://cryptiecraft.com/order-matching-engine-in-crypto-exchange/)
+- [Matching Engine for Crypto Exchanges: System Architecture ...](https://whitelabelexchange.io/blog/crypto-exchange-matching-engine-explained/)
+- [Crypto Exchange Matching Engine: How Order Books Work at ...](https://www.spencerlogic.com/blog/crypto-exchange-matching-engine-order-books-scale/)
+- [Crypto Exchange Matching Engine: Build vs. Buy Guide (2026)](https://www.troniextechnologies.com/blog/order-matching-engine-in-crypto-exchange)
+- [Crypto Exchange Matching Engine — 1M+ TPS, Sub-Millisecond ...](https://www.cryptobeex.com/crypto-matching-engine)
+
+## `42-cache-clear.json`
+- status: `cleared` schema: `None` reachable: `None` count: `None` message: `Search cache cleared` error: `None`
+
+## `43-cache-miss.json`
+- query: josty cache isolation probe perpetual funding rate
+- status: `complete` cached: `False` results: `8`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=8 kind=None err=None
+- provider `yandex,yahoo`: ok=True n=0 kind=empty err=None
+- [The Project Gutenberg eBook of The Sublime Jester](https://www.gutenberg.org/cache/epub/65313/pg65313-images.html)
+- [(PDF) An Interdisciplinary Culturally Responsive Methodology](https://www.academia.edu/27773020/An_Interdisciplinary_Culturally_Responsive_Methodology_A_Samoan_Perspective)
+- [9781317604815 | PDF | Social Science | Young Adult - Scribd](https://www.scribd.com/document/651603552/9781317604815)
+- [Full text of "The Art journal" - Internet Archive](https://archive.org/stream/bub_gb_qj0cAQAAMAAJ/bub_gb_qj0cAQAAMAAJ_djvu.txt)
+- [Free Read with KU. - Facebook](https://www.facebook.com/groups/ABIconnect/posts/26219600441062189/)
+- [Full text of "The Times , 1992, UK, English" - Internet Archive](https://archive.org/stream/NewsUK1992UKEnglish/Sep+07+1992,+The+Times,+#64431,+UK+(en)_djvu.txt)
+- [Avant Garde in The Nordic Countries | PDF - Scribd](https://www.scribd.com/document/368396049/Avant-Garde-in-the-Nordic-Countries)
+- [Full text of "Amiga Shopper 00-71 (Apr 91-Jan 97)"](https://archive.org/stream/AmigaShopper30Oct93/AmigaShopper/AmigaShopper09-Jan92_djvu.txt)
+
+## `44-cache-hit-a.json`
+- query: josty cache isolation probe perpetual funding rate
+- status: `complete` cached: `True` results: `8`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=8 kind=None err=None
+- provider `yandex,yahoo`: ok=True n=0 kind=empty err=None
+- [The Project Gutenberg eBook of The Sublime Jester](https://www.gutenberg.org/cache/epub/65313/pg65313-images.html)
+- [(PDF) An Interdisciplinary Culturally Responsive Methodology](https://www.academia.edu/27773020/An_Interdisciplinary_Culturally_Responsive_Methodology_A_Samoan_Perspective)
+- [9781317604815 | PDF | Social Science | Young Adult - Scribd](https://www.scribd.com/document/651603552/9781317604815)
+- [Full text of "The Art journal" - Internet Archive](https://archive.org/stream/bub_gb_qj0cAQAAMAAJ/bub_gb_qj0cAQAAMAAJ_djvu.txt)
+- [Free Read with KU. - Facebook](https://www.facebook.com/groups/ABIconnect/posts/26219600441062189/)
+- [Full text of "The Times , 1992, UK, English" - Internet Archive](https://archive.org/stream/NewsUK1992UKEnglish/Sep+07+1992,+The+Times,+#64431,+UK+(en)_djvu.txt)
+- [Avant Garde in The Nordic Countries | PDF - Scribd](https://www.scribd.com/document/368396049/Avant-Garde-in-the-Nordic-Countries)
+- [Full text of "Amiga Shopper 00-71 (Apr 91-Jan 97)"](https://archive.org/stream/AmigaShopper30Oct93/AmigaShopper/AmigaShopper09-Jan92_djvu.txt)
+
+## `45-cache-nocache.json`
+- query: josty cache isolation probe perpetual funding rate
+- status: `complete` cached: `False` results: `8`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=8 kind=None err=None
+- provider `yandex,yahoo`: ok=True n=0 kind=empty err=None
+- [The Project Gutenberg eBook of The Sublime Jester](https://www.gutenberg.org/cache/epub/65313/pg65313-images.html)
+- [(PDF) An Interdisciplinary Culturally Responsive Methodology](https://www.academia.edu/27773020/An_Interdisciplinary_Culturally_Responsive_Methodology_A_Samoan_Perspective)
+- [9781317604815 | PDF | Social Science | Young Adult - Scribd](https://www.scribd.com/document/651603552/9781317604815)
+- [Full text of "The Art journal" - Internet Archive](https://archive.org/stream/bub_gb_qj0cAQAAMAAJ/bub_gb_qj0cAQAAMAAJ_djvu.txt)
+- [Free Read with KU. - Facebook](https://www.facebook.com/groups/ABIconnect/posts/26219600441062189/)
+- [Full text of "The Times , 1992, UK, English" - Internet Archive](https://archive.org/stream/NewsUK1992UKEnglish/Sep+07+1992,+The+Times,+#64431,+UK+(en)_djvu.txt)
+- [Avant Garde in The Nordic Countries | PDF - Scribd](https://www.scribd.com/document/368396049/Avant-Garde-in-the-Nordic-Countries)
+- [Full text of "Amiga Shopper 00-71 (Apr 91-Jan 97)"](https://archive.org/stream/AmigaShopper30Oct93/AmigaShopper/AmigaShopper09-Jan92_djvu.txt)
+
+## `46-cache-hit-b.json`
+- query: josty cache isolation probe perpetual funding rate
+- status: `complete` cached: `True` results: `8`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=8 kind=None err=None
+- provider `yandex,yahoo`: ok=True n=0 kind=empty err=None
+- [The Project Gutenberg eBook of The Sublime Jester](https://www.gutenberg.org/cache/epub/65313/pg65313-images.html)
+- [(PDF) An Interdisciplinary Culturally Responsive Methodology](https://www.academia.edu/27773020/An_Interdisciplinary_Culturally_Responsive_Methodology_A_Samoan_Perspective)
+- [9781317604815 | PDF | Social Science | Young Adult - Scribd](https://www.scribd.com/document/651603552/9781317604815)
+- [Full text of "The Art journal" - Internet Archive](https://archive.org/stream/bub_gb_qj0cAQAAMAAJ/bub_gb_qj0cAQAAMAAJ_djvu.txt)
+- [Free Read with KU. - Facebook](https://www.facebook.com/groups/ABIconnect/posts/26219600441062189/)
+- [Full text of "The Times , 1992, UK, English" - Internet Archive](https://archive.org/stream/NewsUK1992UKEnglish/Sep+07+1992,+The+Times,+#64431,+UK+(en)_djvu.txt)
+- [Avant Garde in The Nordic Countries | PDF - Scribd](https://www.scribd.com/document/368396049/Avant-Garde-in-the-Nordic-Countries)
+- [Full text of "Amiga Shopper 00-71 (Apr 91-Jan 97)"](https://archive.org/stream/AmigaShopper30Oct93/AmigaShopper/AmigaShopper09-Jan92_djvu.txt)
+
+## `47-confound-nocache.json`
+- query: josty nocache confound probe isolated margin
+- status: `complete` cached: `False` results: `7`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=0 kind=empty err=None
+- provider `yandex,yahoo`: ok=True n=7 kind=None err=None
+- [PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md](https://github.com/mj-jpgt/morpheus/blob/main/NOTEBOOK_ENTRIES/PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md)
+- [GitHub - Alih-b/Josty: Keyless, citation-oriented metasearch ...](https://github.com/Alih-b/Josty)
+- [What Are Isolated Margin and Cross Margin in Crypto Trading?](https://www.binance.com/en/academy/articles/what-are-isolated-margin-and-cross-margin-in-crypto-trading)
+- [What is Isolated Margin and Cross Margin in Crypto Trading?](https://www.binance.com/en/square/post/1324863)
+- [What is Isolated Margin? - cube.exchange](https://www.cube.exchange/what-is/isolated-margin)
+- [MarginProbe | MarginProbe for Lumpectomy - Dilon Technologies](https://dilon.com/marginprobe/)
+- [Cross Margin And Isolated Margin In Crypto Trading - KoinX](https://www.koinx.com/blog/cross-margin-and-isolated-margin-in-crypto-trading)
+
+## `48-confound-second.json`
+- query: josty nocache confound probe isolated margin
+- status: `complete` cached: `False` results: `8`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=8 kind=None err=None
+- provider `yandex,yahoo`: ok=True n=7 kind=None err=None
+- [PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md - GitHub](https://github.com/mj-jpgt/morpheus/blob/main/NOTEBOOK_ENTRIES/PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md)
+- [What Are Isolated Margin and Cross Margin in Crypto Trading?](https://www.binance.com/en/academy/articles/what-are-isolated-margin-and-cross-margin-in-crypto-trading)
+- [What is Isolated Margin and Cross Margin in Crypto Trading?](https://www.binance.com/en/square/post/1324863)
+- [MarginProbe | MarginProbe for Lumpectomy - Dilon Technologies](https://dilon.com/marginprobe/)
+- [What is Isolated Margin? - cube.exchange](https://www.cube.exchange/what-is/isolated-margin)
+- [rocm.github.io](https://rocm.github.io/aorta/recipes/probe/probe-flag-sweep.yaml)
+- [Cross Margin And Isolated Margin In Crypto Trading - KoinX](https://www.koinx.com/blog/cross-margin-and-isolated-margin-in-crypto-trading)
+- [Marlin 2.1.2 and BL Touch outside bed area : r/ender3 - Reddit](https://www.reddit.com/r/ender3/comments/10g5s13/marlin_212_and_bl_touch_outside_bed_area/)
+
+## `49-confound-third.json`
+- query: josty nocache confound probe isolated margin
+- status: `complete` cached: `True` results: `8`
+- provider `bing,brave,duckduckgo`: ok=True n=0 kind=empty err=None
+- provider `google,mojeek,startpage`: ok=True n=8 kind=None err=None
+- provider `yandex,yahoo`: ok=True n=7 kind=None err=None
+- [PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md - GitHub](https://github.com/mj-jpgt/morpheus/blob/main/NOTEBOOK_ENTRIES/PREDECLARED_tcga_nonlinear_confound_probe_20260804T1840Z.md)
+- [What Are Isolated Margin and Cross Margin in Crypto Trading?](https://www.binance.com/en/academy/articles/what-are-isolated-margin-and-cross-margin-in-crypto-trading)
+- [What is Isolated Margin and Cross Margin in Crypto Trading?](https://www.binance.com/en/square/post/1324863)
+- [MarginProbe | MarginProbe for Lumpectomy - Dilon Technologies](https://dilon.com/marginprobe/)
+- [What is Isolated Margin? - cube.exchange](https://www.cube.exchange/what-is/isolated-margin)
+- [rocm.github.io](https://rocm.github.io/aorta/recipes/probe/probe-flag-sweep.yaml)
+- [Cross Margin And Isolated Margin In Crypto Trading - KoinX](https://www.koinx.com/blog/cross-margin-and-isolated-margin-in-crypto-trading)
+- [Marlin 2.1.2 and BL Touch outside bed area : r/ender3 - Reddit](https://www.reddit.com/r/ender3/comments/10g5s13/marlin_212_and_bl_touch_outside_bed_area/)

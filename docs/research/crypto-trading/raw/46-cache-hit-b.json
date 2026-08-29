@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0",
+  "query": "josty cache isolation probe perpetual funding rate",
+  "status": "complete",
+  "count": 8,
+  "partial": false,
+  "cached": true,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "josty cache isolation probe perpetual funding rate",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "josty cache isolation probe perpetual funding rate",
+      "ok": true,
+      "result_count": 8,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "josty cache isolation probe perpetual funding rate",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": [
+    {
+      "title": "The Project Gutenberg eBook of The Sublime Jester",
+      "url": "https://www.gutenberg.org/cache/epub/65313/pg65313-images.html",
+      "snippet": "Oct 18, 2024 · He was conscious of isolation, of aloneness with her. When he began to probe he found all avenues closed.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "(PDF) An Interdisciplinary Culturally Responsive Methodology",
+      "url": "https://www.academia.edu/27773020/An_Interdisciplinary_Culturally_Responsive_Methodology_A_Samoan_Perspective",
+      "snippet": "Lacking domestic funding, Migrant Aid and similar organisations are considerably dependent on international funding.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "9781317604815 | PDF | Social Science | Young Adult - Scribd",
+      "url": "https://www.scribd.com/document/651603552/9781317604815",
+      "snippet": "This comprehensive, beautifully illustrated collection of essays conveys a vivid picture of a fascinating period in history, the fin de siècle.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Full text of \"The Art journal\" - Internet Archive",
+      "url": "https://archive.org/stream/bub_gb_qj0cAQAAMAAJ/bub_gb_qj0cAQAAMAAJ_djvu.txt",
+      "snippet": "Full text of \"The Art journal\" Full text of \"The Art journal\" at an exact rate, that rate being determined by the coal consumed,",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Free Read with KU. - Facebook",
+      "url": "https://www.facebook.com/groups/ABIconnect/posts/26219600441062189/",
+      "snippet": "Feb 25, 2026 · Free Read with KU. Mann paid a price. Isolation deepened. Homesickness gnawed. Critics questioned his loyalty. He refused easy forgiveness.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Full text of \"The Times , 1992, UK, English\" - Internet Archive",
+      "url": "https://archive.org/stream/NewsUK1992UKEnglish/Sep+07+1992,+The+Times,+#64431,+UK+(en)_djvu.txt",
+      "snippet": "... rate of inflation to overcome a seri- ous funding deficit. Average subscriptions will rise by 10 per cent next year if unions adopt proposals in the general ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Avant Garde in The Nordic Countries | PDF - Scribd",
+      "url": "https://www.scribd.com/document/368396049/Avant-Garde-in-the-Nordic-Countries",
+      "snippet": "Rating 5.0 (2) AvantGarde. Critical Studies. A CULTURAL HISTORY OF THE AVANT-GARDE in the Nordic Countries 1900-1925. Edited by HUBERT VAN DEN BERG, IRMELI HAUTAMÄKI,",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Full text of \"Amiga Shopper 00-71 (Apr 91-Jan 97)\"",
+      "url": "https://archive.org/stream/AmigaShopper30Oct93/AmigaShopper/AmigaShopper09-Jan92_djvu.txt",
+      "snippet": "AVAILABLE FOR PC's AMIGA'S. Delivery Allow up to 28 days for delivery. Open 10am-7pm Monday to Saturday",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}
