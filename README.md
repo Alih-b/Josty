@@ -1,10 +1,11 @@
 <!--
   name: Josty
-  description: Zero-config, keyless metasearch engine and autonomous AI agent skill.
+  description: Zero-config, keyless metasearch engine and bounded content extraction.
   repository: https://github.com/Alih-b/josty
   license: MIT
   specification: .agents/skills/josty/SKILL.md
-  keywords: metasearch, ai-agent, search-engine, keyless-search, rrf, rank-fusion, trafilatura, pi-agent, claude-code, gemini-agent, cursor, llm-tool
+  compatibility: Compatible with all AI agent runtimes, LLM harnesses, and developer CLI workflows.
+  keywords: metasearch, keyless-search, search-engine, rrf, rank-fusion, trafilatura, python, cli, ai-agent
 -->
 
 <div align="center">
@@ -12,7 +13,7 @@
 ![Josty Logo](docs/assets/logo.svg)
 
 <p>
-  <strong>Zero-config, keyless metasearch and bounded content extraction for AI agents.</strong>
+  <strong>Zero-config, keyless metasearch and bounded content extraction.</strong>
 </p>
 
 <p>
@@ -27,20 +28,11 @@
 
 ---
 
-> **AI Agent Skill Specification**:
-> - **Cross-Agent Standard**: Conforms to the open `.agents/skills/` specification.
-> - **Registered Skill Location**: `.agents/skills/josty/SKILL.md`
-> - **Supported Runtimes**: Pi Agent, Claude Code, OpenAI Codex, Gemini Antigravity, and Cursor.
-> - **Instant Execution**: `uvx josty "<query>" --limit 10`
-> - **Page Extraction**: `uvx josty "<query>" --fetch`
-
----
-
 ## What It Is
 
 **Josty** (from Persian *جستن* / *Jostan* — to seek) queries keyless public search backends in parallel, fuses rankings with **Reciprocal Rank Fusion (RRF)**, canonicalizes URLs, strips tracking telemetry, and extracts bounded Markdown from target pages. 
 
-It provides autonomous AI agents, personal assistants, and developer workflows with a dependable, structured search subprocess and async Python API without requiring search API keys, background daemons, or heavy browser dependencies.
+It provides a dependable, structured search subprocess and async Python API without requiring search API keys, background daemons, or heavy browser dependencies.
 
 ---
 
@@ -115,26 +107,10 @@ josty "RRF rank fusion algorithm" --limit 3 --fetch
 
 ---
 
-## Agent & LLM Integration
+## Python API & Integrations
 
-### Subprocess & Skill Invocations
+### Direct Async Python API
 
-Agents and runtimes can execute Josty directly via shell subprocess or by registering `.agents/skills/josty/SKILL.md`:
-
-```bash
-# Fact retrieval & search:
-uvx josty "latest release of pydantic" --limit 5
-
-# Extract clean page Markdown:
-uvx josty "how to implement reciprocal rank fusion in python" --fetch --limit 3
-
-# Targeted technical debugging:
-uvx josty "asyncpg connection pool exhaustion" --site github.com --site stackoverflow.com
-```
-
----
-
-### 🔍 Direct Async Python API
 ```python
 import asyncio
 from josty import Josty
@@ -152,13 +128,14 @@ asyncio.run(main())
 
 ---
 
-### 🛠️ LLM Tool Calling Schema (OpenAI / Anthropic / Gemini)
+### Function Calling Tool Schema
+
 ```python
 search_tool_definition = {
     "type": "function",
     "function": {
         "name": "web_search",
-        "description": "Search the web for up-to-date information, documentation, and technical solutions. Returns keyless ranked sources.",
+        "description": "Search the web for up-to-date documentation and technical resources. Returns ranked results.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -196,7 +173,7 @@ search_tool_definition = {
 
 ```mermaid
 graph TD
-    Query["<b>Agent Search Query</b><br/>(sites, profile, mode)"] --> Cache{"<b>SQLite WAL Cache</b><br/>(6h TTL & LFU)"}
+    Query["<b>Search Query</b><br/>(sites, profile, mode)"] --> Cache{"<b>SQLite WAL Cache</b><br/>(6h TTL & LFU)"}
     
     Cache -- Cache Hit --> Out["<b>Pure JSON Output</b><br/>(schema_version: 1.0)"]
     
