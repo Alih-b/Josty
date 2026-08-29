@@ -22,13 +22,13 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from josty import cli as cli_module
+from josty.cli import main as cli_main
 from josty.engine import (
-    SCHEMA_VERSION,
     CircuitBreaker,
     DiagnoseRun,
     Josty,
     ProviderStatus,
+    SCHEMA_VERSION,
     SearchCache,
     SearchResult,
     SearchRun,
@@ -114,13 +114,13 @@ class TestCLIContract:
     def test_query_required_unless_diagnose_or_clear_cache(self, monkeypatch):
         monkeypatch.setattr("sys.argv", ["josty"])
         with pytest.raises(SystemExit) as ei:
-            cli_module.main()
+            cli_main()
         assert ei.value.code == 2
 
     def test_clear_cache_writes_status_to_stdout(self, monkeypatch, capsys, tmp_path):
         monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
         monkeypatch.setattr("sys.argv", ["josty", "--clear-cache"])
-        cli_module.main()
+        cli_main()
         out, err = capsys.readouterr()
         assert err == ""
         payload = json.loads(out)
@@ -136,7 +136,7 @@ class TestCLIContract:
 
         monkeypatch.setattr("josty.engine.Josty.research_run", fake_research_run)
         monkeypatch.setattr("sys.argv", ["josty", "term", "--results-only"])
-        cli_module.main()
+        cli_main()
         out = capsys.readouterr().out
         payload = json.loads(out)
         assert isinstance(payload, list)
@@ -145,7 +145,7 @@ class TestCLIContract:
     def test_diagnose_results_only_conflict(self, monkeypatch):
         monkeypatch.setattr("sys.argv", ["josty", "--diagnose", "--results-only"])
         with pytest.raises(SystemExit) as ei:
-            cli_module.main()
+            cli_main()
         assert ei.value.code == 2
 
     @pytest.mark.parametrize("flag,value", [
@@ -158,7 +158,7 @@ class TestCLIContract:
     def test_invalid_enum_flag_rejected(self, monkeypatch, flag, value):
         monkeypatch.setattr("sys.argv", ["josty", "term", flag, value])
         with pytest.raises(SystemExit) as ei:
-            cli_module.main()
+            cli_main()
         assert ei.value.code == 2
 
     def test_value_error_from_engine_goes_to_stderr_as_json(self, monkeypatch, capsys):
@@ -167,7 +167,7 @@ class TestCLIContract:
         monkeypatch.setattr("josty.engine.Josty.research_run", explode)
         monkeypatch.setattr("sys.argv", ["josty", "term"])
         with pytest.raises(SystemExit) as ei:
-            cli_module.main()
+            cli_main()
         assert ei.value.code == 2
         out, err = capsys.readouterr()
         assert out == ""
