@@ -696,17 +696,23 @@ class SearchCache:
         if self.max_rows < 1 or self.prune_batch < 1:
             return
         count = conn.execute("SELECT COUNT(*) FROM search_cache").fetchone()[0]
-        if count <= self.max_rows:
+        overflow = count - self.max_rows
+        if overflow <= 0:
             return
+        limit = min(self.prune_batch, overflow)
+        # Nested subquery: SQLite cannot DELETE FROM a table while the same
+        # table is used in a plain IN-select with ORDER BY/LIMIT.
         conn.execute(
             """
             DELETE FROM search_cache WHERE key IN (
-                SELECT key FROM search_cache
-                ORDER BY expires_at ASC, hit_count ASC
-                LIMIT ?
+                SELECT key FROM (
+                    SELECT key FROM search_cache
+                    ORDER BY expires_at ASC, hit_count ASC
+                    LIMIT ?
+                )
             )
             """,
-            (self.prune_batch,),
+            (limit,),
         )
 
     def row_count(self) -> int:
@@ -1444,7 +1450,9 @@ class Josty:
             and run.status != "failed"
             and len(run.results) > 0
         ):
-            self.cache.set(cache_key, run.dict())
+            payload = run.dict()
+            payload["cached"] = False
+            self.cache.set(cache_key, payload)
         return run
 
     async def research(self, query: str, **kwargs: Any) -> list[SearchResult]:

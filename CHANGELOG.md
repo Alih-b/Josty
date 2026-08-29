@@ -44,7 +44,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 - Removed the hidden query-rewrite fallback in `research_run` (strip quotes / drop last token).
   Empty fused results stay empty; callers rewrite. Matches the skill rule of no automatic retry.
-- `v0.4.0` roadmap is an honest-wrapper keep-list: empty/`challenged` signals and bounded cache.
+- `v0.4.0` roadmap keep-list: empty/`challenged` signals and bounded cache.
   RFC-1 relaxation, news engine filters, and hard host floors are out of scope.
 - Split the single shared semaphore into separate search and fetch semaphores so a slow page fetch
   can no longer block concurrent backend queries. Defaults remain 6 for search and 4 for fetch.

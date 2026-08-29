@@ -652,8 +652,14 @@ def test_search_cache_prunes_when_over_max_rows(tmp_path):
     cache = SearchCache(tmp_path / "prune.db", default_ttl=60.0, max_rows=5, prune_batch=2)
     for index in range(6):
         cache.set(f"k{index}", {"n": index})
-    assert cache.row_count() <= 5
-    assert cache.row_count() == 4
+    assert cache.row_count() == 5
+
+
+def test_search_cache_prune_does_not_wipe_table(tmp_path):
+    cache = SearchCache(tmp_path / "wipe.db", default_ttl=60.0, max_rows=3, prune_batch=100)
+    for index in range(4):
+        cache.set(f"k{index}", {"n": index})
+    assert cache.row_count() == 3
 
 
 def test_search_cache_migrates_legacy_schema(tmp_path):

@@ -2,7 +2,7 @@
 
 **Josty** is a zero-config, keyless metasearch engine and bounded content extraction tool designed specifically for AI agent runtimes and developer workflows.
 
-This document is the release plan for `v0.4.0`. Features are ordered by **honesty first**: surface what ddgs actually did, bound local state, and drop hidden retries that make the wrapper noisier than raw ddgs.
+This document is the release plan for `v0.4.0`. Features are ordered by **signal first**: surface what ddgs actually returned, bound local state, and drop hidden retries that make the wrapper noisier than raw ddgs.
 
 ---
 
@@ -13,7 +13,7 @@ Every feature added to Josty must adhere to these invariants:
 2. **Keyless Operation**: No mandatory API keys, registrations, or paid SaaS dependencies.
 3. **Deterministic Output Contract**: `stdout` emits only pure, parseable JSON conforming to `schema_version: "1.0"`. Diagnostics route strictly to `stderr`.
 4. **Minimal Footprint**: Zero heavy browser runtimes and minimal direct dependencies (`ddgs`, `httpx`, `trafilatura`).
-5. **No hidden amplification**: Do not rewrite queries or retry backends automatically. Empty or junk upstream rows are reported honestly.
+5. **No hidden amplification**: Do not rewrite queries or retry backends automatically. Empty or junk upstream rows are passed through with `error_kind` / `challenged` set when those cases apply.
 
 ---
 
@@ -28,11 +28,11 @@ Every feature added to Josty must adhere to these invariants:
 | — | **RFC-1** Adaptive Query Relaxation | **no** | Extra ddgs calls under throttle; agents should rewrite queries |
 | — | **RFC-0b** News lexical engine filter | **no** | Ranking policy. Skill already: require subject tokens before citing |
 | — | **RFC-0c** Academic/dev hard host floor | **no** | Would override engine ranking |
-| — | **RFC-2** `--extract-code` | later | Token savings, not a failure/honesty fix |
+| — | **RFC-2** `--extract-code` | later | Token savings, not a failure-mode fix |
 
 ```mermaid
 graph TD
-    V4["v0.4.0 honest wrapper"]
+    V4["v0.4.0 keep-list"]
     R0a["RFC-0a error_kind=empty"]
     Rrm["Remove query-rewrite stub"]
     R0d["RFC-0d Diagnose challenged"]
@@ -46,7 +46,7 @@ graph TD
 
 ---
 
-## Milestone: v0.4.0 — Honest wrapper, bounded cache
+## Milestone: v0.4.0 — Empty signals, no rewrite, bounded cache
 
 ### RFC-0a — Surface `error_kind=empty` on empty-ok providers
 

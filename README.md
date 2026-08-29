@@ -218,7 +218,7 @@ graph TD
 
 ## Roadmap
 
-See **[ROADMAP.md](ROADMAP.md)** for `v0.4.0`: honest empty/`challenged` signals, no hidden query rewrite, and a bounded cache. Query relaxation, news engine filters, and hard host floors are out of scope.
+See **[ROADMAP.md](ROADMAP.md)** for `v0.4.0`: `error_kind=empty`, diagnose `challenged`, no hidden query rewrite, and a bounded cache. Query relaxation, news engine filters, and hard host floors are out of scope.
 
 ---
 

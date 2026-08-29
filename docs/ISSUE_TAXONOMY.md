@@ -14,7 +14,7 @@ Every finding gets exactly one class, plus a **confidence** and a **layer**.
 | `contract_bug` | Josty promised X in the schema, CLI, or docs and did Y | site leak; non-JSON stdout; search `count` ≠ `len(results)` |
 | `intended_misleading` | Code and tests match, but an agent will treat the signal as the wrong kind of success or failure | `--diagnose` HTTP 429 → `ok=true` without reading `challenged`/`http_status`; empty backends → `status=complete` without reading `error_kind` |
 | `upstream_quality` | ddgs or the host returned junk; Josty forwarded it faithfully | `ddgs.news("Python 3.14")` → Bay News 9 “District 14” |
-| `product_gap` | Faithful and honest, but not useful enough for real agent work | academic profile loses to Wikipedia/AWS; no lexical relevance gate on news |
+| `product_gap` | Faithful, but not useful enough for real agent work | academic profile loses to Wikipedia/AWS; no lexical relevance gate on news |
 
 Do **not** treat a single live empty `google,mojeek,startpage` group as a bug.
 That path is `ok=true`, `result_count=0`, `error_kind="empty"` in `_ddgs`.
@@ -69,7 +69,7 @@ The scenario report’s `pathway` column is the improvement backlog. Do not
 implement these in the same change as a new eval case unless the class is
 `contract_bug`.
 
-**Ship order matches [ROADMAP.md](../ROADMAP.md) (honest wrapper; no extra ddgs calls):**
+**Ship order matches [ROADMAP.md](../ROADMAP.md) (no extra ddgs calls):**
 
 | Rank | Finding | Pathway | Roadmap ID |
 |---|---|---|---|
