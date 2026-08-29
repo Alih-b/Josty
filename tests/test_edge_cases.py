@@ -85,6 +85,7 @@ class TestSchemaContract:
         assert d["status"] == "complete"
         assert d["count"] == 1
         assert d["partial"] is False
+        assert d["cached"] is False
 
     def test_diagnose_dict_includes_schema_version(self):
         d = DiagnoseRun(providers=[]).dict()
@@ -819,9 +820,7 @@ class TestCache:
         even though the run is reported as a success (per the recent
         'decoupled circuit breaking' refactor).
 
-        With the query relaxation feature, an empty 3+ word query triggers
-        TWO calls (original + relaxation) on each run. Two runs = 4 total
-        DDGS calls. This pins both behaviors down.
+        Empty 3+ word queries must not trigger a second fanout.
         """
         class EmptyDDGS:
             def __init__(self, **kwargs): pass
@@ -835,11 +834,11 @@ class TestCache:
             calls["n"] += 1
             return original(self, *a, **kw)
         monkeypatch.setattr(EmptyDDGS, "text", counting)
-        # 3+ word query: triggers relaxation fallback in addition to original
+        # 3+ word query: no rewrite; empty results are not cached
         asyncio.run(engine.search_run("alpha beta gamma", limit=5))
         asyncio.run(engine.search_run("alpha beta gamma", limit=5))
-        # Empty results not cached -> 2 calls per run (original + relaxation) x 2 runs = 4
-        assert calls["n"] == 4
+        # Empty results not cached -> 1 call per run x 2 runs = 2
+        assert calls["n"] == 2
 
     def test_empty_ddgs_results_count_as_success(self, monkeypatch):
         """Per the recent refactor: when ddgs raises 'no results found' it is
@@ -857,8 +856,21 @@ class TestCache:
         # The provider reports success (no error), but with 0 results
         assert run.providers[0].ok is True
         assert run.providers[0].error is None
+        assert run.providers[0].error_kind == "empty"
         assert run.results == []
         assert run.status == "complete"
+
+    def test_empty_row_list_sets_error_kind_empty(self, monkeypatch):
+        class EmptyDDGS:
+            def __init__(self, **kwargs): pass
+            def text(self, *args, **kwargs):
+                return []
+        monkeypatch.setattr("josty.engine.DDGS", EmptyDDGS)
+        engine = Josty(backends=("empty",), cache_db=None)
+        run = asyncio.run(engine.search_run("anything", limit=5))
+        assert run.providers[0].ok is True
+        assert run.providers[0].result_count == 0
+        assert run.providers[0].error_kind == "empty"
 
 
 # ======================================================================================
@@ -1084,13 +1096,14 @@ class TestResearchRun:
         assert run2.status == "failed"
 
     def test_search_and_research_return_same_envelope_when_no_github(self, monkeypatch, tmp_path):
-        engine = Josty(backends=("test",), cache_db=tmp_path / "c.db")
+        engine = Josty(backends=("test",), enable_cache=False)
         inner = [result("https://example.com/x", source="test")]
         parts = make_parts([inner], [ProviderStatus("test", "q", True, 1)])
         monkeypatch.setattr(engine, "_search_parts", parts)
         s = asyncio.run(engine.search_run("q", limit=5))
         r = asyncio.run(engine.research_run("q", limit=5))
         assert s.dict() == r.dict()
+        assert s.cached is False
 
     def test_research_with_github_falls_back_when_github_fails(self, monkeypatch, tmp_path):
         engine = Josty(cache_db=tmp_path / "c.db")
@@ -1169,116 +1182,69 @@ class TestResearchRun:
 
 
 # ======================================================================================
-# SECTION 14b: Query relaxation behavior
+# SECTION 14b: No automatic query rewrite
 # ======================================================================================
 
-class TestQueryRelaxation:
-    """Tests for the new query relaxation feature.
+class TestNoQueryRewrite:
+    """Hidden retries amplify upstream load. Empty fused results stay empty."""
 
-    Per the recent 'decoupled circuit breaking' refactor:
-    - When 0 results come back and the query has 3+ words, the engine retries
-      with a relaxed query (drop quotes or drop last word).
-    - The original query's providers are preserved (extended with the relaxed
-      ones), and the relaxed query's results are returned if non-empty.
-    """
-
-    def test_relaxation_skipped_for_short_queries(self, monkeypatch):
-        engine = Josty(backends=("test",), cache_db=None)
-        # 1-2 word query: no relaxation
-        async def parts(query, **kwargs):
-            return [[]], [ProviderStatus("test", query, True, 0)], []
-        monkeypatch.setattr(engine, "_search_parts", parts)
-        run = asyncio.run(engine.search_run("ab", limit=5))
-        assert run.results == []
-
-    def test_relaxation_triggers_on_3plus_words_no_results(self, monkeypatch):
-        engine = Josty(backends=("test",), cache_db=None)
-        # First call returns 0 results, second (relaxed) returns a hit
-        call_count = {"n": 0}
-
-        async def parts(query, **kwargs):
-            call_count["n"] += 1
-            if query == "alpha beta gamma":
-                return [[]], [ProviderStatus("test", query, True, 0)], []
-            # Relaxed query: "alpha beta"
-            return [[result("https://example.com/x")]], [ProviderStatus("test", query, True, 1)], []
-
-        monkeypatch.setattr(engine, "_search_parts", parts)
-        run = asyncio.run(engine.search_run("alpha beta gamma", limit=5))
-        # 2 calls: original + relaxation
-        assert call_count["n"] == 2
-        # Final results come from the relaxed query
-        assert run.results[0].url == "https://example.com/x"
-
-    def test_relaxation_does_not_trigger_on_results(self, monkeypatch):
+    def test_empty_three_word_query_does_not_retry(self, monkeypatch):
         engine = Josty(backends=("test",), cache_db=None)
         call_count = {"n": 0}
 
         async def parts(query, **kwargs):
             call_count["n"] += 1
-            return [[result("https://example.com/x")]], [ProviderStatus("test", query, True, 1)], []
+            return [[]], [ProviderStatus("test", query, True, 0, error_kind="empty")], []
 
         monkeypatch.setattr(engine, "_search_parts", parts)
         run = asyncio.run(engine.search_run("alpha beta gamma", limit=5))
-        # Only 1 call: results came back, no relaxation needed
         assert call_count["n"] == 1
-        assert run.results[0].url == "https://example.com/x"
+        assert run.results == []
+        assert run.query == "alpha beta gamma"
 
-    def test_relaxation_drop_last_word(self, monkeypatch):
+    def test_quoted_query_is_not_rewritten(self, monkeypatch):
         engine = Josty(backends=("test",), cache_db=None)
         seen_queries = []
 
         async def parts(query, **kwargs):
             seen_queries.append(query)
-            if query == "alpha beta gamma":
-                return [[]], [ProviderStatus("test", query, True, 0)], []
-            if query == "alpha beta":  # relaxed
-                res = [[result("https://example.com/x")]]
-                return res, [ProviderStatus("test", query, True, 1)], []
-            return [[]], [ProviderStatus("test", query, True, 0)], []
-
-        monkeypatch.setattr(engine, "_search_parts", parts)
-        asyncio.run(engine.search_run("alpha beta gamma", limit=5))
-        # The relaxation is: drop the last word
-        assert "alpha beta" in seen_queries
-        assert "alpha beta gamma" in seen_queries
-
-    def test_relaxation_drop_quotes(self, monkeypatch):
-        engine = Josty(backends=("test",), cache_db=None)
-        seen_queries = []
-
-        async def parts(query, **kwargs):
-            seen_queries.append(query)
-            if '"' in query:
-                return [[]], [ProviderStatus("test", query, True, 0)], []
-            return [[result("https://example.com/x")]], [ProviderStatus("test", query, True, 1)], []
+            return [[]], [ProviderStatus("test", query, True, 0, error_kind="empty")], []
 
         monkeypatch.setattr(engine, "_search_parts", parts)
         asyncio.run(engine.search_run('"alpha beta gamma"', limit=5))
-        # Quotes dropped in relaxed query
-        assert any('"' not in q for q in seen_queries)
+        assert seen_queries == ['"alpha beta gamma"']
 
-    def test_relaxation_appends_providers(self, monkeypatch):
+    def test_hits_still_use_a_single_fanout(self, monkeypatch):
         engine = Josty(backends=("test",), cache_db=None)
+        call_count = {"n": 0}
 
         async def parts(query, **kwargs):
-            return [[]], [ProviderStatus("test", query, True, 0)], []
+            call_count["n"] += 1
+            return [[result("https://example.com/x")]], [ProviderStatus("test", query, True, 1)], []
 
         monkeypatch.setattr(engine, "_search_parts", parts)
         run = asyncio.run(engine.search_run("alpha beta gamma", limit=5))
-        # Both original and relaxed queries contribute providers
-        # Original: 1 provider (one backend). Relaxed: 1 provider. Total 2.
-        assert len(run.providers) == 2
+        assert call_count["n"] == 1
+        assert run.results[0].url == "https://example.com/x"
 
-    def test_relaxation_gives_up_if_relaxed_also_empty(self, monkeypatch):
+    def test_empty_run_does_not_duplicate_providers(self, monkeypatch):
         engine = Josty(backends=("test",), cache_db=None)
 
         async def parts(query, **kwargs):
-            return [[]], [ProviderStatus("test", query, True, 0)], []
+            return [[]], [ProviderStatus("test", query, True, 0, error_kind="empty")], []
 
         monkeypatch.setattr(engine, "_search_parts", parts)
         run = asyncio.run(engine.search_run("alpha beta gamma", limit=5))
-        # No results even after relaxation
+        assert len(run.providers) == 1
+
+    def test_short_empty_query_unchanged(self, monkeypatch):
+        engine = Josty(backends=("test",), cache_db=None)
+
+        async def parts(query, **kwargs):
+            return [[]], [ProviderStatus("test", query, True, 0, error_kind="empty")], []
+
+        monkeypatch.setattr(engine, "_search_parts", parts)
+        run = asyncio.run(engine.search_run("ab", limit=5))
         assert run.results == []
 
 
@@ -1431,6 +1397,18 @@ class TestRoundTrip:
         assert restored.results[0].score == 0.016393
         assert restored.results[0].snippet == "Snippet text"
         assert restored.providers[0].ok is True
+        assert restored.cached is False
+
+    def test_search_run_roundtrip_preserves_cached(self):
+        original = SearchRun(
+            query="test",
+            results=[result("https://example.com/x")],
+            providers=[ProviderStatus("bing", "test", True, 1)],
+            cached=True,
+        )
+        from josty.engine import _search_run_from_dict
+        restored = _search_run_from_dict(original.dict())
+        assert restored.cached is True
 
 
 # ======================================================================================
