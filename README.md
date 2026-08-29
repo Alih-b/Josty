@@ -115,28 +115,22 @@ josty "RRF rank fusion algorithm" --limit 3 --fetch
 
 ---
 
-## Verified Agent Framework Guides
+## Agent & LLM Integration
 
-### 🥧 Pi Agent (Open-Source Agent CLI)
+### Subprocess & Skill Invocations
 
-Pi Agent can execute Josty either through bash subprocess tool execution or by registering the `.agents/skills/josty/SKILL.md` skill definition in its active skill directory:
+Agents and runtimes can execute Josty directly via shell subprocess or by registering `.agents/skills/josty/SKILL.md`:
 
 ```bash
-# 1. Fact retrieval & web search from Pi:
+# Fact retrieval & search:
 uvx josty "latest release of pydantic" --limit 5
 
-# 2. Extract clean page text for deeper reasoning:
+# Extract clean page Markdown:
 uvx josty "how to implement reciprocal rank fusion in python" --fetch --limit 3
 
-# 3. Targeted technical debugging:
+# Targeted technical debugging:
 uvx josty "asyncpg connection pool exhaustion" --site github.com --site stackoverflow.com
 ```
-
-**Pi Agent Verification Rules**:
-1. Run `uvx josty "<query>" --limit 5` for real-time web verification.
-2. If snippet context is insufficient, append `--fetch` to extract full Markdown text.
-3. Check `status` (`complete`, `partial`, `failed`); provider failure is not evidence of absence.
-4. Cite primary source URLs directly in response output.
 
 ---
 
@@ -200,6 +194,37 @@ search_tool_definition = {
 
 ## Technical Specifications & Architecture
 
+```mermaid
+graph TD
+    Query["<b>Agent Search Query</b><br/>(sites, profile, mode)"] --> Cache{"<b>SQLite WAL Cache</b><br/>(6h TTL & LFU)"}
+    
+    Cache -- Cache Hit --> Out["<b>Pure JSON Output</b><br/>(schema_version: 1.0)"]
+    
+    Cache -- Cache Miss --> Fanout["<b>Async Parallel Fanout</b><br/>(DDGS Engine Groups)"]
+    
+    Fanout --> B1["Backend Group 1<br/>(Bing, Brave, DDG)"]
+    Fanout --> B2["Backend Group 2<br/>(Google, Mojeek, Startpage)"]
+    Fanout --> GH["GitHub Search<br/>(Optional --github)"]
+    
+    B1 --> Circuit["<b>Circuit Breakers</b><br/>(Sliding Window)"]
+    B2 --> Circuit
+    GH --> Circuit
+    
+    Circuit --> RRF["<b>Domain-Weighted RRF Fusion</b><br/>(k=60 + Dev/Academic Profiles)"]
+    
+    RRF --> Canon["<b>URL Canonicalization</b><br/>(RFC 3986 + Tracking Stripper)"]
+    
+    Canon --> Fetch{"<b>--fetch Active?</b>"}
+    
+    Fetch -- Yes --> Traf["<b>Trafilatura Extractor</b><br/>(Bounded Markdown & Code Slices)"]
+    Fetch -- No --> Out
+    Traf --> Out
+
+    style Query fill:#dbeafe,stroke:#1e40af,stroke-width:2px;
+    style Out fill:#dcfce7,stroke:#15803d,stroke-width:2px;
+    style RRF fill:#fef3c7,stroke:#b45309,stroke-width:2px;
+```
+
 | Parameter / Feature | Code Value / Contract | Description |
 | :--- | :--- | :--- |
 | **Schema Version** | `1.0` | Output format contract on `stdout` |
@@ -210,6 +235,12 @@ search_tool_definition = {
 | **Download Byte Limit** | `2,097,152 bytes` (2MB) | Hard ceiling on raw HTTP downloads before parsing |
 | **RRF Parameter** | $k=60$ | Cormack et al. (2009) reciprocal rank smoothing factor |
 | **SSRF Safeguards** | Verified | Blocks private subnets, loopback, RFC 1918, and `169.254.169.254` metadata |
+
+---
+
+## Roadmap
+
+See **[ROADMAP.md](ROADMAP.md)** for planned milestones (**RFC-1: Adaptive Query Relaxation**, **RFC-4: Bounded SQLite Cache**, **RFC-2: Token-Budgeted Code Slicing**), technical specifications, and future issue tracking.
 
 ---
 
