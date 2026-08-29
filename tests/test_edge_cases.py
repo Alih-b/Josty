@@ -18,6 +18,7 @@ import socket
 import sqlite3
 import ssl
 from types import SimpleNamespace
+from urllib.parse import urlparse
 
 import httpx
 import pytest
@@ -1337,7 +1338,7 @@ class TestDiagnose:
             return httpx.Response(200, request=httpx.Request("GET", url))
         monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
         asyncio.run(Josty().diagnose_run())
-        assert not any("api.github.com" in u for u in seen)
+        assert not any(urlparse(u).hostname == "api.github.com" for u in seen)
 
 
 # ======================================================================================
