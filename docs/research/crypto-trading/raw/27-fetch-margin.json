@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "query": "isolated margin vs cross margin crypto liquidation",
+  "status": "complete",
+  "count": 0,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "isolated margin vs cross margin crypto liquidation",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "isolated margin vs cross margin crypto liquidation",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "isolated margin vs cross margin crypto liquidation",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": []
+}

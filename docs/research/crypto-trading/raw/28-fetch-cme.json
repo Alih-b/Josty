@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0",
+  "query": "bitcoin futures contract specs",
+  "status": "complete",
+  "count": 6,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:cmegroup.com bitcoin futures contract specs",
+      "ok": true,
+      "result_count": 6,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:cmegroup.com bitcoin futures contract specs",
+      "ok": true,
+      "result_count": 6,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:cmegroup.com bitcoin futures contract specs",
+      "ok": true,
+      "result_count": 6,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Bitcoin Futures Contract Specs - CME Group",
+      "url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin/specs",
+      "snippet": "Find information for Bitcoin Futures Contract Specs provided by CME Group. Contract Unit 5 bitcoin, Price Quotation U.S. Minimum Price Fluctuation Outright: 5. ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.04918,
+      "content": "style\nstyle\n,",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin/specs",
+      "fetched_at": "2026-08-29T17:38:28.145674+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin Futures - CME Group",
+      "url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin",
+      "snippet": "Take self-guided courses on Bitcoin futures and options products. If you're new to futures, the courses below can help you quickly understand the Bitcoin market and start trading.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032258,
+      "content": "trading simulator\n\n            enabled\n\n          Overview\n\n            overview\n\n          Quotes\n\n            quotes\n\n          Settlements\n\n            settlements\n\n          Volume & OI\n\n            volume\n\n          Specs\n\n            specs\n\n          Margins\n\n            margins\n\n          Calendar\n\n            calendar",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin",
+      "fetched_at": "2026-08-29T17:38:28.013310+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "What are Bitcoin Futures?",
+      "url": "https://www.cmegroup.com/education/courses/introduction-to-bitcoin/what-are-bitcoin-futures",
+      "snippet": "A single BTC contract has a value of five times the value of the BRR Index and is quoted in U.S. dollars per one bitcoin. The tick increments are quoted in multiples of $5 per bitcoin, meaning a one-tick move of the BTC future is equal to $25.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031754,
+      "content": "# What are Bitcoin Futures?\n\nCME’s Bitcoin futures contract, ticker symbol BTC, is a USD cash-settled contract based on the CME CF Bitcoin Reference Rate (BRR), which serves as a once-a-day reference rate of the U.S. dollar price of bitcoin. The BRR aggregates the trade flow of major bitcoin spot exchanges during a one-hour calculation window into the U.S. dollar price of one bitcoin as of 4 p.m. London Time.\n\nThe Bitcoin futures contract trades Sunday through Friday, from 5 p.m. to 4 p.m. Central Time (CT).\n\nA single BTC contract has a value of five times the value of the BRR Index and is quoted in U.S. dollars per one bitcoin. The tick increments are quoted in multiples of $5 per bitcoin, meaning a one-tick move of the BTC future is equal to $25.\n\nBTC futures are block trade eligible with a minimum quantity threshold of five contracts.\n\nBTC futures expire the last Friday of the month, and are listed on the nearest six consecutive monthly contracts, inclusive of the nearest two December contracts.\n\n## Example\n\nFor example, assume it’s January and the six consecutive contract months are January, February, March, April, May, and June. In addition, that year’s December contract plus next year’s December contract will also be listed. As one contract expires, the next contract to complete the six-month lineup is added. When the December contract expires, the June contract becomes active, in addition to the December contract for the next year. So, at any time, there are six consecutive monthly contracts and only two December contracts listed.\n\nThis process continues throughout each year.\n\n## Conclusion\n\nBitcoin is a large portion of the growing digital asset market. BTC futures provide investors with transparency, price discovery and risk management capabilities. The contract will also allow individual market participants to access the bitcoin market as well as hedge any direct exposure to bitcoin pricing.\n\nFor more information about Bitcoin Futures, please visit [cmegroup.com/bitcoinfutures](https://www.cmegroup.com/trading/bitcoin-futures.html).\n\nIf you would like to learn more about how futures work, check out our course [Introduction to Futures](https://www.cmegroup.com/education/courses/introduction-to-futures).",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://www.cmegroup.com/education/courses/introduction-to-bitcoin/what-are-bitcoin-futures",
+      "fetched_at": "2026-08-29T17:38:28.158591+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Micro Bitcoin Futures - CME Group",
+      "url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/micro-bitcoin",
+      "snippet": "Aug 19, 2026 · At 1/10 the size of one bitcoin, Micro Bitcoin futures (MBT) provide an efficient, cost-effective new way to fine-tune bitcoin exposure and enhance your trading strategies.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.030536,
+      "content": "trading simulator\n\n            enabled\n\n          Overview\n\n            overview\n\n          Quotes\n\n            quotes\n\n          Settlements\n\n            settlements\n\n          Volume & OI\n\n            volume\n\n          Specs\n\n            specs\n\n          Margins\n\n            margins\n\n          Calendar\n\n            calendar",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/micro-bitcoin",
+      "fetched_at": "2026-08-29T17:38:28.157025+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin Friday Futures Contract Specs - CME Group",
+      "url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin-friday-futures/specs",
+      "snippet": "Bitcoin Friday Futures - Contract Specs. Grade and Quality Contract Unit 0.02 bitcoin, as defined by the CME CF Bitcoin Reference Rate New York. Price ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": "style\nstyle\n,",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin-friday-futures/specs",
+      "fetched_at": "2026-08-29T17:38:28.162926+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Micro Bitcoin Futures Contract Specs - CME Group",
+      "url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/micro-bitcoin.contractSpecs.html",
+      "snippet": "June 3, 2026 - Enjoy the features of Bitcoin futures (BTC) in a smaller size that enables traders of all sizes to manage bitcoin price risk. ... Get the same benefits as the larger contract at 1/50 of the contract size, settled to the regulated CME CF Bitcoin Reference Rate (BRR).",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": "style\nstyle\n,",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/micro-bitcoin/specs",
+      "fetched_at": "2026-08-29T17:38:28.268837+00:00",
+      "fetch_error": null
+    }
+  ]
+}

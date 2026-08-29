@@ -1,0 +1,148 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto matching engine order book",
+  "status": "complete",
+  "count": 7,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "crypto matching engine order book",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "crypto matching engine order book",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "crypto matching engine order book",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "GitHub - ArjunVachhani/order-matcher: simple, fast and ...",
+      "url": "https://github.com/ArjunVachhani/order-matcher",
+      "snippet": "order-matcher is a simple and fast library to build crypto-currency exchange, stock exchange or commodity exchange. order-matcher matches buy and sell orders using price-time priority algorithm. order-matcher supports multiple order types and able to excecute upto 1 million messages per seconds.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.01875,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Exchange Matching Engine: How Order Books Work at ...",
+      "url": "https://www.spencerlogic.com/blog/crypto-exchange-matching-engine-order-books-scale/",
+      "snippet": "Aug 4, 2026 · A matching engine is the software component that processes incoming buy and sell orders against the order book and executes fills based on a defined priority algorithm, most commonly price-time priority under a Central Limit Order Book model.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Trustless Order Matching: A zk-Matching Engine PoC - TheStreet",
+      "url": "https://www.thestreet.com/crypto/innovation/trustless-order-matching-a-zk-matching-engine-poc-",
+      "snippet": "Aug 26, 2024 · This brings us to the concept of a zk-Matching Engine—an innovative proof of concept (PoC) designed to establish a trustless order-matching system using zero-knowledge (zk) proofs. This article ...",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Matching Engine: How Crypto Buy & Sell Orders Matching",
+      "url": "https://indodax.com/academy/en/understanding-matching-engine-buying-and-selling-technology/",
+      "snippet": "Jul 28, 2026 · Without a matching engine, an order book-based exchange would not be able to pair buy and sell orders automatically. Through this article, we will discuss how a matching engine works, its relationship with the order book, and its role as a crucial component in crypto asset trading.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Exchange Matching Engine Explained - ProtonX",
+      "url": "https://protonx.com/blog/crypto-exchange-matching-engine-explained/",
+      "snippet": "Jun 23, 2026 · A matching engine is the core system that processes all buy and sell orders on a crypto exchange. It maintains the order book for every trading pair, executes matches between compatible orders based on price and time priority, and returns fill confirmations to traders.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "How to Monitor Cryptocurrency Exchange Order Book and ...",
+      "url": "https://oneuptime.com/blog/post/2026-02-06-monitor-crypto-exchange-order-book-opentelemetry/view",
+      "snippet": "Feb 6, 2026 · Learn how to use OpenTelemetry metrics to monitor cryptocurrency exchange order book depth and matching engine performance.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Order Book Matching Engine: How Crypto Trade Execution Works ...",
+      "url": "https://www.cryptoexchangeclonescript.com/order-book-matching-engine-how-crypto-trade-execution-works-2026/",
+      "snippet": "Apr 22, 2026 · Understand how order book matching engines work in crypto exchanges — from CLOB architecture and FIFO matching to Rust vs Go, event sourcing, and AMM tradeoffs. Built for founders planning their exchange stack.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

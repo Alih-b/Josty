@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "query": "Hyperliquid funding documentation",
+  "status": "complete",
+  "count": 0,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "Hyperliquid funding documentation",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "Hyperliquid funding documentation",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "Hyperliquid funding documentation",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": []
+}

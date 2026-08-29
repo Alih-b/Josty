@@ -1,0 +1,445 @@
+{
+  "schema_version": "1.0",
+  "query": "ccxt unified crypto exchange trading API spot futures",
+  "status": "complete",
+  "count": 20,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "ccxt unified crypto exchange trading API spot futures",
+      "ok": true,
+      "result_count": 20,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "\"ccxt unified crypto exchange trading API spot futures\"",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "ccxt unified crypto exchange trading API spot futures open source",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "ccxt unified crypto exchange trading API spot futures self-hosted",
+      "ok": true,
+      "result_count": 20,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "ccxt unified crypto exchange trading API spot futures",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "\"ccxt unified crypto exchange trading API spot futures\"",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "ccxt unified crypto exchange trading API spot futures open source",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "ccxt unified crypto exchange trading API spot futures self-hosted",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "ccxt unified crypto exchange trading API spot futures",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "\"ccxt unified crypto exchange trading API spot futures\"",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "ccxt unified crypto exchange trading API spot futures open source",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "ccxt unified crypto exchange trading API spot futures self-hosted",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "github-api",
+      "query": "ccxt unified crypto exchange trading API spot futures",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "GitHub - ccxt/ccxt: A unified trading API with more than 100 crypto ...",
+      "url": "https://github.com/ccxt/ccxt",
+      "snippet": "A crypto trading API with more than 100 exchanges and prediction markets in JavaScript / TypeScript / Python / C# / PHP / Go / Java. The CCXT library is used to connect and trade with cryptocurrency exchanges worldwide. It provides quick access to market data for storage, analysis, visualization ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.063591,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT – Cryptocurrency Exchange Trading Library | One API for 100+ Exchanges",
+      "url": "https://ccxt.com/",
+      "snippet": "Order books, tickers, OHLCV candles, trades and funding rates normalized to one format across every supported cryptocurrency exchange API. Create, edit and cancel orders, query balances, positions and trade history with one interface — from spot to derivatives. Trade event contracts on Polymarket, Kalshi, Hyperliquid, Limitless and Myriad through the same unified API as crypto exchanges.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.046204,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT — API For Crypto Exchanges And Prediction Markets",
+      "url": "http://docs.ccxt.com/",
+      "snippet": "A unified trading library for 100+ crypto exchanges and prediction markets — one API in JavaScript, Python, PHP, C#, Go and Java. Made for developers and AI agents.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.041935,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT Documentation",
+      "url": "https://docs.ccxt.com/docs",
+      "snippet": "CCXT Documentation CCXT — a unified API for 100+ cryptocurrency and prediction-market exchanges in JavaScript, Python, PHP, C#, Go and Java.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.039715,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT – CryptoCurrency eXchange Trading Library — ccxt 1.13.142 文档",
+      "url": "https://ccxtcn.readthedocs.io/",
+      "snippet": "Supported Cryptocurrency Exchange Markets ¶ The ccxt library currently supports the following 91 cryptocurrency exchange markets and trading APIs: ... The list above is updated frequently, new crypto markets, altcoin exchanges, bug fixes, API endpoints are introduced and added on regular basis. See the Manual for details.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.039118,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "ccxt · PyPI",
+      "url": "https://pypi.org/project/ccxt/",
+      "snippet": "Jun 29, 2017 · CCXT is a free open source non-custodian API broker software under MIT license. Non-custodian means CCXT is not an intermediary in trading, it does not hold traders' money at any point in time, traders install CCXT and use CCXT to talk to exchanges directly.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.036174,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT - A Unified Library for Crypto Exchange Trading",
+      "url": "https://products.traderize.com/crypto/javascript/ccxt/",
+      "snippet": "May 11, 2025 - Unified API: Standardized methods ... including Binance, Coinbase, Kraken, and more. Spot, Futures, and Margin Trading: Supports different trading markets depending on exchange availability....",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.029851,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Manual · ccxt/ccxt Wiki · GitHub",
+      "url": "https://github.com/ccxt/ccxt/wiki/manual",
+      "snippet": "July 17, 2026 - To accomodate both types of markets in the .markets we require the symbols between 'future' and 'spot' markets to be distinct, as well as the symbols between 'linear' and 'inverse' contracts to be distinct. Please, check this announcement: Unified contract naming conventions · CCXT supports the following types of derivative contracts:",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.021311,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT — API For Crypto Exchanges And Prediction Markets",
+      "url": "https://docs.ccxt.com/",
+      "snippet": "A unified trading library for 100+ crypto exchanges and prediction markets — one API in JavaScript, Python, PHP, C#, Go and Java. Made for developers and AI agents.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020635,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Manual · ccxt/ccxt Wiki · GitHub",
+      "url": "https://github.com/ccxt/ccxt/wiki/Manual",
+      "snippet": "A unified trading API with more than 100 crypto exchanges and prediction markets in JavaScript / TypeScript / Python / C# / PHP / Go / Java - ccxt/ccxt",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020635,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "ccxt - GitHub",
+      "url": "https://github.com/ccxt",
+      "snippet": "CryptoCurrency eXchange Trading. ccxt has 33 repositories available. Follow their code on GitHub.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.02,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - odinsoft-lab/ccxt.net: CCXT.NET – CryptoCurrency ...",
+      "url": "https://github.com/odinsoft-lab/ccxt.net",
+      "snippet": "The library is updated frequently with new crypto markets, altcoin exchanges, bug fixes, and API endpoints. If you need support for a specific exchange that's not currently included, please open an issue on GitHub or contact us via email.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019697,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Exchange Markets · ccxt/ccxt Wiki · GitHub",
+      "url": "https://github.com/ccxt/ccxt/wiki/Exchange-Markets",
+      "snippet": "A unified trading API with more than 100 crypto exchanges and prediction markets in JavaScript / TypeScript / Python / C# / PHP / Go / Java - Exchange Markets · ccxt/ccxt Wiki",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019118,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "ccxt - npm",
+      "url": "https://www.npmjs.com/package/ccxt?activeTab=readme",
+      "snippet": "CCXT is a free open source non-custodian API broker software under MIT license. Non-custodian means CCXT is not an intermediary in trading, it does not hold traders' money at any point in time, traders install CCXT and use CCXT to talk to exchanges directly.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.018571,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "NuGet Gallery | CCXT.NET 1.5.3",
+      "url": "https://www.nuget.org/packages/CCXT.NET",
+      "snippet": "These exchanges have basic structure implemented and are ready for API integration: Binance Derivatives: binancecoinm, binanceusdm (US) ... CN: bigone, bingx, bitget, coinex, digifinex, gate, hashkey, hitbtc, htx, kucoinfutures, lbank, mexc, woo, woofipro, xt ... US: alpaca, apex, ascendex, binanceus, coinbaseadvanced, coinbaseexchange, coinbaseinternational, crypto, cryptocom, krakenfutures, okcoin, okxus, paradex, phemex, vertex",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.017105,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "ccxt - documentation",
+      "url": "https://docs.ccxt.com/baseSpec",
+      "snippet": "A unified trading library for 100+ crypto exchanges and prediction markets — one API in JavaScript, Python, PHP, C#, Go and Java. Made for developers and AI agents.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016883,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Exchanges — ccxt 1.62.9 documentation",
+      "url": "https://ccxt.readthedocs.io/en/latest/manual.html",
+      "snippet": "Usually, there is an endpoint for getting a list of markets from an exchange, an endpoint for retrieving an order book for a particular market, an endpoint for retrieving trade history, endpoints for placing and canceling orders, for money deposit and withdrawal, etc… Basically every kind of action you could perform within a particular exchange has a separate endpoint URL offered by the API. Because the set of methods differs from exchange to exchange, the ccxt library implements the following: a public and private API for all possible URLs and methods · a unified API supporting a subset of common methods",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016667,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT | Shakudo Docs",
+      "url": "https://docs.shakudo.io/shakudo-platform-features/Web3+API/ccxt/",
+      "snippet": "CCXT - CryptoCurrency eXchange Trading Library is a JavaScript / Python / PHP library for cryptocurrency trading and e-commerce with support for many bitcoin/ether/altcoin exchange markets and merchant APIs. CCXT Supports unified APIs to access marketing data and OrderBook data on over 100 Crypto exchanges including the most popular ones such as Binance, FTX, Coinbase, Kraken, Kucoin and etc.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016456,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "@ango-ya/ccxt - npm",
+      "url": "https://www.npmjs.com/package/@ango-ya/ccxt",
+      "snippet": "A JavaScript / TypeScript / Python / C# / PHP cryptocurrency trading library with support for 100+ exchanges. Latest version: 4.2.72, last published: 10 months ago. Start using @ango-ya/ccxt in your project by running `npm i @ango-ya/ccxt`. ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016049,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Home · ccxt/ccxt Wiki · GitHub",
+      "url": "https://github.com/ccxt/ccxt/wiki",
+      "snippet": "A unified trading API with more than 100 crypto exchanges and prediction markets in JavaScript / TypeScript / Python / C# / PHP / Go / Java - ccxt/ccxt",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015854,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

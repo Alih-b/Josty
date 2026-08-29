@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto spot exchange matching engine limit market order execution",
+  "status": "complete",
+  "count": 0,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "crypto spot exchange matching engine limit market order execution",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "crypto spot exchange matching engine limit market order execution",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "crypto spot exchange matching engine limit market order execution",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": []
+}

@@ -1,0 +1,165 @@
+{
+  "schema_version": "1.0",
+  "query": "perpetual futures funding rate mark price explained",
+  "status": "complete",
+  "count": 8,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "perpetual futures funding rate mark price explained",
+      "ok": true,
+      "result_count": 8,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "perpetual futures funding rate mark price explained",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "perpetual futures funding rate mark price explained",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Understanding Funding Rates in Perpetual Futures and Their ...",
+      "url": "https://www.coinbase.com/learn/perpetual-futures/understanding-funding-rates-in-perpetual-futures",
+      "snippet": "One unique aspect of perpetual futures is the funding rate mechanism, a periodic payment between traders that helps keep the futures price closely aligned with the spot price of the asset. In this article, we’ll explain what funding rates are, how they work, and why they play a crucial role in perpetual futures trading.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032018,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": "HTTPStatusError: Client error '403 Forbidden' for url 'https://www.coinbase.com/learn/perpetual-futures/understanding-funding-rates-in-perpetual-futures'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    },
+    {
+      "title": "How Perpetual Futures Actually Work: Funding Rate ...",
+      "url": "https://beincrypto.com/how-perpetual-futures-actually-work/",
+      "snippet": "Jun 17, 2026 · Perpetual futures are the backbone of crypto derivatives trading and yet most traders interact with them daily without fully understanding what powers them under the hood. On Zoomex, three interlocking systems keep perpetual contracts honest, fair, and stable. The funding rate, the mark price/dual ...",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": "*A technical deep dive for traders on* *Zoomex*\n\nPerpetual futures are the backbone of crypto derivatives trading and yet most traders interact with them daily without fully understanding what powers them under the hood. On [Zoomex](https://www.zoomex.com/en/trade/BTCUSDT), three interlocking systems keep perpetual contracts honest, fair, and stable. The funding rate, the mark price/dual-price mechanism, and the liquidation engine (backed by an insurance fund). Master these three, and you unlock a fundamentally different level of risk awareness and strategic clarity.\n\nSource: [Zoomex](https://www.zoomex.com/trade/usdt/BTCUSDT)\n\n## **What Is a Perpetual Future, and Why Does It Need These Systems?**\n\nUnlike a traditional futures contract, a perpetual future has no expiry date. A trader can hold a BTC long or short position indefinitely, as long as they maintain sufficient margin. But this raises an obvious problem: without an expiry date, what stops the perpetual contract price from drifting arbitrarily far from the actual spot price of Bitcoin?\n\nThe answer is the funding rate, a recurring payment mechanism that acts as a gravitational force, continuously pulling the perpetual price back toward the spot. Mark price and liquidation logic then sit on top of that to ensure the trading environment remains manipulation-resistant and solvent.\n\nZoomex offers two types of perpetual contracts.\n\nSource: Zoomex\n\n[Inverse Perpetual Contracts](https://zoomex.zendesk.com/hc/en-us/articles/36030871284121-Zoomex-Futures-Products#h_01JYR7SD2KG5KKZ4F0E67ERAVC) (collateralized in the base coin – BTC, ETH, XRP, EOS) and [USDT Perpetual Contracts](https://zoomex.zendesk.com/hc/en-us/articles/36030871284121-Zoomex-Futures-Products#h_01JYR7SJ2AJJNFFAYFCXDR02HN) (collateralized in USDT, with a broader range of altcoin pairs). Both contract types use the same underlying mechanics described below.\n\n## **The Funding Rate: How It Works and Why It Matters**\n\nThe [funding rate on Zoomex](https://zoomex.zendesk.com/hc/en-us/articles/34755393448729-What-is-funding-rate) is composed of two components:\n\n**Interest Rate (I):** A baseline component derived from the cost of borrowing the quote vs. the base currency. On Zoomex, the formula is:\n\nInterest Rate = (Interest Quote Index − Interest Base Index) / Funding Interval\n\nWith standard values of 0.06% (quote) and 0.03% (base) across three daily intervals, this yields a base interest rate of 0.01% per funding period.\n\nSource: [Zoomex](https://zoomex.zendesk.com/hc/en-us/articles/34755393448729-What-is-funding-rate)\n\n**Premium Index (P):** This is the more dynamic component. It measures the divergence between where the perpetual is trading (captured through the Impact Bid and Impact Ask prices) and the underlying Mark Price. When the perpetual trades at a significant premium or discount, the Premium Index amplifies or dampens the funding rate accordingly.\n\nThe final Funding Rate formula is:\n\nF = P + clamp(I − P, −0.05%, +0.05%)\n\nThe clamp function acts as a dampener. If the difference between the interest rate and the premium is within ±0.05%, the funding rate simply equals the interest rate. If the premium deviation is larger, the clamp limits, but does not eliminate, its influence.\n\nZoomex calculates both components every minute and then applies an 8-hour Time-Weighted Average Price (TWAP) to smooth volatility in the rate. The resulting rate is applied three times daily, at 8:00 AM, 4:00 PM, and 12:00 AM UTC. [Funding fees are calculated](https://zoomex.zendesk.com/hc/en-us/articles/34754678102937-Funding-fee-calculation) on a trader’s position value at each of these timestamps.\n\n**Funding Fee = Position Value × Funding Rate**\n\n- When the rate is positive: longs pay shorts (the market is bullish/elevated above spot).\n- When the rate is negative: shorts pay longs (the market is bearish/depressed below spot).\n\nTraders can monitor the real-time and historical funding rate at [Zoomex’s dedicated funding rate page](https://www.zoomex.com/en/futures/futuresData/funding-rate). \n\nSource: [Zoomex](https://www.zoomex.com/en/futures/futuresData/funding-rate)\n\nThe rate is not fixed, it updates every minute until the next funding timestamp, so active traders should check it regularly before holding overnight positions. There are also [funding rate limits](https://zoomex.zendesk.com/hc/en-us/articles/34755393448729-What-is-funding-rate) in place per contract pair to cap extreme conditions.\n\n## **Mark Price & the Dual-Price Mechanism**\n\nThis is where Zoomex goes beyond a simple “use the last traded price” approach. [The Dual-Price Mechanism](https://zoomex.zendesk.com/hc/en-us/articles/35622148000025-What-is-Dual-Price-mechanism) is Zoomex’s core protection against market manipulation and unfair liquidations.\n\nSource: [Zoomex](https://zoomex.zendesk.com/hc/en-us/articles/35622148000025-What-is-Dual-Price-mechanism)\n\nIt consists of two distinct prices:\n\n**Mark Price** is derived from a global spot price index across major exchanges, plus a decaying funding basis rate. It represents what the asset is genuinely worth in the broader market at any given moment, not what the Zoomex order book shows in isolation. Critically, Zoomex uses the Mark Price, not the Last Traded Price to:\n\n- Trigger liquidations\n- Calculate unrealized P&L\n\n**Last Traded Price** is Zoomex’s own real-time market price. Because it’s anchored to spot via the funding mechanism, it rarely diverges significantly from Mark Price. However, in moments of sharp volatility or thin liquidity, small temporary deviations can occur. This is normal and does not represent actual P&L, it’s an artifact of the dual-price design.\n\nWhy does this matter? Without Mark Price, a bad actor could temporarily spike or crash the Last Traded Price on a single exchange to trigger mass liquidations. By anchoring liquidation triggers to a global index rather than the internal order book, [Zoomex protects traders from malicious wicks](https://zoomex.zende",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://beincrypto.com/how-perpetual-futures-actually-work/",
+      "fetched_at": "2026-08-29T17:38:28.525054+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Perpetual futures funding: payment frequency and trading strategies",
+      "url": "https://metamask.io/news/perpetual-futures-funding-frequency-strategies",
+      "snippet": "May 14, 2026 - Perpetual futures tether their price to an index of underlying spot markets using a funding rate; unlike dated futures, they do not settle and can be held indefinitely as long as margin is maintained.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": "MetaMask is the world's leading self-custodial crypto wallet and gateway to decentralized finance.\n\n[Read all articles](https://metamask.io/news/metamask)\n\nLearn how often funding is paid in perpetual futures, how funding rates are calculated, and which trading strategies are most affected by these mechanics.\n\n[Perpetual futures](https://metamask.io/perps) are crypto derivative contracts that let traders speculate on price movements without owning the underlying asset, and they have no expiry. Their price stays near the spot market through a periodic funding rate that flows between longs and shorts. In practice, many platforms charge or credit funding every eight hours, though some use four or twelve hour schedules. So, the answer to “how often is funding paid in perpetual futures?” is typically three times per day, at set UTC checkpoints, but it varies by exchange. \n\nPerpetuals are now supported across centralized and decentralized platforms, with onchain protocols bringing these markets into DeFi. Traders can access 150+ assets with transparent execution via a leading self-custodial wallet like [MetaMask](https://metamask.io/download), with perps powered by Hyperliquid. This guide explores how funding calculations are made, funding payment schedules, and the trading strategies commonly impacted by funding mechanics.\n*Disclaimer: This content is for general educational purposes only, is not financial advice or a solicitation, and is not intended for UK audiences. Perpetual futures involve a high risk of loss and may not be suitable for everyone.*\n\nPerpetual futures tether their price to an index of underlying spot markets using a funding rate; unlike dated futures, they do not settle and can be held indefinitely as long as margin is maintained. Many exchanges display a mark price and index price to guide liquidations and funding. For a side-by-side comparison of perpetual and traditional futures mechanics, see [the beginner's guide to perpetual futures](https://metamask.io/news/guide-to-crypto-perpetual-futures-for-beginners).\n\nThe funding rate is a periodic fee exchanged between long and short traders to keep the perpetual contract's price aligned with spot. It applies to the position's notional value, not just the deposited margin—a detail that matters for calculating true holding costs. For a full breakdown of how funding rates are calculated, what determines the payment direction, and how the premium index works, see [key perpetual futures concepts](https://metamask.io/news/key-perpetual-futures-concepts). \n\nIndustry standard: funding is most commonly charged or credited every eight hours, though some platforms use four or twelve hour windows. This cadence creates recurring patterns in liquidity, spreads, and intraday costs.\n\nTypical intervals traders encounter:\n\nEvery 8 hours (common default on many markets)\n\nEvery 4 hours (higher-frequency recalibration)\n\nEvery 12 hours (lower-frequency recalibration)\n\nEvent-based adjustments on some onchain protocols\n\nExact timestamps are exchange-specific, but many synchronize to UTC.\n\nEvery eight hours: 00:00, 08:00, 16:00\n\nEvery four hours: 02:00, 06:00, 10:00, 14:00, 18:00, 22:00\n\nTwo times per day: 00:00 and 12:00\n\nNote: Funding often applies only if traders hold an open position at the checkpoint; closing just before the timestamp generally avoids that interval’s payment.\n\nEvery exchange or protocol sets its own cadence, formula, interest assumptions, cap levels, and even mark/index methodologies. Before choosing where to trade, compare:\n\nInterval length and exact checkpoints\n\nFormula transparency and published histories\n\nCap/clamp rules and interest-rate inputs\n\nMargin integration (cross vs. isolated) and who pays whom under different signs\n\nPositive funding: Longs pay shorts. Example: at 0.01% per interval, a $100,000 notional long pays $10 each funding checkpoint.\n\nNegative funding: Shorts pay longs by the same logic. These cash flows can be meaningful for larger or highly leveraged positions and often reflect market sentiment in real time.\n\nRecurring funding can erode returns if price doesn’t move enough in a trader's favor. Consider a simple path:\n\n| **Day** | **Funding rate per interval** | **Intervals held** | **Notional** | **Cumulative funding** | \n| Day 1 | 0.01% | 3 | $100,000 | $30 | \n| Day 2 | 0.02% | 3 | $100,000 | $90 (total $120) | \n| Day 3 | 0.005% | 3 | $100,000 | $15 (total $135) | \n\nFunding rate percentages appear small in isolation, but they compound across intervals. Consider a hypothetical scenario: a long position held during a period where the funding rate remains steady at 0.3% per 8-hour interval—a level that is not unusual during strong bullish sentiment on popular assets.\n\nAt three funding intervals per day (every 8 hours), the daily funding cost is approximately 0.9% of the position's notional value. Over one week (21 intervals), funding costs accumulate to roughly 6.3% of notional value. On a $10,000 notional position, that translates to approximately $630 in funding payments alone—separate from any price movement on the underlying asset.\n\nAt higher leverage, the impact relative to deposited margin is more pronounced. A $10,000 notional position at 10x leverage is backed by $1,000 in margin. The same $630 weekly funding cost represents 63% of the margin, which could push the position toward [__liquidation__](https://metamask.io/news/perpetual-futures-liquidation-mechanics) even if the asset's price hasn't moved significantly against the trade.\n\nThis dynamic is why funding rate history matters for any position expected to be held across multiple funding intervals. A rate that looks manageable for a single period can become a material cost over days. Some traders factor projected funding costs into their margin buffer before opening a position; others limit holding duration during periods of elevated rates. Historical funding data is typically available on the trading interface or through the platform's document",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://metamask.io/news/perpetual-futures-funding-frequency-strategies",
+      "fetched_at": "2026-08-29T17:38:28.480254+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Funding Rates Explained (2026): Perpetual Futures Guide",
+      "url": "https://perpmate.com/learn/understanding-funding-rates",
+      "snippet": "Mar 4, 2026 · Learn how funding rates work in perpetual futures: calculation, payment schedule, and trading strategies. Turn funding rates into profit opportunities on Perpmate.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": "# Funding Rates Explained (2026): Perpetual Futures Guide\n\n**Funding rates** are the invisible engine behind every perpetual futures contract. They determine how much you pay or earn simply for holding a position, and ignoring them is one of the most common mistakes new perp traders make. Whether you trade [BTC](https://perpmate.com/trade/BTC), [ETH](https://perpmate.com/trade/ETH), or [SOL](https://perpmate.com/trade/SOL) perpetuals, funding rates directly affect your bottom line every 8 hours.\n\nThis guide explains exactly what funding rates are, how they are calculated, when they are paid, and how to incorporate them into your trading strategy on Perpmate.\n\n## What Are Funding Rates?[](https://perpmate.com#what-are-funding-rates)\n\nPerpetual futures contracts, unlike traditional futures, have **no expiration date**. This means there is no natural settlement event to force the contract price back toward the underlying asset's spot price. Without a correction mechanism, the price of a perpetual contract could drift far above or below the real market value.\n\nFunding rates solve this problem. They are small, periodic payments exchanged directly between traders, not paid to the exchange, that incentivize the market to self-correct.\n\nHere is the core logic:\n\n- **When the perp price is above spot price:** The market has excess buying pressure. Longs pay shorts a funding fee. This discourages new longs and incentivizes shorts, pushing the perp price back down toward spot.\n- **When the perp price is below spot price:** The market has excess selling pressure. Shorts pay longs a funding fee. This discourages new shorts and incentivizes longs, pushing the perp price back up toward spot.\n\nThe result is a perpetual contract that closely tracks the real asset price at all times without ever needing to expire and settle. For a broader overview of how perpetual contracts work, see our [complete guide to perps](https://perpmate.com/learn/perps-perpetuals-futures-basics-to-trade).\n\n## How Funding Rates Are Calculated[](https://perpmate.com#how-funding-rates-are-calculated)\n\nFunding rates are determined by two components: the **premium** (or discount) of the perp price relative to spot, and a **fixed interest rate** component.\n\n### The Formula[](https://perpmate.com#the-formula)\n\nMost exchanges, including Hyperliquid (which powers Perpmate), use a variation of this formula:\n\n**Funding Rate = Premium Index + clamp(Interest Rate - Premium Index, -0.05%, +0.05%)**\n\nIn simpler terms:\n\n1. **Premium Index:** Measures how far the perp price has deviated from the spot price over the funding interval. A positive premium means the perp is trading above spot.\n2. **Interest Rate:** A fixed base rate, typically 0.01% per 8-hour interval (equivalent to roughly 10.95% annualized). This represents the baseline cost of holding a leveraged position.\n3. **Clamp Function:** Limits the interest rate component to prevent extreme swings. The funding rate is primarily driven by the premium.\n\n### Practical Interpretation[](https://perpmate.com#practical-interpretation)\n\n- **Funding Rate = +0.01%:** Longs pay shorts 0.01% of their position size every 8 hours.\n- **Funding Rate = -0.02%:** Shorts pay longs 0.02% of their position size every 8 hours.\n- **Funding Rate = +0.15%:** A high positive rate. Longs are paying a significant premium, suggesting heavy bullish sentiment.\n\nThe actual dollar amount you pay or receive is:\n\n**Funding Payment = Position Size x Funding Rate**\n\nIf you hold a $10,000 long position and the funding rate is +0.01%, you pay $1.00 at each 8-hour interval.\n\n## When Funding Is Paid: The 8-Hour Cycle[](https://perpmate.com#when-funding-is-paid-the-8-hour-cycle)\n\nFunding payments occur at fixed intervals, typically every 8 hours. On Hyperliquid and Perpmate, the standard times are:\n\n| Interval | UTC Time | \n|---|---|\n| First | 00:00 UTC | \n| Second | 08:00 UTC | \n| Third | 16:00 UTC | \n\n**Key rules about funding timing:**\n\n1. **You must hold a position at the exact funding time to pay or receive funding.** If you open a position at 07:50 UTC and close it at 08:01 UTC, you will pay or receive one funding payment at 08:00 UTC.\n2. **If you open and close between intervals, you pay zero funding.** A position opened at 01:00 and closed at 07:59 incurs no funding cost.\n3. **Funding is settled instantly.** The payment is added to or subtracted from your account balance at the settlement time. There is no delay.\n\nThis timing creates important tactical considerations. Short-term traders who scalp within a single funding window avoid funding costs entirely, while swing traders holding for days or weeks must account for cumulative funding as a real cost of the trade.\n\n## Positive vs. Negative Funding Rates[](https://perpmate.com#positive-vs-negative-funding-rates)\n\nUnderstanding the direction of funding is essential for managing costs and spotting opportunities.\n\n### Positive Funding (Longs Pay Shorts)[](https://perpmate.com#positive-funding-longs-pay-shorts)\n\nPositive funding rates are the most common condition in bullish markets. When more traders are long than short, the perp trades at a premium to spot, and longs must pay shorts to keep the price in check.\n\n**What it signals:**\n\n- Bullish market sentiment\n- More demand for long exposure\n- Longs are willing to pay a premium to maintain positions\n\n**Impact on traders:**\n\n- Long holders pay a recurring cost\n- Short holders receive passive income\n- Extremely high positive funding can signal an overheated market that may correct\n\n### Negative Funding (Shorts Pay Longs)[](https://perpmate.com#negative-funding-shorts-pay-longs)\n\nNegative funding rates occur when bearish sentiment dominates and the perp trades below spot.\n\n**What it signals:**\n\n- Bearish market sentiment\n- More demand for short exposure\n- Shorts are willing to pay a premium to maintain positions\n\n**Impact on traders:**\n\n- Short holders pay a recurring cost\n- Long holders receive passive income\n- Extremely negati",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://perpmate.com/learn/understanding-funding-rates",
+      "fetched_at": "2026-08-29T17:38:28.500319+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Funding Rates in Perpetual Futures | Messari",
+      "url": "https://messari.io/copilot/share/funding-rates-in-perpetual-futures-f5b251f7-9a90-48d5-bbb8-80b7e83fc24e",
+      "snippet": "Misconception: A common misconception ... or vice versa. However, funding rates examine the mark price of the perpetual futures contract relative to the oracle price, not the ratio of longs to shorts 5....",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": "HTTPStatusError: Client error '429 Too Many Requests' for url 'https://messari.io/copilot/share/funding-rates-in-perpetual-futures-f5b251f7-9a90-48d5-bbb8-80b7e83fc24e'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+    },
+    {
+      "title": "How Perpetual Futures Actually Work: Funding Rate ...",
+      "url": "https://thecentralbulletin.com/markets/how-perpetual-futures-actually-work-funding-rate/",
+      "snippet": "The funding rate mechanism is critical for balancing perpetual contract prices with underlying spot prices. Mark price and liquidation engines are fundamental risk management tools preventing market manipulation and enforcing margin requirements.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": "**Last updated:** 29 July 2026\n    \n\nThe cryptocurrency market recently shed an estimated $21.49 billion from its total capitalization. This represented a 0.9 percent decline across digital assets within a single observation period. Such shifts highlight persistent volatility, a core feature of a community where derivative products like [perpetual futures](https://thecentralbulletin.com/markets/bitcoin/cftc-approves-bitcoin-perpetual-futures-on-prediction/) play a dominant role in price action and speculation. (via [CoinGecko](https://www.coingecko.com))\n\n## Key Highlights\n\n- Crypto market valuation fell by an approximate $21.49 billion, according to recent market data.\n- This decline translates to a 0.9 percent reduction in overall market capitalization.\n- [Perpetual futures contracts](https://thecentralbulletin.com/markets/ethereum/solana-futures-funding-rate-turns-negative-78-sol-next/) are a cornerstone of[crypto trading](https://thecentralbulletin.com/ai/ai-in-finance/ai-in-crypto-trading-analysis/) , offering leveraged exposure without an expiry date.\n- The [funding rate](https://thecentralbulletin.com/markets/bitcoin/the-funding-is-the-bitcoin-bottom-in-crypto-funds-weigh-in/) mechanism is critical for balancing perpetual contract prices with[underlying spot](https://thecentralbulletin.com/markets/ethereum/eth-futures-flash-bearish-signal-but-stakers-resilience/) prices.\n- Mark price and liquidation engines are fundamental risk management tools preventing market manipulation and enforcing margin requirements.\n\n## The Perpetual Futures industry\n\nPerpetual futures contracts have become a defining feature of the cryptocurrency derivatives market. Unlike traditional futures that possess a fixed expiration, these instruments allow traders to maintain leveraged positions indefinitely. Their popularity stems from the flexibility they offer, enabling aggressive speculation or sophisticated hedging strategies against spot market holdings.\n\nthat said, this flexibility comes with natural risks. Rapid market movements, such as the recent $21.49 billion contraction, directly impact the profitability and solvency of these leveraged positions. Traders must maintain sufficient margin to cover potential losses; failure to do so can lead to swift and often brutal liquidations. It’s a high stakes environment.\n\nPlatforms like [Binance](https://thecentralbulletin.com/markets/), Bybit, and OKX enable trillions in perpetual futures trading volume annually. These contracts are instrumental in global price discovery for major assets like [Bitcoin](https://thecentralbulletin.com/bitcoin/) and [Ethereum](https://thecentralbulletin.com/ethereum/). They also offer a way for institutions and professional traders to express complex views on market direction, or to manage their existing exposure without directly moving large amounts of underlying assets.\n\n## Understanding the Funding Rate Mechanism\n\nA unique aspect of perpetual futures is the funding rate. This is a small payment exchanged between holders of long and short positions at regular intervals, typically every eight hours. Its primary purpose is to tether the perpetual contract’s price to the underlying spot price of the asset, preventing large and sustained divergences.\n\nWhen the perpetual contract trades above the spot price, indicating higher demand for long positions, the funding rate usually turns positive. In this scenario, long position holders pay short position holders. Conversely, if the contract trades below the spot price, suggesting more demand for shorts, the funding rate becomes negative, and short position holders pay long position holders. This continuous payment system acts as an arbitrage incentive, driving the contract price back toward equilibrium with the spot market.\n\nMarket conditions, like the recent 0.9 percent market drop, can heavily influence funding rates. A significant downturn might cause sustained negative funding rates as traders heavily short the market, betting on further declines. This mechanism is a vital real time indicator of market sentiment, offering insights into whether longs or shorts are dominating current positions and paying the price for it. It’s a powerful tool.\n\n## Mark Price and the Liquidation Engine\n\nCentral to risk management in perpetual futures trading are the mark price and the liquidation engine. The mark price is a calculated value, distinct from the last traded price. Exchanges derive it using a combination of the asset’s spot price across multiple exchanges (an index price) and a moving average of the contract’s actual trading price. This prevents manipulation by preventing a single large order from artificially affecting the price used to calculate margin and trigger liquidations.\n\nThe liquidation engine is an automated system designed to close a trader’s position when their margin balance falls below a predefined maintenance margin threshold. This typically occurs when losses on a leveraged position erode the initial capital. The mark price is the definitive trigger for these events. If the mark price moves against a trader’s position to a point where their margin is insufficient, the liquidation engine steps in immediately.\n\nLiquidations are swift and automatic, preventing a trader’s losses from exceeding their initial margin and protecting the solvency of the exchange and other traders. These cascades of forced selling during periods of high volatility can contribute to market instability and accelerate price declines. Understanding margin levels and the potential for liquidation is central for any trader. Our analysis, often mirrored in metrics like the [TCB MINER STRESS SCORE](https://thecentralbulletin.com/tcb-miner-stress-score/), suggests that these events become more prevalent during sustained periods of market uncertainty.\n\n## Market Reactions and Trader Risk\n\nWhen the cryptocurrency market experiences a contraction like the recent $21.49 billion reduction, the mechanisms of perpe",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://thecentralbulletin.com/markets/how-perpetual-futures-actually-work-funding-rate/",
+      "fetched_at": "2026-08-29T17:38:30.635096+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Perpetual Futures Pricing* Damien Ackerer† Julien Hugonnier‡ Urban Jermann§",
+      "url": "https://finance.wharton.upenn.edu/~jermann/AHJ-main-10.pdf",
+      "snippet": "They derive the funding rate value such that the perpetual · future price is explicitly given by a function of the spot price and the unobservable · parameters of the prices process. This type of contract is different from the perpetual · future contracts actually traded in cryptocurrency markets, and is not implemented",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": "ValueError: unsupported content type: application/pdf"
+    },
+    {
+      "title": "Understanding Perpetual Futures: A Guide for Cryptocurrency Traders",
+      "url": "https://www.investopedia.com/what-are-perpetual-futures-7494870",
+      "snippet": "October 25, 2023 - The funding rate mechanism helps to keep the perpetual futures price aligned with the spot price, as it incentivizes traders to take positions that would bring the two prices closer together. When the perpetual futures price is significantly higher or lower than the spot price, the funding rate can become more substantial, encouraging traders to take the opposite side of the market and reduce the price discrepancy.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": "HTTPStatusError: Client error '403 Forbidden' for url 'https://www.investopedia.com/what-are-perpetual-futures-7494870'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    }
+  ]
+}

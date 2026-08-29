@@ -1,0 +1,1043 @@
+[
+  {
+    "id": "03-spot-exact",
+    "args": [
+      "spot trading cryptocurrency",
+      "--mode",
+      "exact",
+      "--limit",
+      "15"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.241,
+    "stdout_bytes": 15701,
+    "stderr_bytes": 0,
+    "status": "degraded",
+    "schema_version": "1.0",
+    "partial": true,
+    "cached": false,
+    "result_count": 15,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 15
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 1
+      },
+      {
+        "name": null,
+        "ok": false,
+        "error": "DDGSException: ConnectError: ConnectError('error sending request for url (https://www.google.com/wml/search?q=spot+trading+cryptocurrency&sca_esv=1&filter=1&start=0&hl=en-US&lr=lang_en&cr=countryUS) > Network is unreachable (os error 101)')",
+        "error_kind": "network",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      }
+    ]
+  },
+  {
+    "id": "02-spot-matching",
+    "args": [
+      "crypto spot exchange matching engine limit market order execution",
+      "--limit",
+      "15",
+      "--profile",
+      "academic"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.297,
+    "stdout_bytes": 914,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 0,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "id": "04-spot-venues",
+    "args": [
+      "spot trading BTC USDT",
+      "--site",
+      "binance.com",
+      "--site",
+      "kraken.com",
+      "--site",
+      "coinbase.com",
+      "--site",
+      "investopedia.com",
+      "--site",
+      "bis.org",
+      "--limit",
+      "20",
+      "--max-query-variants",
+      "3",
+      "--search-concurrency",
+      "12"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.34,
+    "stdout_bytes": 14571,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 20,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 18
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "id": "01-spot-orderbook",
+    "args": [
+      "cryptocurrency spot trading order book bid ask spread maker taker fee",
+      "--limit",
+      "20",
+      "--search-concurrency",
+      "12",
+      "--no-cache"
+    ],
+    "returncode": 0,
+    "elapsed_s": 2.023,
+    "stdout_bytes": 14925,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 20,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 19
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "id": "06-cme-vs-perp",
+    "args": [
+      "CME bitcoin futures versus crypto perpetual swap",
+      "--limit",
+      "15",
+      "--profile",
+      "academic"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.197,
+    "stdout_bytes": 11866,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 15,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 15
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      }
+    ]
+  },
+  {
+    "id": "07-futures-venues",
+    "args": [
+      "perpetual contract funding",
+      "--site",
+      "binance.com",
+      "--site",
+      "bybit.com",
+      "--site",
+      "deribit.com",
+      "--site",
+      "cmegroup.com",
+      "--site",
+      "investopedia.com",
+      "--limit",
+      "20",
+      "--max-query-variants",
+      "2"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.209,
+    "stdout_bytes": 15809,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 20,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 18
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 19
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      }
+    ]
+  },
+  {
+    "id": "08-margin-liq",
+    "args": [
+      "crypto margin trading isolated vs cross margin liquidation maintenance margin",
+      "--limit",
+      "25"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.365,
+    "stdout_bytes": 10605,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 15,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 9
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      }
+    ]
+  },
+  {
+    "id": "05-perp-funding",
+    "args": [
+      "crypto perpetual futures funding rate mark price index price basis",
+      "--limit",
+      "25",
+      "--search-concurrency",
+      "12"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.47,
+    "stdout_bytes": 5896,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 7,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      }
+    ]
+  },
+  {
+    "id": "09-margin-borrow",
+    "args": [
+      "crypto margin borrowing interest rate loan-to-value",
+      "--limit",
+      "15"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.102,
+    "stdout_bytes": 858,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 0,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "id": "11-cftc-reg",
+    "args": [
+      "CFTC cryptocurrency derivatives regulation perpetual futures",
+      "--site",
+      "cftc.gov",
+      "--site",
+      "sec.gov",
+      "--site",
+      "bis.org",
+      "--site",
+      "federalregister.gov",
+      "--site",
+      "esma.europa.eu",
+      "--profile",
+      "academic",
+      "--limit",
+      "20",
+      "--max-query-variants",
+      "2"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.107,
+    "stdout_bytes": 17197,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 20,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 20
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 9
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      }
+    ]
+  },
+  {
+    "id": "12-mica",
+    "args": [
+      "MiCA EU crypto derivatives trading regulation",
+      "--region",
+      "de-de",
+      "--limit",
+      "15",
+      "--time-limit",
+      "y"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.292,
+    "stdout_bytes": 12569,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 15,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 15
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "id": "10-liq-cascade-news",
+    "args": [
+      "crypto liquidation cascade long short squeeze perpetual futures",
+      "--category",
+      "news",
+      "--time-limit",
+      "w",
+      "--region",
+      "us-en",
+      "--limit",
+      "20"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.44,
+    "stdout_bytes": 11125,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 15,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 15
+      }
+    ]
+  },
+  {
+    "id": "15-news-funding",
+    "args": [
+      "bitcoin perpetual funding rate negative",
+      "--category",
+      "news",
+      "--time-limit",
+      "m",
+      "--region",
+      "us-en",
+      "--limit",
+      "15",
+      "--safe-search",
+      "off"
+    ],
+    "returncode": 0,
+    "elapsed_s": 0.781,
+    "stdout_bytes": 11802,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 15,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 15
+      }
+    ]
+  },
+  {
+    "id": "16-results-only",
+    "args": [
+      "crypto spot vs futures vs margin differences",
+      "--results-only",
+      "--limit",
+      "10"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.302,
+    "stdout_bytes": 7212,
+    "stderr_bytes": 0,
+    "status": "results-only",
+    "result_count": 10
+  },
+  {
+    "id": "13-oss-bots",
+    "args": [
+      "crypto futures trading bot perpetual",
+      "--mode",
+      "oss",
+      "--github",
+      "--site",
+      "github.com",
+      "--site",
+      "gitlab.com",
+      "--max-query-variants",
+      "2",
+      "--profile",
+      "dev",
+      "--limit",
+      "20",
+      "--search-concurrency",
+      "12"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.384,
+    "stdout_bytes": 15271,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 20,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 20
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 20
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 9
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 9
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 20
+      }
+    ]
+  },
+  {
+    "id": "14-oss-ccxt",
+    "args": [
+      "ccxt unified crypto exchange trading API spot futures",
+      "--mode",
+      "oss",
+      "--github",
+      "--profile",
+      "dev",
+      "--limit",
+      "20"
+    ],
+    "returncode": 0,
+    "elapsed_s": 2.129,
+    "stdout_bytes": 16889,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 20,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 20
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 20
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 7
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "id": "19-time-day",
+    "args": [
+      "bitcoin futures",
+      "--category",
+      "news",
+      "--time-limit",
+      "d",
+      "--limit",
+      "10"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.023,
+    "stdout_bytes": 6973,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 10,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      }
+    ]
+  },
+  {
+    "id": "17-limit-100",
+    "args": [
+      "cryptocurrency derivatives trading",
+      "--limit",
+      "100",
+      "--search-concurrency",
+      "16",
+      "--no-cache"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.275,
+    "stdout_bytes": 790,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 0,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "id": "20-academic-var",
+    "args": [
+      "cryptocurrency futures margin liquidation risk value at risk",
+      "--profile",
+      "academic",
+      "--limit",
+      "20"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.334,
+    "stdout_bytes": 17580,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 20,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 20
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "id": "18-region-jp",
+    "args": [
+      "\u6697\u53f7\u8cc7\u7523 \u5148\u7269 \u8a3c\u62e0\u91d1\u53d6\u5f15",
+      "--region",
+      "jp-jp",
+      "--limit",
+      "10"
+    ],
+    "returncode": 0,
+    "elapsed_s": 1.409,
+    "stdout_bytes": 6579,
+    "stderr_bytes": 0,
+    "status": "complete",
+    "schema_version": "1.0",
+    "partial": false,
+    "cached": false,
+    "result_count": 10,
+    "providers": [
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": null,
+        "result_count": 10
+      },
+      {
+        "name": null,
+        "ok": true,
+        "error": null,
+        "error_kind": "empty",
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "id": "21-six-sites",
+    "returncode": 2,
+    "elapsed_s": 0.379,
+    "stderr_head": "{\"error\": \"at most 5 site filters are allowed\"}\n",
+    "stdout_head": ""
+  }
+]

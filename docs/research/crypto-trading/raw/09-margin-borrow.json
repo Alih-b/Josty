@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto margin borrowing interest rate loan-to-value",
+  "status": "complete",
+  "count": 0,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "crypto margin borrowing interest rate loan-to-value",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "crypto margin borrowing interest rate loan-to-value",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "crypto margin borrowing interest rate loan-to-value",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": []
+}

@@ -1,0 +1,359 @@
+{
+  "schema_version": "1.0",
+  "query": "cryptocurrency spot trading order book bid ask spread maker taker fee",
+  "status": "complete",
+  "count": 20,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "cryptocurrency spot trading order book bid ask spread maker taker fee",
+      "ok": true,
+      "result_count": 19,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "cryptocurrency spot trading order book bid ask spread maker taker fee",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "cryptocurrency spot trading order book bid ask spread maker taker fee",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": [
+    {
+      "title": "Spot Trading - Spark Glossary | Spark",
+      "url": "https://www.spark.money/glossary/spot-trading",
+      "snippet": "bid-ask spread: the gap between the highest bid and the lowest ask. ... Fee Structures. Major exchanges use a maker-taker fee model where makers ... order book ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.030777,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "The anatomy of a fee change — evidence from cryptocurrency markets - ScienceDirect",
+      "url": "https://www.sciencedirect.com/science/article/abs/pii/S0927539822000275",
+      "snippet": "March 24, 2022 - This means that fees are reflected directly in the quoted bid–ask spread. Similarly, market order traders will consider the sum of the spread and the taker fee when deciding if and where to trade.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.030092,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "How To Crypto 51: What is an order book, what are maker/taker ...",
+      "url": "https://www.reddit.com/r/CryptoCurrency/comments/11bstao/how_to_crypto_51_what_is_an_order_book_what_are/",
+      "snippet": "Feb 25, 2023 · If you place a taker order you are charged the taker order percentage-based fee (in this case a whopping 0.45%) on the entire trade value by the ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.027584,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Maker vs Taker Crypto: The Complete Fee Optimization Guide",
+      "url": "https://www.hyrotrader.com/blog/market-makers-vs-market-takers-the-dynamics-of-crypto-trading-explained/",
+      "snippet": "December 15, 2025 - The gap between the highest bid and lowest ask is called the spread. When you place a buy limit order below the lowest ask price, your order joins the bid side and waits. When you place a sell limit order above the highest bid, your order joins the ask side. Both scenarios make you a maker. However, placing a buy limit at $50,000 when the lowest ask sits at $49,990 means instant execution against that existing sell order. Despite using a limit order, you’ve paid taker fees because you crossed the spread.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Maker vs Taker in Crypto: Fees, Rebates, and Better Execution | BloFin",
+      "url": "https://blofin.com/en/academy/education/maker-vs-taker",
+      "snippet": "June 25, 2026 - You place a market order or a buy limit at $95,100. It matches the resting ask immediately. You filled as a taker. Exchanges charge makers less than takers because maker orders create the market liquidity other traders need.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "How Bitcoin Trading Works: Spot, Orders & Liquidity | BIT",
+      "url": "https://www.bit.com/insights/knowledge-hub/how-bitcoin-trading-works-spot-order-types-and-liquidity",
+      "snippet": "Aug 9, 2026 · Limit Order. Suppose the book shows a best bid of $60,000 and a best ask of $60,010 — a $10 spread. Place a market buy, and you cross the spread ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Beginner's Guide to Crypto Spot Trading–What it is and How it ...",
+      "url": "https://changehero.io/blog/what-is-spot-trading-in-crypto/",
+      "snippet": "Bid-ask spread is the cost of immediacy. The gap between the best bid and the best ask at any moment is what you pay just for trading right now instead of ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Spot Trading: Fees Explained - Help Center",
+      "url": "https://www.bybit.com/en/help-center/article/Bybit-Spot-Fees-Explained",
+      "snippet": "June 24, 2026 - Market takers are traders who seek liquidity and take liquidity off the book immediately. They are charged a taker fee. Market makers, who provide liquidity and increase the market depth of the order book, are charged a maker fee.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Trading Fees Explained: Maker, Taker, Spreads, Funding ...",
+      "url": "https://bitmart.zendesk.com/hc/en-us/articles/49815230441883-Crypto-Trading-Fees-Explained-Maker-Taker-Spreads-Funding-Rates-and-Hidden-Costs",
+      "snippet": "Taker fee, The charge for removing liquidity, usually through an immediately matched order, Spot and futures markets ; Spread, The gap between the best bid and ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Trading Handbook 2026 Profitable Entry and Exit Plans ...",
+      "url": "https://extensionpublicationsreview.colostate.edu/plugins/generic/pdfJsViewer/pdf.js/web/viewer.html",
+      "snippet": "Important market features include order book depth, bid-ask spreads, fee tiers, and volatility. Exchanges typically publish maker/taker fees and discount ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is a spot market for crypto trading? | Bybit Learn",
+      "url": "https://learn.bybit.com/en/trading/what-is-a-spot-market-and-spot-trading",
+      "snippet": "February 12, 2026 - A trader whose order is matched immediately with an existing buy or sell offer subjects them to a taker fee. A maker is a trader who provides liquidity to the market by increasing the market depth of the order book.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Maker & Taker",
+      "url": "https://www.bit.com/knowledge-hub/maker-taker",
+      "snippet": "1 week ago - This includes market orders and limit orders placed at prices that cross the spread. Maker fee: 0.01% (or even −0.01% rebate on some exchanges) ... For a trader executing 10 such trades per day, choosing maker over taker orders saves $400–$600 ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin Trading: Spot, OTC, Adjacents and Derivatives | BIT",
+      "url": "https://www.bit.com/knowledge-hub/how-bitcoin-trading-works-spot-order-types-and-liquidity",
+      "snippet": "3 weeks ago - Place a market buy, and you cross the spread immediately, paying $60,010 (and more if your size exhausts that level and reaches into higher asks). You are certain to trade; you accept the price. Place a limit buy at $60,000, and you join the bids.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "[PDF] The Anatomy of a Fee Change - Evidence from Cryptocurrency ...",
+      "url": "https://papers.ssrn.com/sol3/Delivery.cfm/SSRN_ID3454439_code392030.pdf",
+      "snippet": "A maker fee is the fee charged to submitters of limit orders that execute. This could increase the cost of supplying liquidity and be reflected in bid-ask ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Maker Fees and Taker Fees in Crypto Trading | LCX",
+      "url": "https://www.lcx.com/maker-fees-and-taker-fees-in-crypto-trading/",
+      "snippet": "December 19, 2022 - The Maker Fee is a fee charged by the trader who adds liquidity to the order book. It’s similar to a taker fee in traditional markets, but with an important difference: Makers are not only adding liquidity to their own trades, they’re also ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Trading Fees Explained: Guide to Transaction Costs",
+      "url": "https://tradeblock.com/trading/fees/",
+      "snippet": "June 10, 2026 - This instant execution usually interferes with liquidity in the market, and this is why takers pay higher fees. The ask price is the lowest sell price a crypto seller is ready to accept, while the bid price is the highest amount the buyer is ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "How do crypto exchange trading fees work? | OneBullEx",
+      "url": "https://www.onebullex.com/question/how-do-crypto-exchange-trading-fees-work",
+      "snippet": "How maker and taker fees are defined on a central limit order book. Maker adds liquidity; taker removes it. On a central limit order book, a maker order rests ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Best Crypto Exchange Platforms in United Stated 2026",
+      "url": "https://bitcoinfoundation.org/news/opinion/top-crypto-exchange-platforms/",
+      "snippet": "Jul 21, 2026 · Spot trades carry a standard 0.1% maker and taker fee, while perpetual contract fees start at 0.02% for makers and 0.06% for takers.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bybit Fees: Everything You Need to Know Before Trading Crypto [Updated]",
+      "url": "https://www.bybit.com/en/learn/bybit-guide/bybit-trading-fees",
+      "snippet": "March 29, 2025 - For example, a maker increases the market depth of an order book, often by placing limit orders that don’t get matched right away. These orders give other traders the opportunity to trade against them. Market makers pay lower fees than takers, and ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Maker and Taker Fees Explained | Bitcoin.com Markets",
+      "url": "https://markets.bitcoin.com/glossary/maker-taker",
+      "snippet": "... Makers enjoy lower fees to encourage participation. Takers pay fees that are typically higher due to instant execution. This fee difference is especially significant for frequent traders.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014085,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

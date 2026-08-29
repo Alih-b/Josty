@@ -1,0 +1,180 @@
+{
+  "schema_version": "1.0",
+  "query": "bitcoin futures",
+  "status": "complete",
+  "count": 10,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,duckduckgo,yahoo",
+      "query": "bitcoin futures",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "ProShares UltraShort Bitcoin ETF: BTC's Ceiling Is The Floor (NYSEARCA:SBIT)",
+      "url": "https://seekingalpha.com/article/4941465-proshares-ultrashort-bitcoin-etf-btcs-ceiling-is-the-floor",
+      "snippet": "The ProShares UltraShort Bitcoin ETF is rated Buy for tactical traders seeking short-term,...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-29T11:37:54+00:00",
+      "publisher": "Seeking Alpha",
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Would You Use a Debit Card That Offers 2% Cashback in Bitcoin? This Popular...",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/debit-card-offers-2-cashback-113700569.html",
+      "snippet": "This is an untraditional yet intriguing way to earn Bitcoin.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-29T11:37:54+00:00",
+      "publisher": "Motley Fool · via Yahoo Finance",
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin Plunges to $78,000 After Jackson Hole but Bulls Stay Upbeat - Coinbase...",
+      "url": "https://www.benzinga.com/crypto/cryptocurrency/26/08/61504297/bitcoin-plunges-to-78000-after-jackson-hole-but-crypto-bulls-stay-upbeat",
+      "snippet": "Bitcoin rejected at $80,000, may have more room to run according to Bankless host and venture...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-28T18:37:54+00:00",
+      "publisher": "Benzinga",
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin, Ethereum And HYPE? Charles Schwab's Adam Lynch Maps Out A Crypto...",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/bitcoin-ethereum-hype-charles-schwabs-103525320.html",
+      "snippet": "Any kind of fiscal intervention was going to be positive for crypto, according to Schwab’s Adam Lync...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-29T10:37:54+00:00",
+      "publisher": "Stocktwits · via Yahoo Finance",
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Coinbase CEO Brian Armstrong Says Bitcoin Could Soar as High as $400,000 By...",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/coinbase-ceo-brian-armstrong-says-193000994.html",
+      "snippet": "The world's top cryptocurrency could soar more than 400% over the next four years.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-28T19:37:54+00:00",
+      "publisher": "Motley Fool · via Yahoo Finance",
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitmine's Tom Lee Sees $6,000 Ethereum By Year-End If Bitcoin Hits $150,000",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/bitmines-tom-lee-sees-6-121654503.html",
+      "snippet": "Tom Lee said Ethereum was still “vastly undervalued”, given its use in the settlement of AI agent tr...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-29T12:37:54+00:00",
+      "publisher": "Stocktwits · via Yahoo Finance",
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "The U.S. National Debt Just Topped $40 Trillion. Here's What That Could Mean for...",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/u-national-debt-just-topped-161300727.html",
+      "snippet": "Bitcoin has a key advantage in the context of rising government debt.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-29T16:37:54+00:00",
+      "publisher": "Motley Fool · via Yahoo Finance",
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Apeing Set to Launch Its Upcoming Crypto Presale in the First Week of September ...",
+      "url": "https://pr.newsaegis.com/article/Apeing-Set-to-Launch-Its-Upcoming-Crypto-Presale-in-the-First-Week-of-September-Amid-BTCs-26percent-Rally-and-Rising-Bullish-Sentiment/6a930c395b3d9368bc023a40",
+      "snippet": "Additional details on participation and the presale process are expected to be released through Apei...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-28T23:37:54+00:00",
+      "publisher": "St. Clair News-Aegis",
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "XRP Price Prediction: Strongest Derivatives Selling Pressure Yet",
+      "url": "https://cryptonews.com/news/xrp-price-prediction-derivatives-selling/",
+      "snippet": "XRP is facing its heaviest 2026 derivatives selling as open interest climbs. Full XRP price...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-28T19:37:54+00:00",
+      "publisher": "Cryptonews",
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Strategy (MSTR) Faces Renewed Risk Of Removal From Global Equity Indexes",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/strategy-mstr-faces-renewed-risk-210628837.html",
+      "snippet": "Strategy Inc. (NasdaqGS:MSTR) again faces the possibility of removal from MSCI global equity indexes...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-28T20:37:54+00:00",
+      "publisher": "Simply Wall St. · via Yahoo Finance",
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

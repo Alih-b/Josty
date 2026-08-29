@@ -1,0 +1,260 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto liquidation cascade long short squeeze perpetual futures",
+  "status": "complete",
+  "count": 15,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,duckduckgo,yahoo",
+      "query": "crypto liquidation cascade long short squeeze perpetual futures",
+      "ok": true,
+      "result_count": 15,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Crypto Futures See $275M in Liquidations as Longs Bear the Brunt",
+      "url": "https://cryptonews.net/news/analytics/33367382/",
+      "snippet": "Data from major exchanges shows that Bitcoin (BTC) led the liquidation wave with $154.85 million in positions wiped out, of which a staggering 85.44% were long positions. Ethereum (ETH) followed with $97.65 million in liquidations, with longs accounting for 77.97%. Solana (SOL) saw $23.12 million liquidated, with 68.67% being longs.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-29T04:33:00+00:00",
+      "publisher": "cryptonews",
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin Open Interest Collapses to 12%. Is the Short Squeeze Over?",
+      "url": "https://decrypt.co/376473/bitcoin-open-interest-price-short-squeeze",
+      "snippet": "Crypto-margined Bitcoin futures have collapsed from near-total dominance to about 12%. But leveraged traders are still placing big bets.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-25T20:16:00+00:00",
+      "publisher": "Decrypt",
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Ethena looks beyond crypto to squeeze yield from booming equity perpetuals",
+      "url": "https://www.coindesk.com/business/2026/08/28/ethena-looks-beyond-crypto-to-squeeze-yield-from-booming-equity-perpetuals",
+      "snippet": "The issuer of the $4 billion USDe token said it expects real-world asset perpetuals to eclipse crypto derivatives in its backing within 12 to 24 months.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-28T12:30:00+00:00",
+      "publisher": "CoinDesk",
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Wintermute Boosts Crypto Shorts to $191M as It Moves Millions to Binance",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/wintermute-boosts-crypto-shorts-191m-111806738.html",
+      "snippet": "Wintermute increased its Hyperliquid short exposure by $44.58 million, bringing it to $190.77 million. ETH and BTC led its positions at $53.02 million and $30.66",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-24T11:19:00+00:00",
+      "publisher": "Yahoo Finance",
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "3 Trading Firms Still Short Bitcoin and Ethereum Despite Sharp Price Rally",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/3-trading-firms-still-short-103143076.html",
+      "snippet": "Three firms hold over $600 million in Bitcoin and Ethereum shorts. Liquidation prices show why the rally missed them.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-24T10:31:00+00:00",
+      "publisher": "Yahoo Finance",
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "XRP Drops to $1.43 as $20M in Longs Get Liquidated",
+      "url": "https://coinpedia.org/news/xrp-news-cryptoquant-warns-of-strongest-selling-pressure-in-2026/",
+      "snippet": "CryptoQuant analyst Darkfost says XRP is facing its strongest derivatives selling pressure of 2026. This comes after XRP has surged nearly 70% in two",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-27T12:40:00+00:00",
+      "publisher": "Coinpedia",
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "$3.07B in Crypto Shorts Wiped Out as Bitcoin Surges Toward $80K",
+      "url": "https://nftevening.com/3b-crypto-shorts-wiped-out-bitcoin-surges-80k/",
+      "snippet": "Bitcoin nears $80K as a massive $3.07B short liquidation hits crypto, fueled by spot ETF inflows and US Treasury buybacks.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-23T15:12:00+00:00",
+      "publisher": "NFTevening",
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Abraxas Builds $783M Hyperliquid Short, Hedges ETH as BTC Hits $77.5K",
+      "url": "https://news.bitcoin.com/crypto-news/abraxas-capital-783-million-hyperliquid-short-bitcoin-rally/",
+      "snippet": "Abraxas Capital, Fasanara Capital and Wintermute hold onchain shorts worth $603M as bitcoin posts its best week since March 2023.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-24T11:29:00+00:00",
+      "publisher": "Bitcoin.com News",
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "VS Trust - 2x Long VIX Futures ETF",
+      "url": "https://money.usnews.com/investing/stocks/uvix-vs-trust-x-long-vix-futures-etf",
+      "snippet": "U.S. News compares companies to their industry peers based on a variety of company fundamentals, performance metrics and investor preferences to help you find the right stocks for your investing style.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-28T00:00:00+00:00",
+      "publisher": "U.S. News & World Report",
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Tokenized Equities: The Model Underneath the Trade",
+      "url": "https://www.coindesk.com/coindesk-indices/2026/08/26/crypto-long-and-short-tokenized-equities-the-model-underneath-the-trade",
+      "snippet": "In this week's Crypto Long & Short, CoinDesk's Joshua DeVos writes that demand for tokenized equities is accelerating fast, from $16 billion to more than $590 billion in perpetual futures in a single year,",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-26T15:00:00+00:00",
+      "publisher": "CoinDesk",
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Ethereum (ETHUSD) Is up 1.02% on Aug 24: What Do On-Chain Data and Market Sentiment Show?",
+      "url": "https://www.tradingkey.com/news/market-movers/262127493-market-movers-ethusd-20260824",
+      "snippet": "Global macro liquidity and bond buybacks drove capital into Ethereum.Spot Ethereum ETFs recorded their strongest weekly net inflows this year.Technical breakouts triggered short squeezes, lifting derivatives funding rates.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-24T10:05:00+00:00",
+      "publisher": "tradingkey",
+      "score": 0.014085,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "The $500 billion experiment to build 24/7 markets on blockchain",
+      "url": "https://www.livemint.com/global/the-500-billion-experiment-to-build-24-7-markets-on-blockchain-trade-xyz-crypto-markets-iran-oil-conflict-11787631393320.html",
+      "snippet": "When the US and Israel launched their aerial assault on Iran on the last Saturday of February, the world's main oil markets were closed. The price of crude kept moving anyway.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-25T04:32:00+00:00",
+      "publisher": "Mint",
+      "score": 0.013889,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "The US$500 billion experiment to build 24/7 markets on blockchain",
+      "url": "https://financialpost.com/investing/experiment-to-build-24-7-markets-blockchain",
+      "snippet": "When the United States and Israel launched their aerial assault on Iran on the last Saturday of February, the world's main oil markets were closed. The price of crude kept moving anyway. On Trade.xyz,",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-27T17:04:00+00:00",
+      "publisher": "Financial Post",
+      "score": 0.013699,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin's best August since 2017 was built on Treasury buybacks, not hopium",
+      "url": "https://cryptonews.net/news/bitcoin/33356808/",
+      "snippet": "Bitcoin's August 2026 return is tracking above 25% with trading days remaining, which would make it the second best August on record behind the 65% gain in August 2017. For context, the average August return since 2013 is 1.12% and the median is negative 7.49%, meaning most Augusts are losing months.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-27T12:16:00+00:00",
+      "publisher": "cryptonews",
+      "score": 0.013514,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "The $500 Billion Experiment to Build 24/7 Markets on Blockchain",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/500-billion-experiment-build-24-113000240.html",
+      "snippet": "When the US and Israel launched their aerial assault on Iran on the last Saturday of February, the w...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-24T17:37:51+00:00",
+      "publisher": "Bloomberg · via Yahoo Finance",
+      "score": 0.013333,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

@@ -1,0 +1,260 @@
+{
+  "schema_version": "1.0",
+  "query": "bitcoin perpetual funding rate negative",
+  "status": "complete",
+  "count": 15,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,duckduckgo,yahoo",
+      "query": "bitcoin perpetual funding rate negative",
+      "ok": true,
+      "result_count": 15,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Bitcoin’s Rebound to $64K a ‘Liquidity Illusion’ as Trading Volume Falls",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/bitcoin-rebound-64k-liquidity-illusion-143700870.html",
+      "snippet": "Bitcoin (CRYPTO: $BTC) has climbed above $64,000, but the rebound is taking place in thin trading conditions, raising questions about whether the rally has enough momentum to last. In a recent post on ...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-18T17:37:52+00:00",
+      "publisher": "Yahoo Finance",
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin's Leverage Trap: Why CPI Can't Move a Ghost Market",
+      "url": "https://memeburn.com/bitcoin-leverage-trap-spot-volume-2026/",
+      "snippet": "Bitcoin spot volume hit its lowest since 2019 while leveraged longs pile up on Hyperliquid. We break down why good inflation data can't fix a demand crisis in 2026.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-18T17:37:52+00:00",
+      "publisher": "Memeburn",
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Metaplanet to Invest 2,100 Bitcoin in Super League to Launch U.S. Bitcoin Treasury Platform, Superplanet",
+      "url": "https://markets.businessinsider.com/news/stocks/metaplanet-to-invest-2-100-bitcoin-in-super-league-to-launch-u-s-bitcoin-treasury-platform-superplanet-1036470244",
+      "snippet": "Super League to be renamed “Superplanet, Inc.” and become Metaplanet’s U.S. Bitcoin treasury platform, backed by the world’s third-largest ...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-18T17:37:52+00:00",
+      "publisher": "Markets Insider",
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Peter Todd's Case for Ongoing Bitcoin (BTC) Issuance Reignites Supply Cap Controversy",
+      "url": "https://www.crowdfundinsider.com/2026/08/297984-peter-todds-case-for-ongoing-bitcoin-btc-issuance-reignites-supply-cap-controversy/",
+      "snippet": "Peter Todd's advocacy for permanent Bitcoin block rewards has once again stirred intense discussion about the cryptocurrency's fixed supply and future",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-17T08:08:00+00:00",
+      "publisher": "Crowdfund Insider",
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin's big test: The supply wall between $81,000 and $86,000",
+      "url": "https://www.msn.com/en-us/money/economy/bitcoin-s-big-test-the-supply-wall-between-81-000-and-86-000/ar-AA2b2EqC?ocid=BingNewsVerp",
+      "snippet": "Bitcoin’s (CRYPTO: BTC) recovery after a record short squeeze faces a dense supply wall between $81,000 and $86,000 as the ...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-27T17:37:52+00:00",
+      "publisher": "Benzinga on MSN",
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Live updates: Bitcoin flirts with $64,000 as stocks start strong in August",
+      "url": "https://www.coindesk.com/business/2026/08/03/live-updates-traders-say-bitcoin-sell-off-from-usd65-000-points-to-thin-volume-not-panic-selling",
+      "snippet": "Bitcoin's growing hashrate is making it harder for hackers to gain enough mining power to launch what's known as a 51% attack. According to Schwab, an attacker would need billions of dollars in ...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-03T00:00:00+00:00",
+      "publisher": "CoinDesk",
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "AI bitcoin forecasts see $90K; prediction markets price just nine percent odds",
+      "url": "https://www.msn.com/en-us/money/general/ai-bitcoin-forecasts-see-90k-prediction-markets-price-just-nine-percent-odds/ar-AA2ave0B?ocid=BingNewsVerp",
+      "snippet": "Bitcoin price prediction 2026: AI chatbots like Microsoft Copilot and ChatGPT forecast Bitcoin at $85,000-$90,000 by year-end ...",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-20T17:37:52+00:00",
+      "publisher": "Tech Times on MSN",
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Funding Rates Shape Leverage Costs and Arbitrage Risk",
+      "url": "https://www.analyticsinsight.net/news/crypto-funding-rates-shape-leverage-costs-and-arbitrage-risk",
+      "snippet": "A crypto funding rate creates recurring payments between long and short traders in perpetual futures markets. Positive rates pay longs to shorts, while negative",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-24T17:15:00+00:00",
+      "publisher": "Analytics Insight",
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Ethena looks beyond crypto to squeeze yield from booming equity perpetuals",
+      "url": "https://www.coindesk.com/business/2026/08/28/ethena-looks-beyond-crypto-to-squeeze-yield-from-booming-equity-perpetuals",
+      "snippet": "The issuer of the $4 billion USDe token said it expects real-world asset perpetuals to eclipse crypto derivatives in its backing within 12 to 24 months.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-28T12:30:00+00:00",
+      "publisher": "CoinDesk",
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin Traders Made Their Boldest Bet in 20 Months: What Happens Next?",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/bitcoin-traders-made-boldest-bet-135120337.html",
+      "snippet": "The Bitcoin funding rate hit a 20-month high as retail crowded into longs, a signal that marked past tops. Traders are already backing out.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-19T13:51:00+00:00",
+      "publisher": "Yahoo Finance",
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin Books Best Week Since 2023 and Its Largest Dollar Gain Ever",
+      "url": "https://beincrypto.com/bitcoin-best-week-since-2023-record/",
+      "snippet": "Bitcoin (BTC) rose 23.58% last week, its best week since 2023. The move added $14,833, the largest dollar gain of any week in Bitcoin's history. BTC trades near $79,000 at the time of writing, up 1.8% over 24 hours. The weekly candle broke a descending trendline stretching back to the October 2025 record high.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-24T22:09:00+00:00",
+      "publisher": "BeInCrypto",
+      "score": 0.014085,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin Clears $75,000 in Biggest Crypto Short Squeeze Since 2021: September 15 Decides",
+      "url": "https://www.techtimes.com/articles/325161/20260821/bitcoin-clears-75000-biggest-crypto-short-squeeze-since-2021-september-15-decides.htm",
+      "snippet": "Bitcoin short squeeze sends BTC to $75,000 -- its highest price since May -- after $3 billion in bearish positions were force-closed in 48 hours, the largest such event since 2021. With prediction markets pricing CLARITY Act passage at just 19 to 24 percent,",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-21T09:24:00+00:00",
+      "publisher": "Tech Times",
+      "score": 0.013889,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Strategy sells 1,638 Bitcoin to fund dividends and STRC repurchases",
+      "url": "https://cointelegraph.com/news/strategy-sells-bitcoin-dividend-strc",
+      "snippet": "Michael Saylor's Strategy sold 1,638 Bitcoin in its second-largest sale of the year to fund dividend payments and repurchase its preferred STRC stock. Strategy sold 1,638 Bitcoin from July 27 through Sunday, marking its second-largest BTC sale of the year.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-03T12:28:00+00:00",
+      "publisher": "Cointelegraph",
+      "score": 0.013699,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin's big test: The supply wall between $81,000 and $86,000",
+      "url": "https://www.msn.com/en-us/money/economy/bitcoin-s-big-test-the-supply-wall-between-81-000-and-86-000/ar-AA2b2EqC",
+      "snippet": "Bitcoin's (CRYPTO: BTC) recovery after a record short squeeze faces a dense supply wall between $81,000 and $86,000 as the key test for continuation, according to a Glassnode report on Thursday. What Triggered the Rally?",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-27T12:08:53+00:00",
+      "publisher": "Benzinga",
+      "score": 0.013514,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "AI bitcoin forecasts see $90K; prediction markets price just nine percent odds",
+      "url": "https://www.msn.com/en-us/money/general/ai-bitcoin-forecasts-see-90k-prediction-markets-price-just-nine-percent-odds/ar-AA2ave0B",
+      "snippet": "Bitcoin price prediction 2026: AI chatbots like Microsoft Copilot and ChatGPT forecast Bitcoin at $85,000-$90,000 by year-end 2026, but Polymarket's $120M in real-money bets price $100K Bitcoin at just nine percent probability -- an 80-point gap that reveals why AI forecasts and prediction markets tell completely different stories about Bitcoin this fall.",
+      "sources": [
+        "bing,duckduckgo,yahoo"
+      ],
+      "published_at": "2026-08-19T17:43:03+00:00",
+      "publisher": "Tech Times",
+      "score": 0.013333,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

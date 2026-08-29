@@ -1,0 +1,356 @@
+{
+  "schema_version": "1.0",
+  "query": "cryptocurrency futures margin liquidation risk value at risk",
+  "status": "complete",
+  "count": 20,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "cryptocurrency futures margin liquidation risk value at risk",
+      "ok": true,
+      "result_count": 20,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "cryptocurrency futures margin liquidation risk value at risk",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "cryptocurrency futures margin liquidation risk value at risk",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": [
+    {
+      "title": "Margin ratio and liquidation risk management (US Derivatives) | Coinbase Help",
+      "url": "https://help.coinbase.com/en/coinbase/derivatives/us-derivatives-risk-management-and-liquidations",
+      "snippet": "Then, we liquidate futures positions ... may result in higher fees and less-favorable pricing than self-executed trades. It can also lead to losses exceeding your margin value, potentially depleting all funds in both your derivatives and spot accounts....",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What Is Liquidation in Crypto Futures Trading? How to Calculate Liquidation Price",
+      "url": "https://bingx.com/en/learn/article/what-is-liquidation-in-crypto-futures-trading-how-to-calculate-liquidation-price",
+      "snippet": "May 15, 2026 - If the trade moves against you and Risk reaches 100%, only that 5,000 USDT position is liquidated. Your remaining wallet balance stays untouched. ... This creates a firewall around each trade.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Perpetual futures liquidation explained: Causes, calculations, risks",
+      "url": "https://metamask.io/news/perpetual-futures-liquidation-mechanics",
+      "snippet": "July 29, 2026 - ... Leverage ratio: Higher leverage shrinks the allowable adverse move before liquidation. Margin size and active top-ups: Larger buffers absorb volatility; insufficient margin accelerates liquidation risk.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Understanding Leverage, Margin, and Liquidation in Crypto Futures Trading | by XT Exchange | Medium",
+      "url": "https://medium.com/@XT_com/understanding-leverage-margin-and-liquidation-in-crypto-futures-trading-b15bfc434161",
+      "snippet": "February 28, 2026 - Not Using a Stop-Loss: As discussed, relying on liquidation as your exit plan is a critical error. It demonstrates a fundamental lack of a risk management strategy. Misunderstanding Margin Modes: Using Cross Margin without fully understanding its implications can lead to a surprise total account wipeout from a single failed trade. Let’s put it all together. Suppose you have a $2,000 futures account and want to execute a short trade on Ethereum (ETH), currently at $3,500.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Key Strategies to Avoid Liquidations in Perpetual Futures | Coinbase",
+      "url": "https://www.coinbase.com/learn/perpetual-futures/key-strategies-to-avoid-liquidations-in-perpetual-futures",
+      "snippet": "While this magnifies potential ... market risk. A small unfavorable movement in the asset price can dramatically affect a trader’s margin balance. Margin Requirements: To maintain an open position, traders must have enough margin to cover potential losses. If the futures price moves against the trader’s position and the account balance falls below the maintenance margin, the exchange initiates liquidation to cover losses. Volatility: Cryptocurrency markets, in ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Liquidation: What Is It And How Can You Avoid It?",
+      "url": "https://info.arkm.com/research/crypto-liquidation-meaning-futures-perpetuals-guide-avoid",
+      "snippet": "June 4, 2026 - Perpetual futures contracts, which tend to be the primary leverage instrument in crypto markets, charge periodic funding rates between long and short holders. These ongoing costs can slowly erode margin over time, bringing traders closer to liquidation even without significant price movement. Exchanges generally offer two primary margin modes that impact a trader’s liquidation risk: cross margin and isolated margin.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Liquidation: How To Avoid It in Crypto Futures? (2026) - WazirX Blog",
+      "url": "https://wazirx.com/blog/liquidation-in-crypto-futures-explained/",
+      "snippet": "July 14, 2026 - Stop losses, lower leverage, and added margin reduce risk. ... Liquidation in crypto futures is the automatic closing of a trader’s position when their losses exceed the margin they have deposited.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Understanding Liquidation Price in Crypto Futures Trading",
+      "url": "https://www.cryptohopper.com/blog/understanding-liquidation-price-in-crypto-futures-trading-11772",
+      "snippet": "April 2, 2025 - TLDR In crypto futures trading, the liquidation price is where your positions start closing to limit losses when your margin falls below required levels, while the bankruptcy price is where your initial collateral is entirely lost.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Understanding leverage and liquidation | MetaMask Help Center",
+      "url": "https://support.metamask.io/manage-crypto/trade/perps/leverage-and-liquidation/",
+      "snippet": "While leverage allows you to control a larger position, adverse price swings can eat into your margin (collateral). The provider, Hyperliquid, sets a minimum “maintenance margin” you must hold relative to your position size. If losses reduce your margin below this level, your position is liquidated automatically so you don’t owe money.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Futures Risk Management Guide: Advanced Derivatives Strategies to Avoid Liquidation and Optimize Leverage on XT | by XT Exchange | Mar, 2026 | Medium",
+      "url": "https://medium.com/@XT_com/crypto-futures-risk-management-guide-advanced-derivatives-strategies-to-avoid-liquidation-and-759373e1da0a",
+      "snippet": "March 19, 2026 - Liquidation is the ultimate risk in leveraged trading. It occurs when a trader’s margin balance is no longer sufficient to support their open position. Exchanges like XT use a Mark Price — an aggregate price derived from multiple spot exchanges — to determine the real-time value of a position and prevent manipulation from a single source.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Liquidation Explained: Causes and How to Avoid It | Bitsgap blog",
+      "url": "https://bitsgap.com/blog/crypto-liquidations-explained-how-traders-get-wiped-out-and-how-to-avoid-it",
+      "snippet": "June 13, 2026 - Isolated margin limits damage to one position; cross margin can delay liquidation but puts more of the account at risk. Liquidations cascade because forced market orders push price into the next cluster of liquidation levels.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014085,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Avoid Liquidation in Futures Trading: 7 Proven Strategies to Survive Volatility - Mudrex Learn",
+      "url": "https://mudrex.com/learn/avoid-liquidation-in-futures-trading/",
+      "snippet": "Crypto regularly swings 10–20% in a single day. Without proper risk management, these moves easily breach liquidation thresholds. A missing or poorly set stop-loss can leave your position completely exposed. Published: September 12, 2025",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.013889,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is Liquidation and How to Manage Liquidation Risk in Futures Trading - Mudrex Learn",
+      "url": "https://mudrex.com/learn/crypto-futures-liquidation-explained/",
+      "snippet": "June 3, 2025 - Futures crypto trading promises the lure of high rewards and quick profits, but it comes with significant risks. One of the biggest risks is liquidation—when your position is forcibly closed due to insufficient margin to cover potential losses.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.013699,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "FAQ on Liquidation for Futures Trading",
+      "url": "https://www.mexc.com/learn/article/faq-on-liquidation-for-futures-trading/1",
+      "snippet": "Instead, the liquidation price depends primarily on the account's available margin and the value of the open positions. User A buys 80,000 cont. in BTCUSDT Perpetual Futures at a price of 10,000 USDT with 50x leverage. At this point, the position size is 80,000 cont., which falls under Tier 1 in the Risk Limits list (position size range: 0-100,000 cont.).",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.013514,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Understanding Liquidation in Crypto Derivatives",
+      "url": "https://www.bitstamp.net/learn/crypto-trading/understanding-liquidation-in-crypto-derivatives/",
+      "snippet": "In cryptocurrency markets, these most commonly include financial instruments like futures, options, and perpetual futures. In different ways, these tools allow traders to use a low amount of capital to control funds with higher value. However, because the losses are amplified along with the profits, this presents a greater degree of risk. Therefore, traders must put forth a pre-defined amount of collateral (called initial margin), which represents the funds “at risk” in the trade.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.013333,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Risk Management in Crypto Futures Trading: 5 Basic Rules - Mudrex Learn",
+      "url": "https://mudrex.com/learn/risk-management-in-crypto-futures-trading/",
+      "snippet": "Every futures position needs initial margin to open and maintenance margin to stay open. Your unrealised PnL swings with every tick until you close the trade and lock in realised PnL; when losses push your account below the maintenance level, the position is liquidated regardless of what you believed would happen next. This is the leverage risk crypto beginners underestimate most. Published: 1 month ago",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.013158,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Understanding Leverage, Margin, and Liquidation in Crypto Futures Trading",
+      "url": "https://www.xt.com/en/blog/post/understanding-leverage-margin-and-liquidation-in-crypto-futures-trading",
+      "snippet": "January 28, 2026 - You decide how much capital to allocate as margin for a specific trade. If that position is liquidated, you only lose the isolated margin you assigned to it. The rest of the funds in your futures account are unaffected.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.012987,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Leverage Trading Crypto Explained: How It Works, Risks, and Strategies",
+      "url": "https://wundertrading.com/journal/en/leverage-trading-crypto",
+      "snippet": "June 4, 2026 - Leverage trading is the broader concept: the leverage ratio determines your total value of exposure relative to margin. Futures trading is another way to achieve leverage without directly borrowing the underlying asset. ... When your margin falls near the maintenance margin level, the exchange issues a margin call. You'll receive a notification to deposit additional funds or reduce position size. If you don't act and the price moves further against you, the exchange liquidates your position to avoid liquidation cascading into a negative balance.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.012821,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "How to Reduce Futures Liquidation Risk – CoinEx Help Center",
+      "url": "https://support.coinex.com/hc/en-us/articles/900004764323-How-to-Reduce-Futures-Liquidation-Risk",
+      "snippet": "Under the Cross Margin mode, the available balance in the Futures account will be added to that position automatically to make up for the margin. Under the Isolated Margin Mode, you have to add margin to the position to reduce the risk of forced liquidation.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.012658,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Liquidation vs Bankruptcy Price in Crypto Futures - Mudrex Learn",
+      "url": "https://mudrex.com/learn/liquidation-vs-bankruptcy-price-crypto/",
+      "snippet": "1 month ago - In extreme market conditions, those losses could even exceed the funds available in the account. That is why crypto futures exchanges do not wait until every dollar of your margin has disappeared. Instead, they liquidate positions earlier to prevent negative account balances and reduce the risk of bad debt entering the market.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.0125,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

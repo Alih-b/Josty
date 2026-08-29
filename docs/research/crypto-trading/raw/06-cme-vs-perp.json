@@ -1,0 +1,277 @@
+{
+  "schema_version": "1.0",
+  "query": "CME bitcoin futures versus crypto perpetual swap",
+  "status": "complete",
+  "count": 15,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "CME bitcoin futures versus crypto perpetual swap",
+      "ok": true,
+      "result_count": 15,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "CME bitcoin futures versus crypto perpetual swap",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "CME bitcoin futures versus crypto perpetual swap",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "CME vs CFTC: the lawsuit over what a perp legally is",
+      "url": "https://crypto.news/cme-cftc-lawsuit-perpetual-futures-swaps/",
+      "snippet": "Jun 24, 2026 · The trigger was a product. Weeks earlier, the CFTC had cleared the prediction-market exchange Kalshi to list a Bitcoin perpetual futures contract, the first regulated crypto perp available to United States traders, and Kalshi had rushed into the opening.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031258,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CME Futures vs. Perpetuals: Two Different Bitcoin Trades",
+      "url": "https://bifu.co/blog/bitcoin-futures-trading-framework-cme-perpetuals-basis-defined-risk-2026",
+      "snippet": "Mar 5, 2026 · CME Bitcoin futures are regulated contracts with fixed expiries and cash settlement. Perpetual futures are crypto-native derivatives with no expiry and recurring funding payments. A trader should not use the same risk plan for both.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Inside the CME and CFTC’s battle over onchain perpetual futures",
+      "url": "https://www.coindesk.com/policy/2026/07/28/inside-the-cme-and-cftc-s-battle-over-onchain-perpetual-futures",
+      "snippet": "July 28, 2026 - CME Group's attempted 24/7 West Texas Intermediate (WTI) crude oil contract is a traditional expiring futures product rather than a crypto-style perpetual swap. The CME had cited investors’ desire to manage their positions “whenever news ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "FAQ: Cryptocurrency Futures - CME Group",
+      "url": "https://www.cmegroup.com/articles/faqs/frequently-asked-questions-cryptocurrency-futures.html",
+      "snippet": "Jun 8, 2026 · Get details on how to trade Cryptocurrency futures and options products from CME Group.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CME Sues CFTC Over Bitcoin Perpetual Futures Classification",
+      "url": "https://www.tftc.io/cme-sues-cftc-bitcoin-perpetual-futures-swap-classification/",
+      "snippet": "June 24, 2026 - CME Group filed suit against the CFTC and Chair Michael Selig on June 18, arguing that Bitcoin perpetual futures are legally swaps under Dodd-Frank, not futures, and that Kalshi's BTCPERP approval was arbitrary and procedurally unlawful.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Are Perpetuals Swaps or Futures? The CME Picks a Fight",
+      "url": "https://unchainedcrypto.com/are-perpetuals-swaps-or-futures-the-cme-picks-a-fight/",
+      "snippet": "The CME argues Bitcoin perpetual futures are really swaps and should carry far more collateral. Chris traces the Dodd-Frank history that created the swap-versus-future divide, and Austin Campbell lays out why picking this fight in a post-Chevron court could backfire on the incumbent.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CME to Sue CFTC Over Bitcoin Perpetual Futures Approval: CEO - Decrypt",
+      "url": "https://decrypt.co/371514/cme-to-sue-cftc-over-bitcoin-perpetual-futures-approval-ceo",
+      "snippet": "June 18, 2026 - ... Add Decrypt as your preferred source to see more of our stories on Google. CME Group, the world's largest futures exchange operator, plans to sue the CFTC over its approval of crypto perpetual futures, outgoing CEO Terry Duffy told CNBC.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Futures Trading: Bitcoin, Ethereum, and the - TradeAlgo",
+      "url": "https://www.tradealgo.com/trading-guides/futures/crypto-futures",
+      "snippet": "Feb 20, 2026 · This guide covers both worlds: CME-regulated crypto futures for traditional traders, and an honest comparison with exchange-based perpetual contracts for those coming from the crypto ecosystem.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CME Move To Sue CFTC Over Crypto Perpetual Futures: Here’s Why",
+      "url": "https://cryptonews.com/news/cme-sue-cftc-bitcoin-perpetual-futures/",
+      "snippet": "June 18, 2026 - CME Group CEO Terrence Duffy announced Wednesday that the exchange operator will file a federal lawsuit against the CFTC, targeting the regulator’s late-May approval of bitcoin perps for prediction-market platform Kalshi, the first regulated U.S. listing of perpetual futures. Duffy’s central argument, made on CNBC’s Fast Money, is that the products the CFTC approved as futures are legally swaps ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CME Group To Sue CFTC Over Bitcoin Perpetual Futures Approval In Clash Over Dodd-Frank Classification",
+      "url": "https://bitcoinmagazine.com/news/cme-group-to-sue-cftc-over-bitcoin",
+      "snippet": "June 18, 2026 - CME Group plans to sue the CFTC over its approval of bitcoin perpetual futures, arguing the contracts are swaps — not futures — under Dodd-Frank. ... The CME Group said that it plans to file a lawsuit against the Commodity Futures Trading ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CME vs. CFTC Lawsuit Over Bitcoin Perpetual Futures: What the ...",
+      "url": "https://coinunited.io/en/pulse/2026-06-18/cme-vs-cftc-lawsuit-over-bitcoin-perpetual-futures-what-the-swap-vs-futures-classification-battle-means-for-leveraged-traders",
+      "snippet": "Jun 18, 2026 · CME Group CEO Terry Duffy has confirmed that CME will file a federal lawsuit against the CFTC over its approval of Bitcoin perpetual futures contracts for prediction-market platform Kalshi, along with no-action relief granted to Coinbase.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Futures Contracts vs Perpetual Futures: 6 Key Differences ...",
+      "url": "https://leverage.trading/futures-vs-perpetual-futures-contracts/",
+      "snippet": "Jun 28, 2026 · Futures vs perpetual futures explained — learn how expiry, funding, and margin impact risk, cost, and strategy in crypto trading.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "FCTM Breaking News: CME Sues CFTC Over Approval of Bitcoin Perpetual Futures Contract (FCTM) | Lowenstein Sandler LLP",
+      "url": "https://www.lowenstein.com/news-insights/publications/client-alerts/fctm-breaking-news-cme-sues-cftc-over-approval-of-bitcoin-perpetual-futures-contract-fctm",
+      "snippet": "June 19, 2026 - . . would violate this Act (including [CFTC] regulations).” The CME claims essentially that treating a futures contract as a swap violates the CEA, based on case law that the CME characterizes as requiring a date certain for settlement as ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CME vs the CFTC: the lawsuit that decides what a perp legally is",
+      "url": "https://cryptonews.net/news/legal/33057476/",
+      "snippet": "June 24, 2026 - CME argues that perpetual futures should be regulated as swaps under the Dodd-Frank Act rather than as ordinary futures, and that the CFTC bypassed proper procedure in approving them.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Perpetual Futures: Mechanics, History and Purpose | Elm Wealth",
+      "url": "https://elmwealth.com/perpetual-futures/",
+      "snippet": "2 weeks ago - One of the CME’s arguments is that, because both sides exchange periodic funding payments, perpetuals meet the Dodd-Frank definition of a swap, not a future. Kalshi (2026). Coin-margined – “inverse” – contracts, where traders post ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

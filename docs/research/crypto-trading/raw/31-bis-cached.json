@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto derivatives BIS report",
+  "status": "degraded",
+  "count": 0,
+  "partial": true,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "crypto derivatives BIS report",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "crypto derivatives BIS report",
+      "ok": false,
+      "result_count": 0,
+      "error": "DDGSException: ConnectError: ConnectError('error sending request for url (https://www.google.com/wml/search?q=crypto+derivatives+BIS+report&sca_esv=1&filter=1&start=0&hl=en-US&lr=lang_en&cr=countryUS) > Network is unreachable (os error 101)')",
+      "error_kind": "network"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "crypto derivatives BIS report",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": []
+}

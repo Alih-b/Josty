@@ -1,0 +1,293 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto liquidation engine insurance fund ADL",
+  "status": "complete",
+  "count": 16,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "crypto liquidation engine insurance fund ADL",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "crypto liquidation engine insurance fund ADL",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "crypto liquidation engine insurance fund ADL",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Liquidation Engines and Insurance Funds - Introduction to ...",
+      "url": "https://www.tradermath.org/courses/introduction-to-digital-assets/liquidation-engines-and-insurance-funds",
+      "snippet": "Ask two questions of any leveraged venue before sizing on it: how large is the insurance fund relative to open interest, and does it use ADL. If the answer to the second is yes, your hedge has a failure mode that has nothing to do with your own margin.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031778,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Insurance Fund and Auto-Deleveraging (ADL) in Crypto Futures",
+      "url": "https://www.athenum.xyz/blog/insurance-fund-auto-deleveraging-adl-crypto-futures/",
+      "snippet": "Jul 18, 2026 · When a leveraged crypto futures position is force-liquidated and cannot be closed in the market at its bankruptcy price, two backstops decide who eats the loss: the exchange insurance fund and, if that is not enough, auto-deleveraging (ADL).",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Insurance Funds and Auto-Deleveraging (ADL) in Crypto Futures ...",
+      "url": "https://www.athenum.xyz/blog/insurance-funds-and-auto-deleveraging-adl-explained/",
+      "snippet": "Jun 13, 2026 · How exchange insurance funds absorb liquidation shortfalls, what auto-deleveraging (ADL) is, how the ADL queue ranks traders, and why winning positions on thin contracts carry hidden close-out risk.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is Auto-Deleveraging (ADL)? - Cube Exchange",
+      "url": "https://www.cube.exchange/what-is/auto-deleveraging-adl",
+      "snippet": "ADL is triggered when ordinary liquidation plus the insurance fund can no longer close a bankrupt position - described variously as insurance-fund depletion ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Insurance Fund: who pays for negative liquidations ...",
+      "url": "https://cryptoranks.wiki/en/articles/insurance-fund-crypto-exchanges-adl",
+      "snippet": "May 27, 2026 · Insurance Fund is often mistaken for “deposit insurance,” but the reserve does not compensate a market loss; it reduces the probability of ADL (auto-deleveraging) — the forced reduction of profitable positions to cover an uncovered balance.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Auto-Deleveraging (ADL): Last Line of Defense in Perpetuals",
+      "url": "https://www.linkedin.com/pulse/auto-deleveraging-adl-last-line-defense-crypto-trading-andrea-dal-mas-hpqrf",
+      "snippet": "Oct 14, 2025 · Auto-Deleveraging is a last-resort risk mechanism used on crypto derivatives venues to preserve solvency.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Introduction to Futures Insurance Funds - Binance",
+      "url": "https://www.binance.com/en/support/faq/detail/360033525371",
+      "snippet": "Sep 8, 2019 · (ADL) mechanism will be engaged. matching engine will automatically liquidate the Bankrupt Positions. This process is called “Auto-Deleveraging ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Liquidation Engines: How They Work · GammaFloww",
+      "url": "https://www.gammafloww.com/blog/risk-and-liquidation-engines",
+      "snippet": "Jun 28, 2026 · Liquidation → insurance fund → ADL is a deliberate cascade. Each layer only engages when the previous one is exhausted. A well-tuned engine rarely reaches ADL, because it liquidates early and the insurance fund is sized correctly.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Futures Risk Mechanics: Insurance Funds and ADL | Bitbase ...",
+      "url": "https://www.bitbase.com/blog/crypto-futures-risk-mechanics",
+      "snippet": "Ideally the liquidation engine closes a position a little before that, leaving a small surplus. Those surpluses are pooled into an insurance fund. When the ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is the liquidation waterfall and how do they relate to my ...",
+      "url": "https://help.coinbase.com/en/international-exchange/liquidations/what-is-the-liquidation-waterfall-and-how-do-they-relate-to-my-margin-requirements",
+      "snippet": "Auto-Deleveraging (ADL): If there is not enough LSP capital to take on the position, ADLs are used as a final resort to close positions.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Perpetual Futures Liquidation Explained | 2026 Guide",
+      "url": "https://www.alphaexcapital.com/cryptocurrencies/crypto-trading-and-investing-strategies/crypto-derivatives-and-leverage/perpetual-futures-liquidation-explained",
+      "snippet": "Jul 4, 2026 · Crypto futures liquidation explained: what triggers it, the margin ratio, isolated vs cross margin, the insurance fund, auto-deleveraging, and how to avoid it.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Insurance Funds & Auto-Deleveraging (ADL), Explained",
+      "url": "https://www.gammafloww.com/blog/insurance-fund-and-auto-deleveraging",
+      "snippet": "Jul 10, 2026 · A well-funded, transparent insurance fund and a rarely-triggered ADL are hallmarks of a serious derivatives venue — and both depend on a liquidation engine that closes risk early and cleanly.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Insurance fund | OSL Support Center",
+      "url": "https://www.osl.com/en/support/insurance-fund",
+      "snippet": "The insurance fund is solely intended to reduce risks associated with counterparty liquidations in futures trading. It does not guarantee full protection ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Auto-Deleveraging (ADL) - Futures Trading - KuCoin",
+      "url": "https://www.kucoin.com/support/26686471898009",
+      "snippet": "Dec 30, 2025 · If the insurance fund is insufficient, the Auto-Deleveraging (ADL) system is triggered. Under ADL, the system reduces positions held by traders ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Insurance Funds & Auto-Deleveraging in Exchanges Explained",
+      "url": "https://bluefin.io/blog/basics-of-insurance-funds",
+      "snippet": "Apr 4, 2023 · This article will review the loss mitigation mechanisms commonly found on exchanges that offer trading with leverage.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Autodeleveraging: Impossibilities and Optimization - arXiv",
+      "url": "https://arxiv.org/html/2512.01112v2",
+      "snippet": "Dec 8, 2025 · The largest episode of ADL usage was on October 10-11, 2025 (UTC), when outsized liquidations exhausted insurance funds and multiple venues ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

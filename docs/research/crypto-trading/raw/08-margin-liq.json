@@ -1,0 +1,277 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto margin trading isolated vs cross margin liquidation maintenance margin",
+  "status": "complete",
+  "count": 15,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "crypto margin trading isolated vs cross margin liquidation maintenance margin",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "crypto margin trading isolated vs cross margin liquidation maintenance margin",
+      "ok": true,
+      "result_count": 9,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "crypto margin trading isolated vs cross margin liquidation maintenance margin",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Cross Margin vs. Isolated Margin: Understanding ... - Alphapoint",
+      "url": "https://alphapoint.com/blog/cross-margin-vs-isolated-margin",
+      "snippet": "Feb 20, 2024 · In cross margin, adjustments to your position affect your entire portfolio, whereas isolated margin grants you the flexibility to adapt ...",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.03009,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Cross Margin vs Isolated Margin: Complete Guide | CryptoRiskCalc",
+      "url": "https://cryptoriskcalc.com/learn/cross-vs-isolated-margin",
+      "snippet": "Feb 9, 2026 · Understand the differences between cross margin and isolated margin in crypto futures trading. Learn when to use each mode, liquidation behavior, and risk management strategies.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Cross Margin and Isolated Margin in Trading - SoFi",
+      "url": "https://www.sofi.com/learn/content/cross-margin/",
+      "snippet": "Cross margin may help prevent quick liquidations and has a better capability to withstand portfolio losses. Isolated margin offers better flexibility in that ... What Is Cross Margin? · Cross vs Isolated Margin...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Cross vs isolated margin in perpetual futures trading - MetaMask",
+      "url": "https://metamask.io/news/cross-vs-isolated-margin-perps",
+      "snippet": "Mar 10, 2026 · isolated margin gives a predictable, per-trade liquidation price, while cross margin makes liquidation a portfolio-level event that fluctuates ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Margin Trading Explained: Isolated vs. Cross | OUINEX",
+      "url": "https://ouinex.com/en/education/crypto-margin-trading-explained",
+      "snippet": "Crypto margin trading explained with real numbers: isolated vs. cross margin, maintenance levels, and how a liquidation actually happens.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Cross Margin vs Isolated Margin: Complete Guide 2026 - YEX",
+      "url": "https://blog.yex.io/learn/cross-margin-vs-isolated-margin-guide/",
+      "snippet": "Jan 27, 2026 · How margin affects liquidation price Your liquidation price is where your remaining margin equals the Maintenance Margin requirement. In Isolated Margin, this price is fixed at entry. In Cross Margin, it’s dynamic, shifting with your entire portfolio’s performance.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Isolated or cross margin? Understand the difference before ...",
+      "url": "https://www.facebook.com/BinanceAfricaChannel/posts/isolated-or-cross-marginunderstand-the-difference-before-choosing-the-strategy-t/1647195394074094/",
+      "snippet": "20 hours ago · The isolated margin isolates risk inherent to trades while in the cross margin the risk is borne by the whole account. b.In the isolated margin ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Liquidation - Trust Wallet",
+      "url": "https://trustwallet.com/glossary/liquidation",
+      "snippet": "Cross vs Isolated Margin. In isolated margin mode, only the margin allocated to that single position can be liquidated. In cross margin mode, the entire wallet ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What Are Isolated Margin and Cross Margin in Crypto Trading?",
+      "url": "https://www.binance.com/en/academy/articles/what-are-isolated-margin-and-cross-margin-in-crypto-trading",
+      "snippet": "May 7, 2026 · Isolated margin gives more per-trade control; cross margin provides more flexibility and lower risk of individual position liquidation, but higher risk of total account loss.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is Isolated Margin? | Cube Exchange",
+      "url": "https://www.cube.exchange/what-is/isolated-margin",
+      "snippet": "Isolated margin optimizes for containment. Cross margin optimizes for flexibility. When collateral is shared, spare equity from elsewhere in the account",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Margin types (International Derivatives) - Coinbase Help",
+      "url": "https://help.coinbase.com/coinbase/derivatives/intx-derivatives-margin-types",
+      "snippet": "Cross margin uses all the funds in your Perpetuals portfolio as collateral for your trades. All cross margin positions use the same collateral. Example: You ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Cross Margin vs Isolated Margin: Use This One For Less Risk",
+      "url": "https://leverage.trading/cross-margin-vs-isolated-margin/",
+      "snippet": "Jun 28, 2026 · Experienced traders should use isolated margin to reduce the risk. Learn the basics between cross margin vs isolated margin in this guide.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Margin Trading 2026 Risk Management and Profit Plan ...",
+      "url": "https://extensionpublicationsreview.colostate.edu/plugins/generic/pdfJsViewer/pdf.js/web/viewer.html",
+      "snippet": "Spot margin allows borrowing to trade real asset pairs, with cross margin pooling collateral across positions to avoid liquidation. Isolated margin confines ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Margin Trading 2026: Cross-Margin vs. Isolated Margin",
+      "url": "https://www.linkedin.com/pulse/mastering-crypto-margin-trading-cross-margin-vs-isolated-muchena-imdof",
+      "snippet": "4 days ago · Master crypto margin trading in 2026. Understand cross-margin vs. isolated margin, avoid liquidation, and find top platforms for capital-efficient leverage.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is Margin Trading? Leverage, Risks & How It Works",
+      "url": "https://injective.com/blog/what-is-margin-trading",
+      "snippet": "Isolated margin assigns collateral to a single position. Losses are limited to the isolated amount, but liquidation risk may occur more quickly. Choosing ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

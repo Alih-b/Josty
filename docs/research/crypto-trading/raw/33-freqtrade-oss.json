@@ -1,0 +1,339 @@
+{
+  "schema_version": "1.0",
+  "query": "freqtrade ccxt",
+  "status": "degraded",
+  "count": 15,
+  "partial": true,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "freqtrade ccxt",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "\"freqtrade ccxt\"",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "freqtrade ccxt open source",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "freqtrade ccxt",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "\"freqtrade ccxt\"",
+      "ok": false,
+      "result_count": 0,
+      "error": "DDGSException: ConnectError: ConnectError('error sending request for url (https://www.google.com/wml/search?q=%22freqtrade+ccxt%22&sca_esv=1&filter=1&start=0&hl=en-US&lr=lang_en&cr=countryUS) > Network is unreachable (os error 101)')",
+      "error_kind": "network"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "freqtrade ccxt open source",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "freqtrade ccxt",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "\"freqtrade ccxt\"",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "freqtrade ccxt open source",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "github-api",
+      "query": "freqtrade ccxt",
+      "ok": true,
+      "result_count": 15,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "GitHub - tradingstrategy-ai/gmx-ccxt-freqtrade: GMX Freqtrade and CCXT ...",
+      "url": "https://github.com/tradingstrategy-ai/gmx-ccxt-freqtrade",
+      "snippet": "This example repository shows how to use CCXT -compatible exchange adapter for GMX, a decentralised perpetual futures exchange. The CCXT-compatible adapter is used with FreqTrade, an algorithmic trading framework for Python to run an example automated trading strategy on GMX. This project is funded by an Arbitrum DAO grant. The example provide a handful of FreqTrade strategy modules and ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo",
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.061632,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "ccxt vs freqtrade - compare differences and reviews? | LibHunt",
+      "url": "https://www.libhunt.com/compare-ccxt-vs-freqtrade",
+      "snippet": "Compare ccxt vs freqtrade and see what are their differences. A cryptocurrency trading API with more than 100 exchanges in JavaScript / TypeScript / Python / C# / PHP / Go / Java (by ccxt) Free, open source crypto trading bot (by freqtrade)",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.044143,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - ccxt/ccxt: A unified trading API with more than 100 ...",
+      "url": "https://github.com/ccxt/ccxt",
+      "snippet": "It provides quick access to market data for storage, analysis, visualization, indicator development, algorithmic trading, strategy backtesting, bot programming, and related software engineering. It is intended to be used by coders, developers, technically-skilled traders, data-scientists and financial analysts for building trading algorithms.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.040714,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Exchange-specific Notes - Freqtrade",
+      "url": "https://www.freqtrade.io/en/stable/exchanges/",
+      "snippet": "Exchange configuration Freqtrade is based on CCXT library that supports over 100 cryptocurrency exchange markets and trading APIs. The complete up-to-date list can be found in the CCXT repo homepage. However, the bot was tested by the development team with only a few exchanges. A current list of these can be found in the \"Home\" section of this documentation. Feel free to test other exchanges ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032787,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "面向 Freqtrade 的 CCXT 最佳实践 - Freqtrade 中文文档",
+      "url": "https://www.freqtrade.cn/using-ccxt-in-freqtrade/",
+      "snippet": "这一段是 Freqtrade 文档推荐的做法； httpsProxy/wsProxy 是 ccxt 支持的代理键名。 (Freqtrade, CCXT 文档) 用 enableRateLimit 打开内置限流，并按交易所要求设置 rateLimit。 频繁上新/退市时，把 markets_refresh_interval 调高一点（默认 60 分钟）： \"exchange\": { \"markets_refresh_interval\": 60 }。 (Freqtrade) 打开 enableRateLimit，批量拉多交易对时控制并发（异步端再加 rateLimit）。",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031025,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "keithorange/CryptoSuperScreener",
+      "url": "https://github.com/keithorange/CryptoSuperScreener",
+      "snippet": "🚀 CRYPTO SUPER SCREENER 🚀 Forget TradingView. THIS is the BEST Screener for Crypto (ALL exchanges supported by CCXT). FILTERING and GRID WATCHING ANY amount of crypto CHARTS simultaneously!  ",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.021311,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "aicoincom/coinos-skills",
+      "url": "https://github.com/aicoincom/coinos-skills",
+      "snippet": "AiCoin crypto toolkit for AI agents — 40+ tools for real-time prices, K-lines, AI analysis, funding rates, whale tracking, Hyperliquid on-chain analytics, exchange trading (CCXT),   and Freqtrade bot automation.",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020968,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "remiotore/ccxt-freqtrade",
+      "url": "https://github.com/remiotore/ccxt-freqtrade",
+      "snippet": "",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020635,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "ccxt/examples/README.md at master - GitHub",
+      "url": "https://github.com/ccxt/ccxt/blob/master/examples/README.md",
+      "snippet": "Freqtrade – leading opensource cryptocurrency algorithmic trading software based on CCXT! using Python, exchange APIs, Backtrader, Telegram and CCXT.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020313,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "titouannwtt/freqtrade-ultimate",
+      "url": "https://github.com/titouannwtt/freqtrade-ultimate",
+      "snippet": "Production-grade Freqtrade fork for algorithmic trading on Hyperliquid. Multi-bot OHLCV/pairlist caching, PlateauSampler hyperopt, walk-forward with CPCV, custom hyperopt losses, liquidation detection, 32+ enhancements. Includes showcase strategies. Maintained by Freqtrade France.",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020313,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Exchange-specific Notes - Freqtrade",
+      "url": "https://docs.freqtrade.io/en/2021.12/exchanges/",
+      "snippet": "Exchange configuration ¶ Freqtrade is based on CCXT library that supports over 100 cryptocurrency exchange markets and trading APIs. The complete up-to-date list can be found in the CCXT repo homepage. However, the bot was tested by the development team with only a few exchanges. A current list of these can be found in the \"Home\" section of this documentation.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.02,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "freqtrade/docs/exchanges.md at develop - GitHub",
+      "url": "https://github.com/freqtrade/freqtrade/blob/develop/docs/exchanges.md",
+      "snippet": "Freqtrade is based on CCXT library that supports over 100 cryptocurrency exchange markets and trading APIs. The complete up-to-date list can be found in the CCXT repo homepage. However, the bot was tested by the development team with only a few exchanges. A current list of these can be found in the \"Home\" section of this documentation. Feel free to test other exchanges and submit your feedback ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.02,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "rainfu/xcoin",
+      "url": "https://github.com/rainfu/xcoin",
+      "snippet": "Next Generation Trading Bot",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.02,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Exchange-specific Notes - Freqtrade",
+      "url": "https://docs.freqtrade.io/en/2020.4/exchanges/",
+      "snippet": "Blacklists For Binance, please add \"BNB/\" to your blacklist to avoid issues. Accounts having BNB accounts use this to pay for fees - if your first trade happens to be on BNB, further trades will consume this position and make the initial BNB order unsellable as the expected amount is not there anymore. Binance sites Binance has been split into 3, and users must use the correct ccxt ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019403,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "planet-winter/ccxt-kraken",
+      "url": "https://github.com/planet-winter/ccxt-kraken",
+      "snippet": "fetches historical OHLCV values from most crypto exchanges using ccxt library. saves candles to a database (postgres/Mysql/Mariadb). by default resumes from last candle fetched.",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019403,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

@@ -1,0 +1,398 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto futures trading bot perpetual",
+  "status": "complete",
+  "count": 20,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:github.com crypto futures trading bot perpetual",
+      "ok": true,
+      "result_count": 20,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:github.com \"crypto futures trading bot perpetual\"",
+      "ok": true,
+      "result_count": 20,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:github.com crypto futures trading bot perpetual",
+      "ok": true,
+      "result_count": 9,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:github.com \"crypto futures trading bot perpetual\"",
+      "ok": true,
+      "result_count": 9,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:github.com crypto futures trading bot perpetual",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:github.com \"crypto futures trading bot perpetual\"",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "github-api",
+      "query": "crypto futures trading bot perpetual",
+      "ok": true,
+      "result_count": 20,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "perpetual-futures · GitHub Topics · GitHub",
+      "url": "https://github.com/topics/perpetual-futures",
+      "snippet": "ethereum-php bitcoin-php coinexchange p2p-exchange cryptocurrency-exchange crypto-trading cryptoexchange trc20 perpetual-futures exchange-development exchange-script bep20-script p2p-script crypto-exchange-solution crypto-exchange-platform crypto-exchange-scripts binance-clones crypto-exchange-softwares exchange-software cryptocurrency-exchange-scripts ... A Bun-powered trading workstation for Aster and Hyperliquid perpetual contracts that ships two production-ready agents: an SMA30 trend follower and a dual-sided market maker. The CLI is built with Ink, synchronises risk state from the exchange, and automatically recovers from restarts or disconnects. trading-bot aster trading-strategy perpetual-futures multi-exchange hyperliquid defi-trading automated-trade-script hyperliquid-dex aster-defi aster-dex",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.063934,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Futures AI Trading Bot - GitHub",
+      "url": "https://github.com/aitradingbotspro/crypto-futures-ai-trading-bot",
+      "snippet": "Mar 12, 2026 · Crypto Futures AI Trading Bot AI trading bot for crypto perpetuals: funding arbitrage monitoring and smart-money analysis. Java-based: Binance client, funding/arbitrage monitors, whale alerts, MEV and liquidation scanners, with optional Telegram and reporting.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo",
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.060085,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - enarjord/passivbot: Trading bot running on Bybit, Bitget, OKX, GateIO, Binance, Kucoin, WEEX and Hyperliquid · GitHub",
+      "url": "https://github.com/enarjord/passivbot",
+      "snippet": "Passivbot is a cryptocurrency trading bot written in Python and Rust, intended to require minimal user intervention. It operates on perpetual futures derivatives markets, automatically creating and cancelling limit buy and sell orders on behalf of the user. It does not try to predict future ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.041935,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - web3spreads/quant-flow: AI-powered crypto perpetual ...",
+      "url": "https://github.com/web3spreads/quant-flow",
+      "snippet": "AI-powered crypto perpetual futures trading bot for Hyperliquid DEX. - web3spreads/quant-flow",
+      "sources": [
+        "yandex,yahoo",
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.040635,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "nikosdaridis/bybit-perpetuals-trading-bot - GitHub",
+      "url": "https://github.com/nikosdaridis/bybit-perpetuals-trading-bot",
+      "snippet": "A Cryptocurrency perpetual futures trading bot that connects to Bybit API v5 for automated trading. The bot simply follows the configuration you provide.",
+      "sources": [
+        "google,mojeek,startpage",
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.040009,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - conor19w/Binance-Futures-Trading-Bot",
+      "url": "https://github.com/conor19w/Binance-Futures-Trading-Bot",
+      "snippet": "A Technical Analysis Bot that trades leveraged USDT futures markets on Binance. Comes with 11 pre-built strategies found in TradingStrats.py",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.037505,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - DylanAlberto/freqtrade-adaptive-bot: Advanced multi ...",
+      "url": "https://github.com/DylanAlberto/freqtrade-adaptive-bot",
+      "snippet": "Jun 9, 2026 · A production-grade algorithmic trading bot built on Freqtrade for Perpetual Futures. Designed with non-colinear indicators (StochRSI + CVD), dynamic ATR-based risk management, and Bayesian Hyperopt optimization per individual asset.",
+      "sources": [
+        "yandex,yahoo",
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.036736,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - yunior123/bitunix-bot: Interactive CLI trading bot ...",
+      "url": "https://github.com/yunior123/bitunix-bot",
+      "snippet": "Mar 15, 2026 · Bitunix Perpetual Futures Bot Interactive CLI trading bot for Bitunix perpetual futures — supports both crypto perps (BTC, ETH, SOL…) and stock perps (AAPL, TSLA, NVDA…).",
+      "sources": [
+        "yandex,yahoo",
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.036364,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "VtrAha/bybit-trading-bot",
+      "url": "https://github.com/VtrAha/bybit-trading-bot",
+      "snippet": "Bybit trading bot, perpetual trading bot, Bybit automated futures bot, USDT linear perp cryptocurrency trading bot Bybit V5 crypto bot automated, Bybit trading bot, perpetual trading bot, Bybit automated futures bot, USDT linear perp cryptocurrency trading bot Bybit V5 crypto bot automated,",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.021311,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "eugeneglova/binance-trading-bot",
+      "url": "https://github.com/eugeneglova/binance-trading-bot",
+      "snippet": "Binance Futures Auto Trading Bot",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020968,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Trading Bot for Managing Futures Positions This trading bot ...",
+      "url": "https://gist.github.com/keya254/5ec2fdfaa166f9e024a5701a6c078d78",
+      "snippet": "Trading Bot for Managing Futures Positions This trading bot automates the process of opening and managing futures trading positions on Binance Futures. It allows you to profit from both rising and falling markets by leveraging futures contracts. Features: Automated position opening based on predefined symbols Continuous monitoring of Return on Equity (ROE) Position flipping to minimize losses ...",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020635,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - botcrypto-io/awesome-crypto-trading-bots",
+      "url": "https://github.com/botcrypto-io/awesome-crypto-trading-bots",
+      "snippet": "Solie - The ultimate trading bot designed for targeting the futures markets of Binance. It enables you to create and customize your own trading strategies, ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020635,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "perpetuals · GitHub Topics · GitHub",
+      "url": "https://github.com/topics/perpetuals?l=python",
+      "snippet": "Automated crypto-futures trading bot: Telegram signals -> LLM parser -> VOOI Ultra API (Hyperliquid/Lighter/Aster). crypto telegram-bot trading-bot aster lighter defi llm perpetuals hyperliquid funding-arbitrage",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020635,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "heron-jr/backbot",
+      "url": "https://github.com/heron-jr/backbot",
+      "snippet": "A crypto trading bot for Backpack Exchange. It trades perpetual futures automatically using custom strategies and real-time market data.",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020313,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Binance Perpetual Futures Trading Bot - GitHub",
+      "url": "https://github.com/jayconar/PerpTrader",
+      "snippet": "A modular Python bot for automated trading on Binance USDT-margined perpetual futures. Designed for plug-and-play strategies, detailed logging, email notifications, and real-time Google Sheets updates ...",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020313,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - numbagressor-2000/bybit-perpetuals-trading-bot: Crypto trading bot for Bybit Perpetual Futures - https://bybit-perpetuals-trading-bot.pages.dev",
+      "url": "https://github.com/numbagressor-2000/bybit-perpetuals-trading-bot",
+      "snippet": "June 22, 2025 - A Crypto perpetual futures trading bot that connects to Bybit API v5 for automated trading. The bot simply follows the configuration you provide.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020313,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - decoded-cipher/bitnerve: AI-powered crypto trading ...",
+      "url": "https://github.com/decoded-cipher/bitnerve",
+      "snippet": "AI-powered crypto trading engine for perpetual futures — built for precision, speed, and nerve, running multiple models across accounts and assets in parallel.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.02,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - moafred/passivbot_futures: trading bot running on binance usdt futures and bybit inverse perpetual · GitHub",
+      "url": "https://github.com/moafred/passivbot_futures",
+      "snippet": "trading bot running on binance usdt futures and bybit inverse perpetual - moafred/passivbot_futures",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.02,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - fujita1806/passivbot_futures: trading bot running on binance usdt futures and bybit inverse perpetual",
+      "url": "https://github.com/fujita1806/passivbot_futures",
+      "snippet": "trading bot running on binance usdt futures and bybit inverse perpetual - fujita1806/passivbot_futures",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019697,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "GitHub - hummingbot/hummingbot: Open source software that ...",
+      "url": "https://github.com/hummingbot/hummingbot",
+      "snippet": "Open source software that helps you create and deploy high-frequency crypto trading bots. Hummingbot is an open-source framework that helps you design and ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019403,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

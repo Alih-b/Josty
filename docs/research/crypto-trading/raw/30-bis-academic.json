@@ -1,0 +1,277 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto derivatives BIS report",
+  "status": "complete",
+  "count": 15,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "crypto derivatives BIS report",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "crypto derivatives BIS report",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "crypto derivatives BIS report",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "BIS report warns crypto exchanges' rapid growth and lack of ...",
+      "url": "https://www.coindesk.com/business/2026/04/23/bis-warns-cryptocurrency-exchanges-are-becoming-shadow-banks-and-why-that-s-a-risk",
+      "snippet": "Apr 23, 2026 · The Bank for International Settlements (BIS) released a report warning stablecoin yields and other DeFi “earn” products are bank-like services without the safeguards or insurance.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032002,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto assets as a threat to financial market stability",
+      "url": "https://link.springer.com/article/10.1007/s40822-025-00311-4",
+      "snippet": "Mar 14, 2025 · In line with BIS (2023), we consider the crypto asset system as one being prone to financial instability for structural flaws and risks. Our ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.020588,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "OTC derivatives statistics - overview | BIS Data Portal",
+      "url": "https://www.bis.org/statistics/derstats.htm",
+      "snippet": "The over-the-counter (OTC) derivatives statistics capture the outstanding positions of derivatives dealers, mainly banks. They cover the outstanding notional value, market value and credit exposure of OTC foreign exchange, interest rate, equity, commodity and credit derivatives, as well as Herfindahl concentration measures. Dealers report on a worldwide consolidated basis, including the ...",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BIS report on the crypto ecosystem: key elements and risks",
+      "url": "https://www.regulationtomorrow.com/2023/07/bis-report-on-the-crypto-ecosystem-key-elements-and-risks/",
+      "snippet": "Jul 12, 2023 · The report reviews the key elements of the crypto ecosystem and assesses its structural flaws. It also discusses the risks that it poses and the ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Prudential treatment of cryptoasset exposures",
+      "url": "https://www.bis.org/bcbs/publ/d545.pdf",
+      "snippet": "In June 2022 the Basel Committee on Banking Supervision issued its second consultation on the prudential treatment of banks’ exposures to cryptoassets.1 After considering the feedback from stakeholders to the consultation, the Committee has now finalised its prudential standard, which has been endorsed by the Committee’s oversight body, the Grou...",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BIS study on crypto and stablecoin flows across borders",
+      "url": "https://www.linkedin.com/posts/jonfrost1_defiying-gravity-an-empirical-analysis-of-activity-7326349496215375872-MKWR",
+      "snippet": "May 8, 2025 · Ukraine leads global BTC adoption (EBRD report): $106B in crypto inflows, $882M in Bitcoin purchases — largely from institutional players.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Welcome to the BIS | Bank for International Settlements",
+      "url": "https://biz.org/",
+      "snippet": "Jul 25, 2026 · The BIS Data Portal is your entry point to global statistics. You can access a variety of tools and curated, statistical content for guided data and metadata exploration, quick data insights and efficient data export into multiple formats.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BIS Papers Discuss Risks in Crypto and DeFi Markets - Moody's",
+      "url": "https://www.moodys.com/web/en/us/insights/regulatory-news/bis-papers-discuss-risks-in-crypto-markets-and-decentralized-finance.html",
+      "snippet": "Jan 19, 2023 · The paper discusses the recent high-profile failures of FTX and other crypto firms and highlights the need for appropriate policy response to ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BIS Report: How BTC, ETH and Stablecoins Are Reshaping ...",
+      "url": "https://thecoinomist.com/insights/bis-report-analysis-of-cross-border-crypto-flows/",
+      "snippet": "May 12, 2025 · The Bank for International Settlements (BIS) has published a new report analyzing the trends and drivers behind international flows of four major crypto assets:",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Source: BIS - Financial Stability Board",
+      "url": "https://www.fsb.org/sources/bis/",
+      "snippet": "Crypto-assets and Global Stablecoins. BIS document lessons from national and international experience on the development and implementation of macroprudential ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BIS Warns Crypto Giants Now Act Like Banks - Yahoo Finance",
+      "url": "https://finance.yahoo.com/markets/crypto/articles/bis-warns-crypto-giants-now-112509806.html",
+      "snippet": "Apr 24, 2026 · BIS flags crypto shadow banking risks as the largest platforms act like banks without prudential safeguards.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BIS Report Warns Crypto Exchanges Act Like Shadow Banks ...",
+      "url": "https://www.coininsider.org/news/bis-report-warns-crypto-exchanges-act-like-shadow-banks-putting-retail-funds-at-risk/",
+      "snippet": "Apr 24, 2026 · The Bank for International Settlements (BIS) warned Thursday that major cryptocurrency exchanges have gradually transformed into unregulated shadow banks.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BIS Crypto Report: Cryptocurrency Risks and DeFi Rules —...",
+      "url": "https://www.libertify.com/interactive-library/bis-crypto-report-cryptocurrency-risks-defi-regulation/",
+      "snippet": "Released as BIS Papers No. 156 in April 2025, the report by Aquilina, Cornelli, Frost and Gambacorta offers the most comprehensive institutional analysis to date of cryptocurrency risks and their implications for global financial stability.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BIS Quarterly Review: FX and Derivatives Market Trends",
+      "url": "https://www.linkedin.com/posts/bis_icymi-the-december-bis-quarterly-review-activity-7415324048592801792-bF5U",
+      "snippet": "Jan 9, 2026 · Report this post; Close menu. ICYMI: The December BIS Quarterly Review ... Emerging fintech, blockchain, and algorithmic trading transform markets ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Reg Wrap: Set prudential rules for crypto service providers ...",
+      "url": "https://www.thebanker.com/content/8c2f99b0-c151-44f1-a733-e124e065e70f",
+      "snippet": "Apr 23, 2026 · The proposals would regulate payment stablecoin issuance, examine oversight for AI-driven payment transactions, strengthen the Financial Conduct ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

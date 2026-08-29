@@ -1,0 +1,205 @@
+{
+  "schema_version": "1.0",
+  "query": "ccxt python crypto exchange",
+  "status": "complete",
+  "count": 10,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "ccxt python crypto exchange",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "ccxt python crypto exchange",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "ccxt python crypto exchange",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "github-api",
+      "query": "ccxt python crypto exchange",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "GitHub - ccxt/ccxt: A unified trading API with more than 100 ...",
+      "url": "https://github.com/ccxt/ccxt",
+      "snippet": "A crypto trading API with more than 100 exchanges and prediction markets in JavaScript / TypeScript / Python / C# / PHP / Go / Java. The CCXT library is used to connect and trade with cryptocurrency exchanges worldwide.",
+      "sources": [
+        "yandex,yahoo",
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.039344,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "chicago-joe/Cryptocurrency-Multi-Exchange-Arbitrage-Strategy",
+      "url": "https://github.com/chicago-joe/Cryptocurrency-Multi-Exchange-Arbitrage-Strategy",
+      "snippet": "",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019355,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "ccxt · PyPI",
+      "url": "https://pypi.org/project/ccxt/",
+      "snippet": "Jun 29, 2017 · A cryptocurrency trading API with more than 100 exchanges in JavaScript / TypeScript / Python / C# / PHP / Go",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019355,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT – CryptoCurrency eXchange Trading Library — ccxt 1.13.142 文...",
+      "url": "https://ccxtcn.readthedocs.io/",
+      "snippet": "CCXT – CryptoCurrency eXchange Trading Library ¶ A JavaScript / Python / PHP library for cryptocurrency trading and e-commerce with support for many bitcoin/ether/altcoin exchange markets and merchant APIs.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019048,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Stock84-dev/CCXTSharp",
+      "url": "https://github.com/Stock84-dev/CCXTSharp",
+      "snippet": "A cryptocurrency trading library with support for more than 100 bitcoin/altcoin exchanges. Uses original ccxt (python) code.",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019048,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT — API For Crypto Exchanges And Prediction Markets",
+      "url": "http://docs.ccxt.com/",
+      "snippet": "Connect to any exchange. A unified trading library for 100+ cryptocurrency and prediction-market exchanges — one API in JavaScript, Python, PHP, C#, Go and Java.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.01875,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "soerenmartius/black-oak",
+      "url": "https://github.com/soerenmartius/black-oak",
+      "snippet": "A Service to fetch and clean OHLCV data from various Crypto Exchanges using Python and CCXT",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.01875,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CCXT Documentation",
+      "url": "https://docs.ccxt.com/docs/index",
+      "snippet": "CCXT — a unified API for 100+ cryptocurrency and prediction-market exchanges in JavaScript, Python, PHP, C#, Go and Java.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.018462,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "rapmd73/JackrabbitRelay",
+      "url": "https://github.com/rapmd73/JackrabbitRelay",
+      "snippet": "Jackrabbit Relay is an API endpoint for cryptocurrency/forex exchanges.",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.018462,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "oilst/kraken-mcp",
+      "url": "https://github.com/oilst/kraken-mcp",
+      "snippet": "MCP Server for the Kraken Crypto Exchange",
+      "sources": [
+        "github-api"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.018182,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

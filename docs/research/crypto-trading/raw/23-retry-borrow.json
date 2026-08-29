@@ -1,0 +1,308 @@
+{
+  "schema_version": "1.0",
+  "query": "crypto margin trading borrow interest",
+  "status": "complete",
+  "count": 17,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "crypto margin trading borrow interest",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "crypto margin trading borrow interest",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "crypto margin trading borrow interest",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Crypto Margin Trading Basics: Borrowing, Interest, and ...",
+      "url": "https://blofin.com/en/academy/education/trading/crypto-margin-trading",
+      "snippet": "Jun 25, 2026 · Does margin trading interest start when my order fills or when I borrow? Interest begins the moment the borrow confirms on the exchange's system, not when your trade executes or fills.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Margin Loans - Fidelity Investments",
+      "url": "https://www.fidelity.com/trading/margin-loans/overview",
+      "snippet": "Borrowing on margin means taking an interest-bearing loan secured by the assets in your brokerage account as collateral. Use the loan for your specific needs.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Margin Borrow Daily Interest Rate | Binance",
+      "url": "https://www.binance.com/en/fee/marginFee",
+      "snippet": "Get comprehensive Binance margin rates for strategic trading with leverage. Benefit from competitive fees on the world's top digital asset exchange.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Margin Rates and Financing | Interactive Brokers LLC",
+      "url": "https://www.interactivebrokers.com/en/trading/margin-rates.php",
+      "snippet": "Competitive borrowing rates as low as 4.13% Interest Rates Earn interest on cash balance up to USD 3.13% Short Sale. Trade for as low as $0.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Margin Trading: How Borrowing Works and What Interest ...",
+      "url": "https://coin-rush.com/investment/crypto-margin-trading-how-borrowing-works-and-what-interest-you-pay/",
+      "snippet": "Feb 5, 2026 · Explore the ins and outs of crypto margin trading in this comprehensive article. Learn how borrowing works, the mechanics behind leveraging your investments, and the interest rates you may encounter.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Stay away from Margin Trading if you don't even know ... - Reddit",
+      "url": "https://www.reddit.com/r/CryptoCurrency/comments/13gcn5d/stay_away_from_margin_trading_if_you_dont_even/",
+      "snippet": "May 13, 2023 · Borrow DAILY Interest Rate. That means if you borrow 10000$ and hold your position for a day, you will pay 0.047681%. The actual annual ... Bitcoin Loan vs Margin Trading - Reddit Can you just borrow money in a margin investment account? More results from www.reddit.com",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Margin Trading: The Complete Guide 2026 | MarginTrade",
+      "url": "https://www.margintrade.com/learn/crypto-margin-trading",
+      "snippet": "Feb 1, 2026 · Everything about cryptocurrency margin trading. Learn about perpetual futures, funding rates, cross vs isolated margin, and the best platforms.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Understanding Margin Interest | Charles Schwab",
+      "url": "https://www.schwab.com/learn/story/understanding-margin-interest",
+      "snippet": "Jul 1, 2026 · Margin interest is the interest charged when a trader borrows against securities in their brokerage account. Margin interest compounds daily on ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto.com Prime - Margin Trading",
+      "url": "https://help.crypto.com/en/articles/9025995-crypto-com-prime-margin-trading",
+      "snippet": "Jul 28, 2026 · Margin Trading allows you to borrow funds to buy or sell larger positions, Daily Interest Rate / Annual Interest Rate = 0.01211% / 4.42% ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "A Complete Guide to Crypto Margin Trading",
+      "url": "https://www.learningcrypto.com/resources/crypto-margin-trading",
+      "snippet": "Sep 26, 2025 · At its core, margin trading is all about using borrowed money to buy or sell cryptocurrency. Instead of trading only with what’s in your wallet, you deposit some of your own crypto as collateral, then borrow additional funds from an exchange. The combined amount becomes your total trading position. Here’s a simple example:",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Margin Trading: Investor's Guide 2026 - CoinLedger",
+      "url": "https://coinledger.io/learn/crypto-margin-trading",
+      "snippet": "Margin trading incurs various fees, including interest on borrowed funds, transaction fees, and potentially other costs depending on the platform. Can I trade ... How does crypto margin... · best platforms for crypto...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Margin Trading: The Essential 2025 Guide With Insights",
+      "url": "https://mudrex.com/learn/crypto-margin-trading/",
+      "snippet": "Dec 12, 2025 · It introduces unique mechanisms like liquidation thresholds, borrowing interest, margin calls, risk engines, and maintenance margin requirements. These rules are designed to protect exchanges from losses when traders borrow funds, but also shape how much risk you take on each trade.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Margin Trading Explained | 2026 Definitive Guide",
+      "url": "https://www.alphaexcapital.com/cryptocurrencies/crypto-trading-and-investing-strategies/crypto-derivatives-and-leverage/crypto-margin-trading-explained",
+      "snippet": "Jul 5, 2026 · The headline cost of margin is borrow interest on the funds or coins you leveraged, and on perpetual futures there is a second cost that often dwarfs the first.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is crypto margin trading? - Kraken",
+      "url": "https://www.kraken.com/learn/what-is-crypto-margin-trading",
+      "snippet": "Crypto margin trading uses borrowed funds to trade. Borrowed funds accrue interest, and positions are subject to margin calls and liquidation.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What's margin investing? - Robinhood",
+      "url": "https://robinhood.com/us/en/support/articles/margin-overview/",
+      "snippet": "If you decide to borrow more, you'll pay interest on any margin used over $1,000. Interest is calculated daily at the end of the day based on settled margin ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Margin Trading 2026 Risk Management and Profit Plan ...",
+      "url": "https://extensionpublicationsreview.colostate.edu/plugins/generic/pdfJsViewer/pdf.js/web/viewer.html",
+      "snippet": "Crypto margin trading is the practice of trading digital assets using borrowed capital to increase position size. Traders deposit collateral—typically ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Margin Trading: Strategies, Benefits, and Risks - Moomoo",
+      "url": "https://www.moomoo.com/us/learn/detail-margin-trading-117771-241204116",
+      "snippet": "When borrowing on margin, you must pay interest on the amount you borrow. These interest payments can erode your profits, especially if you hold the margin loan ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

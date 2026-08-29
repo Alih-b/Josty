@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "status": "complete",
+  "reachable": 8,
+  "count": 8,
+  "providers": [
+    {
+      "provider": "bing",
+      "host": "www.bing.com",
+      "ok": true,
+      "http_status": 200,
+      "error_kind": null,
+      "error": null,
+      "challenged": false
+    },
+    {
+      "provider": "brave",
+      "host": "search.brave.com",
+      "ok": true,
+      "http_status": 200,
+      "error_kind": null,
+      "error": null,
+      "challenged": false
+    },
+    {
+      "provider": "duckduckgo",
+      "host": "duckduckgo.com",
+      "ok": true,
+      "http_status": 200,
+      "error_kind": null,
+      "error": null,
+      "challenged": false
+    },
+    {
+      "provider": "google",
+      "host": "www.google.com",
+      "ok": true,
+      "http_status": 200,
+      "error_kind": null,
+      "error": null,
+      "challenged": false
+    },
+    {
+      "provider": "mojeek",
+      "host": "www.mojeek.com",
+      "ok": true,
+      "http_status": 200,
+      "error_kind": null,
+      "error": null,
+      "challenged": false
+    },
+    {
+      "provider": "startpage",
+      "host": "www.startpage.com",
+      "ok": true,
+      "http_status": 303,
+      "error_kind": null,
+      "error": null,
+      "challenged": false
+    },
+    {
+      "provider": "yandex",
+      "host": "yandex.com",
+      "ok": true,
+      "http_status": 200,
+      "error_kind": null,
+      "error": null,
+      "challenged": false
+    },
+    {
+      "provider": "yahoo",
+      "host": "search.yahoo.com",
+      "ok": true,
+      "http_status": 200,
+      "error_kind": null,
+      "error": null,
+      "challenged": false
+    }
+  ]
+}

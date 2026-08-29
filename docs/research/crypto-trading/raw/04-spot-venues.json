@@ -1,0 +1,417 @@
+{
+  "schema_version": "1.0",
+  "query": "spot trading BTC USDT",
+  "status": "complete",
+  "count": 20,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:binance.com spot trading BTC USDT",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:kraken.com spot trading BTC USDT",
+      "ok": true,
+      "result_count": 18,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:coinbase.com spot trading BTC USDT",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:binance.com spot trading BTC USDT",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:kraken.com spot trading BTC USDT",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:coinbase.com spot trading BTC USDT",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:binance.com spot trading BTC USDT",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:kraken.com spot trading BTC USDT",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:coinbase.com spot trading BTC USDT",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": [
+    {
+      "title": "Bitcoin (BTC) to USDT Spot Trading - Price & Chart | Kraken Pro",
+      "url": "https://pro.kraken.com/app/trade/btc-usdt",
+      "snippet": "Trade Bitcoin (BTC) to USDT spot on Kraken Pro. Live BTC/USDT price chart, order book, and instant execution. Low fees, deep liquidity.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.048652,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Trade Bitcoin USDT Futures | BTC USDT Futures contract price | Kraken United States",
+      "url": "https://www.kraken.com/features/futures/bitcoin/usdt",
+      "snippet": "Clients in eligible regions outside the United States can trade BTC/USD perpetual futures contracts on Kraken Pro. These perpetual futures do not expire like traditional futures contracts, allowing traders to hold positions indefinitely while paying or receiving a funding rate to keep prices aligned with the spot market.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.046161,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BTC to USDT | Convert Bitcoin to USDT",
+      "url": "https://www.kraken.com/convert/btc/usdt",
+      "snippet": "Simply deposit USDT into your Kraken account, navigate to the BTC/USDT trading pair, enter the amount of BTC you want to purchase, and complete the transaction. Kraken supports multiple payment methods including bank transfer, debit card, and ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.045715,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "77606.42 Trade BTC/USDT Spot - Binance",
+      "url": "https://www.binance.com/en/trade/BTC_USDT",
+      "snippet": "Trade BTC with USDT on Binance Spot. Access order book depth, recent trades, charts, and trading tools across crypto trading pairs, bStocks, and tCommodities.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032787,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "78,065.24 ｜ BTCUSDT | Binance Spot",
+      "url": "https://www.binance.com/en-GB/trade/BTC_USDT",
+      "snippet": "Aug 21, 2026 · Trade BTC with USDT on Binance Spot. Access order book depth, recent trades, charts, and trading tools across crypto trading pairs, bStocks, and tCommodities.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031498,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Fees & Transactions Overview - Spot Trading Fee Rate | Binance",
+      "url": "https://www.binance.com/en/fee/trading",
+      "snippet": "Discover competitive Binance fees for trading, deposits, and withdrawals on the leading cryptocurrency exchange. Learn about Binance fee tiers today!",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.02901,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Spot Prices – Live Exchange Rates for 300+ Assets | Kraken",
+      "url": "https://www.kraken.com/prices/spot",
+      "snippet": "View real-time crypto spot prices and exchange rates. Compare live rates for Bitcoin, Ethereum, and 300+ digital assets available for instant purchase on Kraken.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.027598,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Kraken | Own the Power of Your Money — Crypto, Stocks & more",
+      "url": "https://www.kraken.com/",
+      "snippet": "Trade crypto, stocks, futures, staking and more. regulated spot margin now available to US traders. Bitcoin BTC $77,704.00 -0.96% get started in minutes.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.026334,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BTCUSDT | Spot Grid Trading Bot - Binance",
+      "url": "https://www.binance.com/en/trading-bots/spot/grid/BTCUSDT",
+      "snippet": "Benefit from the \"Buy low, Sell high\" strategy in volatile cryptocurrency markets. Spot Grid Bot ensures optimal entry points with multiple trigger types.",
+      "sources": [
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.025894,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Trade Bitcoin | Real-Time BTC Markets & Advanced ... - Kraken",
+      "url": "https://www.kraken.com/convert/btc",
+      "snippet": "Rating 4.7 (24,956) Simply deposit USD into your Kraken account, navigate to the BTC/USD trading pair, enter the amount of BTC you want to purchase, and complete the transaction.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.025487,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin (BTC) to USD Spot Trading - Price & Chart | Kraken Pro",
+      "url": "https://pro.kraken.com/app/trade/btc-usd",
+      "snippet": "Trade Bitcoin (BTC) to USD spot on Kraken Pro. Live BTC/USD price chart, order book, and instant execution. Low fees, deep liquidity.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What is spot trading in crypto and how does it work? - Coinbase",
+      "url": "https://www.coinbase.com/learn/crypto-basics/what-is-spot-trading-in-crypto-and-how-does-it-work",
+      "snippet": "Spot trading in crypto refers to the process of buying and selling digital currencies at their current market prices.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Tether Margin Trading | Leverage Your USDT Trades | Kraken",
+      "url": "https://www.kraken.com/features/margin-trading/tether",
+      "snippet": "Unlike futures and derivatives trading, spot margin trading involves buying or selling the actual underlying assets, rather than financial contracts. For example: Suppose you fund your account with $5,000 USD.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Binance Crypto Exchange: Buy, Sell Bitcoin, Ethereum, Stocks ...",
+      "url": "https://spot.binance.com/",
+      "snippet": "Buy and trade BTC, ETH, XRP and more on Binance. Enjoy low fees, fast payments, and a trusted platform for crypto trading. Sign up or log in today.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Bitcoin (BTC) to USDC Spot Trading - Price & Chart | Kraken Pro",
+      "url": "https://pro.kraken.com/app/trade/btc-usdc",
+      "snippet": "Trade Bitcoin (BTC) to USDC spot on Kraken Pro. Live BTC/USDC price chart, order book, and instant execution. Low fees, deep liquidity.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Spot Markets - Coinbase",
+      "url": "https://www.coinbase.com/advanced-trade/spot",
+      "snippet": "Advanced the best place to trade crypto spot markets. Fast-track to as low as 0.0% maker fees on spot. Earn up to 3.85% USDC rewards … up to 4.1% USDC rewards,",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "tBTC (TBTC) to USD Spot Trading - Price & Chart | Kraken Pro",
+      "url": "https://pro.kraken.com/app/trade/tbtc-usd",
+      "snippet": "Trade tBTC (TBTC) to USD spot on Kraken Pro. Live TBTC/USD price chart, order book, and instant execution. Low fees, deep liquidity.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Cryptocurrency Market | Coin Prices & Market Cap | Binance",
+      "url": "https://www.binance.com/en/markets/spot_margin-USDT",
+      "snippet": "Binance cryptocurrency market - The easiest way to know the last prices, coin market cap, token price charts, and 24h change of bitcoin and other altcoins.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Spot Trading on Kraken Pro | Trade 1,400+ Pairs",
+      "url": "https://pro.kraken.com/spot",
+      "snippet": "Spot trade 1,400+ crypto pairs on Kraken Pro with deep liquidity, advanced order types, and full API access — built for active, professional traders.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "USDT to BTC | Convert Tether to BTC",
+      "url": "https://www.kraken.com/convert/usdt/btc",
+      "snippet": "Simply deposit BTC into your Kraken account, navigate to the USDT/BTC trading pair, enter the amount of USDT you want to purchase, and complete the transaction. Kraken supports multiple payment methods including bank transfer, debit card, and ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

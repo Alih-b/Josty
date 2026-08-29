@@ -1,0 +1,384 @@
+{
+  "schema_version": "1.0",
+  "query": "perpetual contract funding",
+  "status": "complete",
+  "count": 20,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:binance.com perpetual contract funding",
+      "ok": true,
+      "result_count": 18,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:bybit.com perpetual contract funding",
+      "ok": true,
+      "result_count": 19,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:binance.com perpetual contract funding",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:bybit.com perpetual contract funding",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:binance.com perpetual contract funding",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:bybit.com perpetual contract funding",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Bybit Pre-Market Perpetuals: Secure early gains and hedge ...",
+      "url": "https://www.bybit.com/en/learn/bybit-guide/what-is-bybit-pre-market-perpetuals",
+      "snippet": "Aug 2, 2026 · Tracking errors: Perpetual contracts aim to track the price of the underlying asset, but discrepancies can arise due to funding mechanisms and market inefficiencies. If the contract price deviates significantly from the asset's Spot price, losses can be amplified.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032018,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Introduction to Funding Rate - Help Center",
+      "url": "https://www.bybit.com/en/help-center/article/Introduction-to-Funding-Rate",
+      "snippet": "Take BTCUSD as an example, the interest rate is fixed at 0.03% per day (0.01% per funding interval, assuming the funding charge interval is 8 hours). Exception: For specific trading pairs (e.g., USDCUSDT or ETHBTCUSDT), the interest rate (I) will default to 0%. Perpetual contracts may trade at either a premium or discount from the mark price.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031281,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Funding Fee Calculation - Help Center",
+      "url": "https://www.bybit.com/en/help-center/article/Funding-fee-calculation",
+      "snippet": "For example, if a contract uses an 8-hour funding interval, funding will occur at: ... When the funding rate is positive, long position holders pay short position holders. When the funding rate is negative, short position holders pay long position holders. Traders will only pay or receive funding fees if they hold positions at the funding time. If a position is fully closed before the funding time, no funding fee will be charged or received. If a Perpetual Contract's funding rate reaches its preset upper or lower limit during settlement, the system will automatically switch the settlement frequency to once per hour to better reflect market conditions in real time.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.03009,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Full Analysis of Perpetual Contract Funding Rate: Why is it ...",
+      "url": "https://www.binance.com/en/square/post/30298233678962",
+      "snippet": "September 28, 2025 - Discover the latest crypto news and trends on Binance Square (formerly Binance Feed). Read opinions posted by top influencers and news media in cryptocurrency.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.02837,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What Are Funding Rates in Crypto Markets? - Binance",
+      "url": "https://www.binance.com/en/academy/articles/what-are-funding-rates-in-crypto-markets",
+      "snippet": "Jul 24, 2026 · In perpetual futures contracts, funding rates are periodic payments exchanged between traders holding long and short positions. How Funding Rates Are... · Funding Rates in Traditional...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Price Convergence and Funding Fees in Perpetual Futures Markets | Binance Blog",
+      "url": "https://www.binance.com/en/blog/futures/price-convergence-and-funding-fees-in-perpetual-futures-markets-3967228051272907352",
+      "snippet": "Derivatives have their own price determined by distinct demand and supply, yet without a closing market, there is no explicit settlement price, hence no conventional arbitrage opportunity. Given that perpetual futures contracts do not settle traditionally, exchanges the Funding Rate, to ensure that futures prices and index prices periodically converge.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Futures Real-Time Funding Rate - Binance",
+      "url": "https://www.binance.com/en/futures/funding-history/perpetual/real-time-funding-rate",
+      "snippet": "Get the real-time funding rate, time to next funding, funding rate, and interest rate of crypto Futures contracts",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What Are Perpetual Contracts? - Bybit",
+      "url": "https://www.bybit.com/en/learn/trading/what-are-perpetual-contracts",
+      "snippet": "Nov 10, 2021 · Therefore, a funding mechanism is introduced. Long and short traders exchange a funding cost periodically (say every 8 hours) to reflect the price expectations during each funding interval (i.e. spread between the perpetual contract price and spot price) and the cost of funding. As such, the price of perpetual contract is anchored to the spot ...",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What Are Perpetual Futures Contracts? | Binance Academy",
+      "url": "https://academy.binance.com/en/articles/what-are-perpetual-futures-contracts",
+      "snippet": "May 10, 2023 - The interest rate may change from ... a perpetual futures contract is trading on a premium (higher than the spot markets), long positions have to pay shorts due to a positive funding rate....",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Changes to Funding Rate Intervals for ONUSDT Perpetual Contracts",
+      "url": "https://announcements.bybit.com/en/article/changes-to-funding-rate-intervals-for-onusdt-perpetual-contracts--arta88b960ef418/",
+      "snippet": "Aug 5, 2026 · Starting Aug 5, 2026, 11:17AM UTC, Bybit will adjust the funding rate intervals for ONUSDT Perpetual Contracts.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Introduction to Binance Futures Funding Rates",
+      "url": "https://www.binance.com/en/support/faq/detail/360033525031",
+      "snippet": "Sep 8, 2019 · Funding rates are periodic payments transferred between holders of long and short positions in Perpetual Contracts.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Changes to Funding Rate Intervals for DATAUSDT Perpetual ...",
+      "url": "https://announcements.bybit.com/en/article/changes-to-funding-rate-intervals-for-datausdt-perpetual-contracts--art68f15b140faa/",
+      "snippet": "Jul 9, 2026 · Starting Jul 9, 2026, 10:50AM UTC, Bybit will adjust the funding rate intervals for DATAUSDT Perpetual Contracts.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Analysis of Arbitrage with Perpetual Contract Funding Rates: A ...",
+      "url": "https://www.binance.com/en-AE/square/post/36038783175050",
+      "snippet": "This article aims to deeply analyze the operational mechanism and related risks of arbitrage with perpetual contract funding rates, and to conduct fundamental ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Funding Fees - Binance",
+      "url": "https://www.binance.com/en/academy/glossary/funding-fees",
+      "snippet": "2 days ago · Funding fees are periodic payments between long and short traders in perpetual futures markets, helping keep contract prices aligned with ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What Is Futures Funding Rate And Why It Matters | Binance Blog",
+      "url": "https://www.binance.com/en/blog/futures/what-is-futures-funding-rate-and-why-it-matters-421499824684903247",
+      "snippet": "Since perpetual futures contracts never settle in the traditional sense, exchanges need a mechanism to ensure that futures prices and index prices converge on a regular basis. This mechanism is also known as Funding Rate.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What are perpetual contracts? How to trade ... - Binance",
+      "url": "https://www.binance.com/en/square/post/26755786144026",
+      "snippet": "Jul 10, 2025 · In general, the funding rate refers to the price difference between the perpetual contract market price and the spot price, which is the fee ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "What are TradFi Perpetuals on Bybit? Trading traditional markets 24/7 | Bybit Learn",
+      "url": "https://www.bybit.com/en/learn/bybit-tradfi/tradfi-perpetual-contracts",
+      "snippet": "July 29, 2026 - Leverage amplifies losses: A 5% adverse move at 20x leverage results in 100% margin loss and full liquidation. Funding rate accumulation: The funding rate accrues at regular intervals for as long as a position is open.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Changes to Funding Rate Intervals for Selected Perpetual ...",
+      "url": "https://announcements.bybit.com/en/article/changes-to-funding-rate-intervals-for-selected-perpetual-contracts-mar-2-2026--bltf9c3a55993b6e8c2/",
+      "snippet": "Mar 2, 2026 · Starting Mar 2, 2026, 2AM UTC, Bybit will adjust the funding rate intervals for Selected Perpetual Contracts. Funding Rate Intervals",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "BTC perpetual contract funding rate hits the highest level",
+      "url": "https://www.binance.com/en/square/post/357222176237170",
+      "snippet": "Aug 18, 2026 · BTC perpetual contract funding rate has risen to the highest level in nearly 20 months. BTC is currently around $64,000, but there is still ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Important Updates on Funding Rates of USDⓈ-M Perpetual Contracts | Binance Support",
+      "url": "https://www.binance.com/en/support/announcement/important-updates-on-funding-rates-of-usdⓢ-m-perpetual-contracts-98d6b24d3e5c4f84a8ed04087997d8d0",
+      "snippet": "Effective from 2023-10-09 at 08:30 (UTC), the capped funding rates for selected USDⓈ-M Perpetual Contracts will also be updated to ± 3%. This applies to all USDⓈ-M Perpetual Contracts with a maximum leverage of 25x or below. If the maximum leverage of a contract is lowered to 25x or below, ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

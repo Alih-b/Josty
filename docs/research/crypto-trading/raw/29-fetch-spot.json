@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0",
+  "query": "spot trading maker taker order types",
+  "status": "complete",
+  "count": 6,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "spot trading maker taker order types",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "spot trading maker taker order types",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "spot trading maker taker order types",
+      "ok": true,
+      "result_count": 6,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "Market Makers and Market Takers Explained - Binance",
+      "url": "https://www.binance.com/en/academy/articles/what-are-makers-and-takers",
+      "snippet": "Aug 12, 2026 · If your order is added to the order book and waits to be matched, it is a maker order. If it executes immediately against an existing order, it is a taker order.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": "JavaScript is disabled\nIn order to continue, we need to verify that you're not a robot. This requires JavaScript. Enable JavaScript and then reload the page.",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://www.binance.com/en/academy/articles/what-are-makers-and-takers",
+      "fetched_at": "2026-08-29T17:38:28.170300+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Trading Order Types and Processes - Investopedia",
+      "url": "https://www.investopedia.com/trading-order-types-and-processes-4689649",
+      "snippet": "Understanding order types is vital to your investing and trading success. Browse Investopedia’s library of expert-written content to learn more.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": "HTTPStatusError: Client error '403 Forbidden' for url 'https://www.investopedia.com/trading-order-types-and-processes-4689649'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    },
+    {
+      "title": "Understanding the Difference Between Taker Orders and Maker ...",
+      "url": "https://www.bybit.com/en/help-center/article/Comparison-Between-Maker-Orders-and-Taker-Orders",
+      "snippet": "Mar 16, 2026 · Maker orders underscore a patient approach to trading, with participants willing to wait for their order to be matched by a taker. The following table outlines the differences between the two (2) types of orders:",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": "In the realm of trading, the concepts of maker orders and taker orders play crucial roles, shaping how participants engage with the market. These two terms capture distinct approaches to trading execution and carry implications for transaction fees and market dynamics.\n\n## **Taker Orders: Prioritizing Immediacy**\n\nTaker orders reflect a sense of urgency and immediacy. A taker order is placed by a trader who seeks to execute their order immediately at the current market price. These orders match with existing orders on the order book, thereby \"taking\" liquidity from the market. Taker orders facilitate swift entry or exit from positions, making them attractive for those who prioritize speed.\n\nGiven the immediacy of execution, taker orders may incur slightly higher trading fees (Taker Fee) compared to maker orders to acknowledge the convenience of immediate execution.\n\n## **Maker Orders: Nurturing Liquidity**\n\nMaker orders, often associated with market makers, contribute to the liquidity and stability of the market. When a trader places a maker order, they provide liquidity by adding their order to the order book, which remains unmatched until another trader's taker order matches with it. These orders have the potential to influence bid-ask spreads, narrowing the price difference between buy and sell orders.\n\nAs a reward for fostering liquidity, traders who place maker orders typically enjoy reduced trading fees (Maker Fee). Maker orders underscore a patient approach to trading, with participants willing to wait for their order to be matched by a taker.\n\nThe following table outlines the differences between the two (2) types of orders:\n\n*The provided trading fee information pertains to non-VIP rates for Futures trading (Perpetual & Expiry). For a comprehensive overview of the fee structure applicable to all trading products on Bybit, kindly refer to __[this page](https://www.bybit.com/help-center/article/Trading-Fee-Structure)__.\n\n## **Implications for Trading**\n\nLet's examine the example provided below, using a BTCUSDT Perpetual Contract as an example:\n\n*Trader A: Opening and closing position via two-way maker orders*\n\n*Trader B: Opening and closing position via two-way taker orders*\n\nBased on the ~~e~~xample above, we can see that Trader A incurs a lower trading fee than Trader B, leading to a more favorable net closed Profit and Loss (P&L). \n\nThis highlights the significance of comprehending trading fees before engaging in trades. Understanding fees ensures that traders can optimize their trading strategies and outcomes by making informed decisions that consider these costs.\n\nTo execute a maker order, traders should follow these steps:\n\n1. Utilize a **Limit Order** within the order placement zone.\n2. Select __[Post-Only](https://www.bybit.com/help-center/article/Post-Only-Order)__\n3. Set your Limit Order price strategically, aiming for a more advantageous price compared to the present best available price.\n4. **For Buy Long Orders** : Opt for a price lower than the best ask prices.\n5. **For Sell Short Orders** : Choose a price higher than the best bid prices.\n\nIt's important to note that if your Limit Orders are executed immediately, they will be categorized as taker orders and promptly canceled due to Post-Only selection. Click __[here](https://www.bybit.com/help-center/article/Why-Did-My-Limit-Order-Get-Executed-Immediately)__ to find out more about why Limit Orders may unintentionally be executed immediately. \n\n**Notes:**\n\n— __[Closed P&L](https://www.bybit.com/user/assets/order/derivatives/futures/pl-history)__ records your position's final profit and loss amounts after taking fees into consideration.\n\n— Bybit adopts the same maker and taker fee structure for all trading pairs on the platform.",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://www.bybit.com/en/help-center/article/Comparison-Between-Maker-Orders-and-Taker-Orders",
+      "fetched_at": "2026-08-29T17:38:28.509493+00:00",
+      "fetch_error": null
+    },
+    {
+      "title": "Trading Terminology : Maker and Taker – Help Center",
+      "url": "https://bitbase-support.zendesk.com/hc/en-us/articles/5217595484446-Trading-Terminology-Maker-and-Taker",
+      "snippet": "In spot and futures trading of digital assets, \"Maker\" and \"Taker\" are two core concepts. They not only determine how your orders are executed but also directly affect the transaction fees you pay.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": "HTTPStatusError: Client error '403 Forbidden' for url 'https://bitbase-support.zendesk.com/hc/en-us/articles/5217595484446-Trading-Terminology-Maker-and-Taker'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    },
+    {
+      "title": "Takers vs. Makers: Understanding Order Types in Forex and CFD ...",
+      "url": "https://hw.online/faq/takers-vs-makers-understanding-order-types-in-forex-and-cfd-trading/",
+      "snippet": "Apr 15, 2025 · At the heart of order execution are two key players: market makers and market takers. Market makers provide liquidity by quoting bid and ask prices, while market takers execute orders at those prices.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": "HTTPStatusError: Client error '403 Forbidden' for url 'https://hw.online/faq/takers-vs-makers-understanding-order-types-in-forex-and-cfd-trading/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    },
+    {
+      "title": "Trading Fee | Fee Rate | Crypto Exchange Fees - OKX",
+      "url": "https://www.okx.com/fees",
+      "snippet": "Spot trading pairs with both maker and taker fees at 0% are excluded from users' 30-day spot trading volume. Spot trading pairs with both maker and taker fees at 0% are excluded from market maker tier assessment.",
+      "sources": [
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": "Skip to main content\nBuy crypto\nBuy and Sell\nVisa, Mastercard, and others\nCrypto calculator\nCheck real-time conversion rates and crypto values\nMarkets\nTrade\nTrading instruments\nConvert\nQuick conversion, zero trading fees, no slippage\nSpot\nBuy and sell crypto with ease\nPowerful tools\nAgent Trade Kit\nAutomate your trades with AI agents and community-built skills\nAgent Trade Kit\nBuild AI agents to automate any trading strategy\nAI Builder Program\nEverything a Builder needs, all in one place\nSkills\nDiscover and install trading skills\nRFQ\nCustom multi-leg strategies and block trades\nUSDG rewards\nGrow\nEarn\nDon’t just HODL. Earn\nOnchain Earn\nInstitutional\nInstitutional home\nThe world’s most powerful suite of crypto trading solutions\nOKX Rubix\nDigital assets-as-a-service for regulated institutions\nAPIs\nSeamless and ultra-low latency API connectivity\nOKX Connect\nAccess world-class market depth\nManaged Trading Sub-accounts\nManage sub-accounts, trade easily and safely with more profits\nHistorical market data\nCandlesticks, aggregate trades, order book data and more\nInstitutional Insights\nOur latest institutional trading research, news, and more\nLearn\nLearn crypto\nBuild strong crypto fundamentals with simple guides and tutorials\nHow to buy crypto\nFollow step-by-step instructions to buy crypto\nGetting started\nFind answers to common questions on your crypto journey\nCrypto prices\nTrack real-time crypto prices and market moves\nCrypto news\nStay on top of the latest crypto news and trends\nBlog\nRead insights and stories from our team\nMore\nProducts\nSecurity of funds\nStatus\nProof of Reserves\nOKX Protect\nWeb3\nOthers\nRewards\nDeposit match\nReferral\nVIP program\nX Drops Club\nOKX Ventures\nTrade on TradingView\nListing application\nFees\nLog in\nSign up\nSupport\nSupport center\nMy tickets\nConnect with OKX",
+      "extraction_method": "trafilatura",
+      "fetched_url": "https://www.okx.com/en-us/fees",
+      "fetched_at": "2026-08-29T17:38:28.449411+00:00",
+      "fetch_error": null
+    }
+  ]
+}

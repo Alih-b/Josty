@@ -1,0 +1,276 @@
+{
+  "schema_version": "1.0",
+  "query": "MiCA EU crypto derivatives trading regulation",
+  "status": "complete",
+  "count": 15,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "MiCA EU crypto derivatives trading regulation",
+      "ok": true,
+      "result_count": 15,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "MiCA EU crypto derivatives trading regulation",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "MiCA EU crypto derivatives trading regulation",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    }
+  ],
+  "results": [
+    {
+      "title": "Markets in Crypto-Assets - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Markets_in_Crypto-Assets",
+      "snippet": "2 weeks ago - Markets in Crypto-Assets (MiCA or MiCAR) is a regulation in European Union (EU) law that establishes a regulatory framework for crypto-assets in the EU, including cryptocurrencies, security tokens and stablecoins.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.019672,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MiCA Regulation Takes Effect: What EU Crypto Traders Must Do?",
+      "url": "https://www.coingabbar.com/en/crypto-blogs-details/mica-regulation-eu-crypto-traders-guide-july-2026",
+      "snippet": "July 1, 2026 - If your trading strategy depends on USDT pairs, you'll need to switch to USDC or EURC on Markets in Crypto-Assets compliant venues. Here's a quick action checklist for EU traders today: Step 1: Check ESMA's MiCA register — verify your exchange is listed as authorized · Step 2: If it's not listed, move your funds to a licensed platform or a self-custody wallet immediately · Step 3: Switch from USDT to USDC or EURC for stablecoin exposure · Step 4: Verify your derivatives access — only exchanges with both a CASP license and MiFID II authorization can offer leveraged products to EU retail clients",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MiCA Regulation and EU Crypto Rules: What Changes in 2026",
+      "url": "https://sumsub.com/blog/crypto-regulations-in-the-european-union-markets-in-crypto-assets-mica/",
+      "snippet": "January 13, 2026 - Formally known as Regulation (EU) 2023/1114, MiCA establishes uniform rules across all EU member states for the issuance, trading, and custody of crypto-assets that were previously governed by fragmented national laws.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015873,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "EU MiCA Regulations Statistics 2026: Shocking Growth Revealed • CoinLaw",
+      "url": "https://coinlaw.io/eu-mica-regulations-statistics/",
+      "snippet": "March 30, 2026 - EU-regulated crypto custodians saw a 55% rise in institutional deposits. · Binance, Kraken, and Coinbase secured MiCA licenses for all 27 EU countries. · Crypto derivatives trading volumes rose by 28%.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MiCA Takes Full Effect, but Derivatives Exclusion Sparks Reverse Discrimination Fears | Hyperliquid crypto derivatives | CryptoRank.io",
+      "url": "https://cryptorank.io/news/feed/5d620-mica-derivatives-exclusion-reverse-discrimination",
+      "snippet": "July 1, 2026 - MiCA reached full applicability on July 1 across the EU, imposing licensing, transparency and consumer safeguards for issuers, exchanges, custodians and wallet providers but explicitly excluding derivatives, which still account for over 70% ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MiCA 2.0: The EU Commission launches consultation on the next chapter of EU crypto regulation",
+      "url": "https://www.taylorwessing.com/en/insights-and-events/insights/2026/05/mica-20",
+      "snippet": "May 27, 2026 - In practice however, it can sometimes be particularly challenging to draw a clear line between the two worlds, for instance, when it comes to differentiating between some real-world asset backed crypto-assets (like asset-referenced tokens) and derivative instruments (albeit one could still argue that there are some clear points of differentiation). Nonetheless, against this backdrop, the Commission is looking to get the feedback on whether crypto-assets that qualify as financial instruments shall continue being regulated under the securities issuance and trading regulations based on the MiFID II, MiFIR and Prospectus framework or whether all assets recorded and transacted via DLT shall be regulated under the MiCA-Regulation?",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Markets in Crypto-Assets (MiCA/MiCAR) – CSSF",
+      "url": "https://www.cssf.lu/en/markets-in-crypto-assets-mica-micar/",
+      "snippet": "July 22, 2026 - With MiCAR (Regulation (EU) 2023/1114), the regulation on markets in crypto-assets, the EU adopts a harmonised regulatory framework for the crypto-asset market which applies to both traditional institutions of the financial sector and new actors emerging in the crypto ecosystem.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014925,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto-assets - Finance - European Commission - Europa.eu",
+      "url": "https://finance.ec.europa.eu/digital-finance/crypto-assets_en",
+      "snippet": "May 20, 2026 - Publication of the Markets in Crypto-assets Regulation (MiCA) in the Official Journal. ... Political agreement between the European Parliament and the Council on a regulatory framework for crypto-assets.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "2026 US vs EU Crypto Regulation Guide: MiCA vs SEC",
+      "url": "https://www.blockchain-council.org/cryptocurrency/mica-sec-beyond-guide-us-vs-eu-crypto-regulation-traders-exchanges/",
+      "snippet": "March 31, 2026 - Venue due diligence: prioritize authorized MiCA CASPs in the EU and clearly regulated platforms in the US, especially for leverage and derivatives.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MiCA Regulation: What Crypto Projects Must Know For 2026 Compliance",
+      "url": "https://hacken.io/discover/mica-regulation/",
+      "snippet": "June 9, 2026 - The European Union’s Markets in Crypto-Assets Regulation (MiCA) was introduced to create a unified regulatory framework for crypto-assets, cryptocurrencies, and related service providers across all EU member states.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014286,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Inside MiCA: Understanding the EU’s Crypto Regulatory Framework - Lexology",
+      "url": "https://www.lexology.com/library/detail.aspx?g=f543cf5e-d907-4eb2-aa0c-fcecfa6ee501",
+      "snippet": "September 3, 2025 - Derivatives whose underlying asset is a crypto asset (for example, future trading) are not regulated by MiCA. Instead, they fall within the scope of Directive 2014/65 (‘‘MIFID II’’) and are subject to Regulation (EU) No 596/2014 (the ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014085,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MiCA Regulation Explained: EU Crypto Rules for 2026 | CEX.IO University",
+      "url": "https://university.cex.io/what-is-the-mica-regulation-for-crypto/",
+      "snippet": "July 17, 2026 - MiCA covers crypto-assets that sit outside other EU financial services rules. If an asset already qualifies as a financial instrument under EU law, other rules may apply. That classification can require legal analysis, especially for tokens ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.013889,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MiCA enforcement begins July 1. Switch to one of Europe's longest-standing licensed exchanges. - Kraken Blog Kraken Blog",
+      "url": "https://blog.kraken.com/news/industry-news/europe-mica-switch",
+      "snippet": "June 20, 2026 - From 1 July 2026, MiCA is fully enforced across the European Economic Area (EEA), and exchanges operating without authorisation face restrictions on serving EU customers. Kraken is MiCA authorised through the Central Bank of Ireland, MiFID licensed ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.013699,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "MiCA Explained (2026): EU Crypto Rules After July 1",
+      "url": "https://tech-insider.org/mica-regulation-explained/",
+      "snippet": "2 weeks ago - MiCA restricts what regulated platforms may list and what issuers may offer to the public, not what individuals may hold. You can keep USDT in a self-custody wallet and trade it on decentralized exchanges.",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.013514,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "The EU Markets in Crypto-Assets (MiCA) Regulation Explained",
+      "url": "https://www.legalnodes.com/article/mica-regulation-explained",
+      "snippet": "November 11, 2025 - MiCA aims to create an all-encompassing legal framework that gives consistency in regulatory approach for all 27 countries affected. Prior to MiCA, crypto firms operating in the EU would have to comply with various different regulations, and ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.013333,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}

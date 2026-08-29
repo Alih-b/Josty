@@ -1,0 +1,394 @@
+{
+  "schema_version": "1.0",
+  "query": "CFTC cryptocurrency derivatives regulation perpetual futures",
+  "status": "complete",
+  "count": 20,
+  "partial": false,
+  "cached": false,
+  "providers": [
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:cftc.gov CFTC cryptocurrency derivatives regulation perpetual futures",
+      "ok": true,
+      "result_count": 20,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "bing,brave,duckduckgo",
+      "query": "site:sec.gov CFTC cryptocurrency derivatives regulation perpetual futures",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:cftc.gov CFTC cryptocurrency derivatives regulation perpetual futures",
+      "ok": true,
+      "result_count": 9,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "google,mojeek,startpage",
+      "query": "site:sec.gov CFTC cryptocurrency derivatives regulation perpetual futures",
+      "ok": true,
+      "result_count": 10,
+      "error": null,
+      "error_kind": null
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:cftc.gov CFTC cryptocurrency derivatives regulation perpetual futures",
+      "ok": true,
+      "result_count": 0,
+      "error": null,
+      "error_kind": "empty"
+    },
+    {
+      "provider": "yandex,yahoo",
+      "query": "site:sec.gov CFTC cryptocurrency derivatives regulation perpetual futures",
+      "ok": true,
+      "result_count": 7,
+      "error": null,
+      "error_kind": null
+    }
+  ],
+  "results": [
+    {
+      "title": "SEC, CFTC Seek Public Comment to Further Clarify ... - SEC.gov",
+      "url": "https://www.sec.gov/newsroom/press-releases/2026-57-sec-cftc-seek-public-comment-further-clarify-harmonize-derivatives-product-definitions",
+      "snippet": "Jun 18, 2026 · The Securities and Exchange Commission and the Commodity Futures Trading Commission today issued a joint request for public comment on potential opportunities to further update, clarify, and harmonize certain derivatives product definitions and interpretive issues.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.043817,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "SEC.gov | SEC Clarifies the Application of Federal Securities ...",
+      "url": "https://www.sec.gov/newsroom/press-releases/2026-30-sec-clarifies-application-federal-securities-laws-crypto-assets",
+      "snippet": "Mar 17, 2026 · Market participants—from innovators and issuers to individual investors—should review this interpretation to better understand the regulatory jurisdiction between the SEC and CFTC. The interpretation will be published on SEC.gov and in the Federal Register.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032522,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CoinDesk Op-Ed | What American Crypto Asset Perpetuals Mean for the ...",
+      "url": "https://www.cftc.gov/PressRoom/SpeechesTestimony/seligstatement052926",
+      "snippet": "The Commission's long-standing, principled oversight of the commodity derivatives market will now include a workable framework for true crypto asset perpetual contracts. This is a framework that can limit excessive leverage, volatility and systemic risk, rather than pushing those risks offshore to unregulated venues.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.032266,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Application of the Federal Securities Laws to Certain Types ... - SEC.gov",
+      "url": "https://www.sec.gov/rules-regulations/2026/03/s7-2026-09",
+      "snippet": "The Securities and Exchange Commission (\"Commission\" or \"SEC\") issues herein an interpretation regarding the application of the Federal securities laws to certain types of crypto assets and certain transactions involving crypto assets. The references in this release to \"we\" and \"our\" are to the Commission. The Commodity Futures Trading Commission (\"CFTC\") provides herein ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.031754,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "PDF Application of the Federal Securities Laws to Certain Types of Crypto ...",
+      "url": "https://www.sec.gov/files/rules/interp/2026/33-11412.pdf",
+      "snippet": "As of the date of this release, each of these digital commodities underlies a futures contract that has been made available to trade on a designated contract market operating under the regulatory oversight of the CFTC.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.030579,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Release Number 9241-26 - cftc.gov",
+      "url": "https://www.cftc.gov/PressRoom/PressReleases/9241-26",
+      "snippet": "The positions relate to CFM's plan to offer certain digital commodity derivatives products listed on CFM's affiliated foreign board of trade, Deribit FZE. The staff letter confirms that, consistent with the May 29, 2026, Order Approving KalshiEX LLC BTCPERP Futures Contract, the perpetual contracts described in the letter may be categorized ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.030366,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Dodd-Frank Act Rulemaking: Derivatives - SEC.gov",
+      "url": "https://www.sec.gov/spotlight/dodd-frank/derivatives.shtml",
+      "snippet": "The Dodd-Frank Act provides the SEC with access to information relating to security-based swap agreement in the possession of the CFTC and certain CFTC-regulated entities, such as derivatives clearing organizations, designated contract markets, and swap data repositories. Implementation: There are a number of rulemakings required under Title VII.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.029911,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "PDF MOU Execution Copy - Conformed - SEC.gov",
+      "url": "https://www.sec.gov/files/mou-sec-cftc-2026.pdf",
+      "snippet": "HARMONIZATION IN AREAS OF COMMON REGULATORY INTEREST The mission of the SEC is to protect investors, maintain fair, orderly, and efficient securities markets, and facilitate capital formation. The mission of the CFTC is to promote the integrity, resilience, and vibrancy of the U.S. derivatives markets through sound, principles-based regulation. In an increasingly convergent financial ecosystem ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.029274,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Federal Register - cftc.gov",
+      "url": "https://www.cftc.gov/media/14066/PerpetualContractsPolicyStatement052926/download",
+      "snippet": "SUMMARY: This policy statement describes the views of the Commodity Futures Trading Commission (the \"CFTC\" or \"Commission\") concerning the listing of perpetual contracts. Contemporaneously with the issuance of this policy statement, the Commission has issued an order (the \"Order\") permitting the listing of a perpetual contract that",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.028624,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "PDF Re: Meeting with Representatives of Chamber for Innovative Digital ...",
+      "url": "https://www.sec.gov/files/ctf-memo-chamber-digital-finance-instruments-060225.pdf",
+      "snippet": "The topic discussed was approaches to addressing issues related to regulation of crypto assets. Chamber for Innovative Digital Finance, Instruments and Trading and Perpetual Markets representatives provided the attached document, which was discussed during the meeting.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "yandex,yahoo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.027425,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "February 24, 2026 Mr. Christopher J. Kirkpatrick Secretary of the Commission",
+      "url": "https://www.cftc.gov/media/13716/innovation_BlockchainAssn02242026/download",
+      "snippet": "February 24, 2026 - under Section 4(c) of the Commodity ... futures · (sometimes called “perpetual contracts,” “perpetual derivatives,” or simply “perpetuals”) on digital asset commodities with 24/7 spot markets from all requirements applicable to · swaps under the CEA and CFTC regulations on the ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.026621,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Crypto Asset Perpetual Contracts | CFTC",
+      "url": "https://www.cftc.gov/node/259046",
+      "snippet": "Crypto asset perpetual contracts are derivative contracts that have no fixed expiration date and are designed to maintain price parity with the spot price of the underlying asset they reference. Learn more about these contracts, their unique features, and best practices for traders.",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.026553,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "| CFTC",
+      "url": "https://www.cftc.gov/node",
+      "snippet": "1 week ago - During Mr Trump’s second term the CFTC has approved the first “true” bitcoin perpetual contract as a futures contract. A perpetual, or “perp”, is a derivative contract with no fixed expiration date, instead relying on a periodic funding ...",
+      "sources": [
+        "bing,brave,duckduckgo",
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.025679,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Comment - CFTC - Commodity Futures Trading Commission",
+      "url": "https://comments.cftc.gov/PublicComments/ViewComment.aspx",
+      "snippet": "Unlike traditional futures contracts, perpetual derivatives do not have a fixed expiration date. Instead, perpetual derivatives employ an ongoing periodic ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016393,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "Joint Statement from the Chairman of the SEC and Acting ...",
+      "url": "https://www.sec.gov/newsroom/speeches-statements/joint-statement-atkins-pham-090525",
+      "snippet": "Sep 5, 2025 · Perpetual contracts, or derivatives without a defined expiry date, are common in offshore crypto markets. CFTC- regulated platforms. ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.016129,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "SEC and CFTC Staff Issue Joint Statement on Trading of ...",
+      "url": "https://www.sec.gov/newsroom/press-releases/2025-110-sec-cftc-staff-issue-joint-statement-trading-certain-spot-crypto-asset-products",
+      "snippet": "Sep 5, 2025 · SEC- and CFTC- registered exchanges are not prohibited from facilitating the trading of certain spot commodity products.",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015625,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "PDF Crypto Asset Perpetual Contracts - cftc.gov",
+      "url": "https://www.cftc.gov/sites/default/files/2026/05/Perps+-+One+Pager+(Final)_0.pdf",
+      "snippet": "Crypto Asset Perpetual Contracts Perpetual contracts have become the dominant form of crypto derivative trading in global crypto asset markets. Unlike traditional futures contracts, which rely primarily on a fixed expiration date to achieve convergence with the underlying asset's spot price, a perpetual contract is a derivative contract that has no fixed expiration date and is designed to ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015385,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "PDF August18,2026 - SEC.gov",
+      "url": "https://www.sec.gov/comments/S7-2026-21/s7202621-1011079-3235289.pdf",
+      "snippet": "Two papers are particularly relevant. In \"Towards Understanding Cryptocurrency Derivatives: A Case Study of BitMEX,\" authored by Kyle Soska, Jin-Dong Dong, Alex Khodaverdian, Ariel Zetlin-Jones, Bryan Routledge, and Nicolas Christin, we study BitMEX, one of the first major cryptocurrency derivatives platforms and an important early venue for perpetual futures trading. In \"The Crypto ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.015152,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "[PDF] Commodity Futures Trading Commission | SEC.gov",
+      "url": "https://www.sec.gov/comments/s7-22-22/s72222-20153093-320644.pdf",
+      "snippet": "Dec 8, 2022 · Our intent is to assist the. CFTC and SEC by stating our opinions on the importance of hedge funds reporting their crypto exposure through the ...",
+      "sources": [
+        "google,mojeek,startpage"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014706,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    },
+    {
+      "title": "CFTC Staff Seek Public Comment Regarding Perpetual Contracts in ...",
+      "url": "https://www.cftc.gov/PressRoom/PressReleases/9069-25",
+      "snippet": "WASHINGTON, D.C. — The Commodity Futures Trading Commission's Divisions of Market Oversight, Clearing and Risk, and Market Participants today issued a Request for Comment to better inform them on the potential uses, benefits, and risks of perpetual contracts in the derivatives markets the CFTC regulates (Perpetual Derivatives). \"Innovation and new technology has created a renaissance in ...",
+      "sources": [
+        "bing,brave,duckduckgo"
+      ],
+      "published_at": null,
+      "publisher": null,
+      "score": 0.014493,
+      "content": null,
+      "extraction_method": null,
+      "fetched_url": null,
+      "fetched_at": null,
+      "fetch_error": null
+    }
+  ]
+}
