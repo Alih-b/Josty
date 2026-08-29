@@ -6,16 +6,16 @@ Constraint checks against the frozen scenario corpus. Failures emit a taxonomy c
 
 | Case | Layer | Verdict | Class | Pathway |
 |---|---|---|---|---|
-| `news_token_collision` | news | **fail** | `upstream_quality` | Lexical relevance gate or news-specific ranking; not a ddgs-call bug. |
-| `news_near_miss` | news | **fail** | `upstream_quality` | Lexical relevance gate or news-specific ranking; not a ddgs-call bug. |
-| `academic_profile_rag` | rank | **fail** | `product_gap` | Stronger academic rerank or hard host floor; 1.4x cannot beat 3-group RRF. |
-| `dev_profile_fastapi` | rank | **pass** | `—` | Stronger dev rerank or hard host floor. |
+| `news_token_collision` | news | **fail** | `upstream_quality` | Skill: require subject tokens before citing. Not an engine filter. |
+| `news_near_miss` | news | **fail** | `upstream_quality` | Skill: require subject tokens before citing. Not an engine filter. |
+| `academic_profile_rag` | rank | **fail** | `product_gap` | Soft academic weights only; no hard host floor. |
+| `dev_profile_fastapi` | rank | **pass** | `—` | Soft dev weights only; no hard host floor. |
 | `site_filter_httpx` | cli | **pass** | `—` | Site post-filter already exists; a leak is a contract bug. |
 | `exact_free_threading` | rank | **pass** | `—` | Exact-mode ranking; investigate if docs.python.org drops out. |
 | `fetch_rrf` | fetch | **pass** | `—` | Keep 403 / download-limit as fetch_error; skill retries the next URL. |
-| `diagnose_reachability` | diagnose | **pass** | `—` | Optional challenged bit or skill text on http_status; not a probe bug. |
-| `linux_kernel_year` | fetch | **pass** | `—` | Factual fetch; add RFC-1 if over-constrained queries go empty. |
-| `empty_provider_complete` | status | **pass** | `—` | Surface error_kind=empty on ProviderStatus (schema 1.0 compatible). |
+| `diagnose_reachability` | diagnose | **pass** | `—` | challenged bit plus skill text on http_status; not a probe bug. |
+| `linux_kernel_year` | fetch | **pass** | `—` | Factual fetch; over-constrained empties are caller rewrites, not RFC-1. |
+| `empty_provider_complete` | status | **pass** | `—` | error_kind=empty on ProviderStatus (schema 1.0 compatible). |
 
 ## Issues
 

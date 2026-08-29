@@ -7,6 +7,11 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Empty-ok search branches now set `providers[].error_kind` to `"empty"` (schema 1.0 compatible)
+  so callers can tell a real empty result from an unclassified success.
+- Diagnose envelope field `challenged`: true when a reachable probe returns HTTP 401, 403, or 429.
+- Search cache access telemetry (`hit_count`, `last_accessed`), a 5,000-row prune ceiling, and
+  envelope flag `cached` (true only on cache hit).
 - Issue taxonomy and offline scenario eval (`docs/ISSUE_TAXONOMY.md`,
   `tests/scenario_eval.py`) so live misses can be labeled as `contract_bug`,
   `intended_misleading`, `upstream_quality`, or `product_gap` without changing
@@ -37,6 +42,10 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Changed
 
+- Removed the hidden query-rewrite fallback in `research_run` (strip quotes / drop last token).
+  Empty fused results stay empty; callers rewrite. Matches the skill rule of no automatic retry.
+- `v0.4.0` roadmap keep-list: empty/`challenged` signals and bounded cache.
+  RFC-1 relaxation, news engine filters, and hard host floors are out of scope.
 - Split the single shared semaphore into separate search and fetch semaphores so a slow page fetch
   can no longer block concurrent backend queries. Defaults remain 6 for search and 4 for fetch.
 

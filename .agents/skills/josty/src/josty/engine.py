@@ -36,6 +36,9 @@ ProfileType = Literal["general", "dev", "academic"]
 
 SCHEMA_VERSION = "1.0"
 MAX_SITES = 5
+CACHE_MAX_ROWS = 5000
+CACHE_PRUNE_BATCH = 500
+CHALLENGED_HTTP_STATUSES = frozenset({401, 403, 429})
 USER_AGENT = "josty/0.3 (+https://github.com/Alih-b/josty)"
 BROWSER_FETCH_HEADERS = {
     "User-Agent": (
@@ -261,6 +264,7 @@ class HostStatus:
     http_status: int | None = None
     error_kind: Literal["timeout", "dns", "tls", "network", "unknown"] | None = None
     error: str | None = None
+    challenged: bool = False
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -370,6 +374,7 @@ class SearchRun:
     query: str
     results: list[SearchResult] = field(default_factory=list)
     providers: list[ProviderStatus] = field(default_factory=list)
+    cached: bool = False
 
     @property
     def partial(self) -> bool:
@@ -390,6 +395,7 @@ class SearchRun:
             "status": self.status,
             "count": len(self.results),
             "partial": self.partial,
+            "cached": self.cached,
             "providers": [provider.dict() for provider in self.providers],
             "results": [result.dict() for result in self.results],
         }
@@ -583,6 +589,8 @@ class SearchCache:
         self,
         db_path: Path | str | None = None,
         default_ttl: float = 21600.0,
+        max_rows: int = CACHE_MAX_ROWS,
+        prune_batch: int = CACHE_PRUNE_BATCH,
     ):
         if db_path is None:
             cache_dir = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache")) / "josty"
@@ -596,6 +604,8 @@ class SearchCache:
             with suppress(Exception):
                 self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.default_ttl = default_ttl
+        self.max_rows = max_rows
+        self.prune_batch = prune_batch
         self._init_db()
 
     def _get_conn(self) -> sqlite3.Connection:
@@ -611,10 +621,23 @@ class SearchCache:
                     key TEXT PRIMARY KEY,
                     created_at REAL,
                     expires_at REAL,
-                    payload TEXT
+                    payload TEXT,
+                    hit_count INTEGER DEFAULT 0,
+                    last_accessed REAL DEFAULT 0
                 );
                 """
             )
+            columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(search_cache)").fetchall()
+            }
+            if "hit_count" not in columns:
+                conn.execute(
+                    "ALTER TABLE search_cache ADD COLUMN hit_count INTEGER DEFAULT 0"
+                )
+            if "last_accessed" not in columns:
+                conn.execute(
+                    "ALTER TABLE search_cache ADD COLUMN last_accessed REAL DEFAULT 0"
+                )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_expires_at ON search_cache(expires_at);"
             )
@@ -642,6 +665,14 @@ class SearchCache:
                 if expires_at < now:
                     conn.execute("DELETE FROM search_cache WHERE key = ?", (key,))
                     return None
+                conn.execute(
+                    """
+                    UPDATE search_cache
+                    SET hit_count = COALESCE(hit_count, 0) + 1, last_accessed = ?
+                    WHERE key = ?
+                    """,
+                    (now, key),
+                )
                 return json.loads(payload_str)
         except Exception:
             return None
@@ -653,11 +684,56 @@ class SearchCache:
             payload_str = json.dumps(payload, ensure_ascii=False)
             conn.execute(
                 """
-                INSERT OR REPLACE INTO search_cache (key, created_at, expires_at, payload)
-                VALUES (?, ?, ?, ?)
+                INSERT OR REPLACE INTO search_cache
+                    (key, created_at, expires_at, payload, hit_count, last_accessed)
+                VALUES (?, ?, ?, ?, 0, ?)
                 """,
-                (key, now, expires, payload_str),
+                (key, now, expires, payload_str, now),
             )
+            self._prune_if_needed(conn)
+
+    def _prune_if_needed(self, conn: sqlite3.Connection) -> None:
+        if self.max_rows < 1 or self.prune_batch < 1:
+            return
+        count = conn.execute("SELECT COUNT(*) FROM search_cache").fetchone()[0]
+        overflow = count - self.max_rows
+        if overflow <= 0:
+            return
+        limit = min(self.prune_batch, overflow)
+        # Nested subquery: SQLite cannot DELETE FROM a table while the same
+        # table is used in a plain IN-select with ORDER BY/LIMIT.
+        conn.execute(
+            """
+            DELETE FROM search_cache WHERE key IN (
+                SELECT key FROM (
+                    SELECT key FROM search_cache
+                    ORDER BY expires_at ASC, hit_count ASC
+                    LIMIT ?
+                )
+            )
+            """,
+            (limit,),
+        )
+
+    def row_count(self) -> int:
+        try:
+            with self._get_conn() as conn:
+                return int(conn.execute("SELECT COUNT(*) FROM search_cache").fetchone()[0])
+        except Exception:
+            return 0
+
+    def hit_stats(self, key: str) -> tuple[int, float] | None:
+        try:
+            with self._get_conn() as conn:
+                row = conn.execute(
+                    "SELECT hit_count, last_accessed FROM search_cache WHERE key = ?",
+                    (key,),
+                ).fetchone()
+                if row is None:
+                    return None
+                return int(row[0] or 0), float(row[1] or 0)
+        except Exception:
+            return None
 
     def clear(self) -> None:
         with suppress(Exception), self._get_conn() as conn:
@@ -697,6 +773,7 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         query=payload.get("query", ""),
         results=results,
         providers=providers,
+        cached=bool(payload.get("cached", False)),
     )
 
 
@@ -933,12 +1010,20 @@ class Josty:
                                 )
                             )
                     self.breaker.record_success(backend, "search")
-                    return results, ProviderStatus(backend, query, True, len(results))
+                    return results, ProviderStatus(
+                        backend,
+                        query,
+                        True,
+                        len(results),
+                        error_kind="empty" if not results else None,
+                    )
                 except Exception as exc:
                     err_kind = _classify_search_error(exc)
                     if err_kind == "empty":
                         self.breaker.record_success(backend, "search")
-                        return [], ProviderStatus(backend, query, True, 0)
+                        return [], ProviderStatus(
+                            backend, query, True, 0, error_kind="empty"
+                        )
                     self.breaker.record_failure(backend, "search")
                     return [], ProviderStatus(
                         backend,
@@ -1238,7 +1323,13 @@ class Josty:
                     trust_env=False,
                 ) as client:
                     response = await client.get(url)
-                return HostStatus(provider, host, True, response.status_code)
+                return HostStatus(
+                    provider,
+                    host,
+                    True,
+                    response.status_code,
+                    challenged=response.status_code in CHALLENGED_HTTP_STATUSES,
+                )
             except Exception as exc:
                 return HostStatus(
                     provider,
@@ -1322,7 +1413,9 @@ class Josty:
             )
             cached_data = self.cache.get(cache_key)
             if cached_data is not None:
-                return _search_run_from_dict(cached_data)
+                run = _search_run_from_dict(cached_data)
+                run.cached = True
+                return run
 
         web_task = self._search_parts(
             query,
@@ -1347,25 +1440,6 @@ class Josty:
         results = self._filter_sites(
             rrf(lists, profile=effective_profile), normalized_sites
         )[:limit]
-        
-        # Simple Query Relaxation Fallback
-        if not results and len(query.split()) >= 3:
-            relaxed = query.replace('"', "") if '"' in query else " ".join(query.split()[:-1])
-            if relaxed != query:
-                lists_rel, providers_rel, _ = await self._search_parts(
-                    relaxed,
-                    sites=sites,
-                    mode=mode,
-                    limit=limit,
-                    category=category,
-                    region=region,
-                    safesearch=safesearch,
-                    timelimit=timelimit,
-                    max_query_variants=effective_max_variants,
-                )
-                providers.extend(providers_rel)
-                fused_rel = rrf(lists_rel, profile=effective_profile)
-                results = self._filter_sites(fused_rel, normalized_sites)[:limit]
         if fetch:
             await self.fetch_content(results)
         run = SearchRun(query=query, results=results, providers=providers)
@@ -1376,7 +1450,9 @@ class Josty:
             and run.status != "failed"
             and len(run.results) > 0
         ):
-            self.cache.set(cache_key, run.dict())
+            payload = run.dict()
+            payload["cached"] = False
+            self.cache.set(cache_key, payload)
         return run
 
     async def research(self, query: str, **kwargs: Any) -> list[SearchResult]:

@@ -73,10 +73,12 @@ GitHub API limits.
 ## Research rules
 
 - Use focused queries and run independent searches concurrently only when useful.
-- Check `status`, `partial`, and `providers`; provider failure is not evidence of absence.
-- `status=complete` with empty or off-topic results is not evidence of absence. An `ok` provider with `result_count=0` is a successful empty branch, not a backend outage.
-- `--category news` can return token-collision junk (e.g. "3.14" matching "District 14"). Require the subject token in title or snippet before citing a news hit.
-- `--diagnose` `ok=true` means the host answered HTTP, including 403/429. Read `http_status`; it is not a search-quality signal.
+- Check `status`, `partial`, `cached`, and `providers`; provider failure is not evidence of absence.
+- `status=complete` with empty or off-topic results is not evidence of absence. An `ok` provider with `result_count=0` and `error_kind="empty"` is a successful empty branch, not a backend outage.
+- Josty does not rewrite queries or retry backends when results are empty. If the query is over-constrained, issue a new search yourself.
+- `--category news` can return token-collision junk (e.g. "3.14" matching "District 14"). Require the subject token in title or snippet before citing a news hit. This is a citation rule, not an engine filter.
+- `--diagnose` `ok=true` means the host answered HTTP, including 403/429. Read `http_status` and `challenged`; they are not search-quality signals.
+- `cached: true` means the envelope was served from the local SQLite cache. Treat it as a prior live result, not a fresh probe.
 - `--fetch` 403 or a download-limit error is per-URL; try the next result.
 - Verify important claims against primary sources before citing them.
 - Treat Reddit, X, blogs, and forums as discovery or opinion evidence.

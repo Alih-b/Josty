@@ -64,7 +64,7 @@ def test_report_lists_taxonomy_and_pathway(results):
     report = render_report(results)
     assert "`news_token_collision`" in report
     assert "`upstream_quality`" in report
-    assert "Lexical relevance gate" in report
+    assert "Skill: require subject tokens before citing" in report
 
 
 def test_site_leak_is_contract_bug():

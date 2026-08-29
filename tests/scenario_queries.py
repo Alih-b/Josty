@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
-# Subset of engine.AUTHORITATIVE_DOMAINS_ACADEMIC used as a hard host floor
-# for the academic-profile scenario. Keep in sync when that set changes.
+# Subset of engine.AUTHORITATIVE_DOMAINS_ACADEMIC used as an eval required-host
+# check for the academic-profile scenario. Keep in sync when that set changes.
 ACADEMIC_HOSTS: tuple[str, ...] = (
     "arxiv.org",
     "biorxiv.org",
@@ -52,7 +52,7 @@ SCENARIOS: list[dict[str, Any]] = [
         "expect_status": "complete",
         "must_answer": ["python"],
         "label_if_fail": "upstream_quality",
-        "pathway": "Lexical relevance gate or news-specific ranking; not a ddgs-call bug.",
+        "pathway": "Skill: require subject tokens before citing. Not an engine filter.",
         "notes": "Live capture returned District 14 / iPhone 14 / CD rates.",
     },
     {
@@ -65,7 +65,7 @@ SCENARIOS: list[dict[str, Any]] = [
         "must_answer": ["3.14"],
         "forbid_if_missing_must": ["3.15"],
         "label_if_fail": "upstream_quality",
-        "pathway": "Lexical relevance gate or news-specific ranking; not a ddgs-call bug.",
+        "pathway": "Skill: require subject tokens before citing. Not an engine filter.",
         "notes": "Live capture returned Python 3.15 only.",
     },
     {
@@ -77,7 +77,7 @@ SCENARIOS: list[dict[str, Any]] = [
         "expect_status": "complete",
         "must_hosts": ACADEMIC_HOSTS,
         "label_if_fail": "product_gap",
-        "pathway": "Stronger academic rerank or hard host floor; 1.4x cannot beat 3-group RRF.",
+        "pathway": "Soft academic weights only; no hard host floor.",
         "notes": "Live capture ranked Wikipedia / AWS / IBM / NVIDIA / Google Cloud.",
     },
     {
@@ -89,7 +89,7 @@ SCENARIOS: list[dict[str, Any]] = [
         "expect_status": "complete",
         "must_hosts": ("fastapi.tiangolo.com",),
         "label_if_fail": "product_gap",
-        "pathway": "Stronger dev rerank or hard host floor.",
+        "pathway": "Soft dev weights only; no hard host floor.",
     },
     {
         "id": "site_filter_httpx",
@@ -137,8 +137,8 @@ SCENARIOS: list[dict[str, Any]] = [
         "require_reachable_field": True,
         "http_error_still_ok": True,
         "label_if_fail": "intended_misleading",
-        "pathway": "Optional challenged bit or skill text on http_status; not a probe bug.",
-        "notes": "Documents current contract: any HTTP response including 429 is ok=true.",
+        "pathway": "challenged bit plus skill text on http_status; not a probe bug.",
+        "notes": "Any HTTP response including 429 is ok=true; challenged=true.",
     },
     {
         "id": "linux_kernel_year",
@@ -150,7 +150,7 @@ SCENARIOS: list[dict[str, Any]] = [
         "must_answer": ["1991"],
         "search_content": True,
         "label_if_fail": "product_gap",
-        "pathway": "Factual fetch; add RFC-1 if over-constrained queries go empty.",
+        "pathway": "Factual fetch; over-constrained empties are caller rewrites, not RFC-1.",
     },
     {
         "id": "empty_provider_complete",
@@ -162,7 +162,7 @@ SCENARIOS: list[dict[str, Any]] = [
         "expect_status": "complete",
         "require_empty_ok_provider": True,
         "label_if_fail": "intended_misleading",
-        "pathway": "Surface error_kind=empty on ProviderStatus (schema 1.0 compatible).",
+        "pathway": "error_kind=empty on ProviderStatus (schema 1.0 compatible).",
         "notes": "Pins intended status: all ok, one result_count=0 → complete.",
     },
 ]

@@ -1,5 +1,6 @@
 import asyncio
 import socket
+import sqlite3
 import ssl
 import sys
 from types import SimpleNamespace
@@ -225,6 +226,7 @@ def test_search_run_status():
     assert SearchRun("q", [], [ok, failed]).status == "degraded"
     assert SearchRun("q", [], [ok]).status == "complete"
     assert SearchRun("q", [], [ok]).dict()["schema_version"] == "1.0"
+    assert SearchRun("q", [], [ok]).dict()["cached"] is False
 
 
 @pytest.mark.parametrize(
@@ -469,6 +471,30 @@ def test_diagnose_reports_http_status_for_challenged_hosts(monkeypatch):
     entry = next(item for item in payload["providers"] if item["provider"] == "bing")
     assert entry["ok"] is True
     assert entry["http_status"] == 403
+    assert entry["challenged"] is True
+
+
+def test_diagnose_marks_429_as_challenged(monkeypatch):
+    async def fake_get(self, url, **kwargs):
+        return httpx.Response(429, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    payload = asyncio.run(Josty().diagnose_run()).dict()
+    entry = next(item for item in payload["providers"] if item["provider"] == "brave")
+    assert entry["ok"] is True
+    assert entry["http_status"] == 429
+    assert entry["challenged"] is True
+
+
+def test_diagnose_200_is_not_challenged(monkeypatch):
+    async def fake_get(self, url, **kwargs):
+        return httpx.Response(200, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    payload = asyncio.run(Josty().diagnose_run()).dict()
+    entry = next(item for item in payload["providers"] if item["provider"] == "bing")
+    assert entry["ok"] is True
+    assert entry["challenged"] is False
 
 
 def test_diagnose_classifies_blocked_hosts(monkeypatch):
@@ -503,6 +529,7 @@ def test_diagnose_classifies_blocked_hosts(monkeypatch):
         assert entry["ok"] is False
         assert entry["http_status"] is None
         assert entry["error"]
+        assert entry["challenged"] is False
     assert payload["status"] == "degraded"
 
 
@@ -609,6 +636,56 @@ def test_search_cache_hit_and_miss_and_clear(tmp_path):
     assert cache.get(key) is None
 
 
+def test_search_cache_increments_hit_count(tmp_path):
+    cache = SearchCache(tmp_path / "hits.db", default_ttl=60.0)
+    key = SearchCache.hash_key("query")
+    cache.set(key, {"query": "query"})
+    assert cache.hit_stats(key)[0] == 0
+    cache.get(key)
+    cache.get(key)
+    hits, last_accessed = cache.hit_stats(key)
+    assert hits == 2
+    assert last_accessed > 0
+
+
+def test_search_cache_prunes_when_over_max_rows(tmp_path):
+    cache = SearchCache(tmp_path / "prune.db", default_ttl=60.0, max_rows=5, prune_batch=2)
+    for index in range(6):
+        cache.set(f"k{index}", {"n": index})
+    assert cache.row_count() == 5
+
+
+def test_search_cache_prune_does_not_wipe_table(tmp_path):
+    cache = SearchCache(tmp_path / "wipe.db", default_ttl=60.0, max_rows=3, prune_batch=100)
+    for index in range(4):
+        cache.set(f"k{index}", {"n": index})
+    assert cache.row_count() == 3
+
+
+def test_search_cache_migrates_legacy_schema(tmp_path):
+    db = tmp_path / "legacy.db"
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            """
+            CREATE TABLE search_cache (
+                key TEXT PRIMARY KEY,
+                created_at REAL,
+                expires_at REAL,
+                payload TEXT
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO search_cache VALUES (?, ?, ?, ?)",
+            ("k", 1.0, 9_999_999_999.0, '{"ok": true}'),
+        )
+    cache = SearchCache(db, default_ttl=60.0)
+    assert cache.get("k") == {"ok": True}
+    hits, last_accessed = cache.hit_stats("k")
+    assert hits == 1
+    assert last_accessed > 0
+
+
 def test_search_cache_ttl_expiration(tmp_path):
     cache_file = tmp_path / "test_cache_ttl.db"
     cache = SearchCache(cache_file, default_ttl=0.01)
@@ -638,6 +715,7 @@ def test_search_run_uses_cache_and_skips_network(tmp_path, monkeypatch):
     first_run = asyncio.run(engine.search_run("cached query", limit=1))
     assert calls > 0
     assert len(first_run.results) == 1
+    assert first_run.cached is False
 
     recorded_calls = calls
 
@@ -646,6 +724,7 @@ def test_search_run_uses_cache_and_skips_network(tmp_path, monkeypatch):
     assert calls == recorded_calls
     assert len(second_run.results) == 1
     assert second_run.results[0].title == "Hit"
+    assert second_run.cached is True
 
 
 def test_fetch_content_extracts_markdown_and_captures_error(monkeypatch):
@@ -839,8 +918,7 @@ def test_domain_weights_expanded_authoritative_sets():
     assert domain_weight("https://geeksforgeeks.org/article", profile="dev") == 0.5
 
 def test_search_run_and_research_run_behavior_parity(tmp_path, monkeypatch):
-    cache_file = tmp_path / "parity_cache.db"
-    engine = Josty(cache_db=cache_file)
+    engine = Josty(enable_cache=False)
 
     async def fake_search_parts(query, **kwargs):
         res = [SearchResult(title=f"Result for {query}", url="https://example.com/res")]
@@ -855,6 +933,7 @@ def test_search_run_and_research_run_behavior_parity(tmp_path, monkeypatch):
     )
 
     assert search_res.dict() == research_res.dict()
+    assert search_res.cached is False
     assert search_res.status == "complete"
     assert len(search_res.results) == 1
     assert search_res.results[0].title == "Result for test parity query"
