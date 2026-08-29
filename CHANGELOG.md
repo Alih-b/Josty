@@ -5,6 +5,12 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+### Changed
+
+- Reordered `v0.4.0` roadmap by hot / high-ROI first: surface `error_kind=empty`,
+  finish RFC-1 query relaxation, news lexical gate, and academic/dev host floor
+  ahead of cache bounds and `--extract-code` (`ROADMAP.md`, taxonomy pathways).
+
 ### Added
 
 - Issue taxonomy and offline scenario eval (`docs/ISSUE_TAXONOMY.md`,
