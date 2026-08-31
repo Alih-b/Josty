@@ -699,6 +699,15 @@ class SearchCache:
             )
             self._prune_if_needed(conn)
 
+    def _sum_payload_bytes(self, conn: sqlite3.Connection) -> int:
+        # LENGTH(CAST(... AS BLOB)) counts bytes; plain LENGTH(TEXT) counts
+        # characters, which undercounts multi-byte UTF-8 (emoji, CJK) by up to 4x.
+        return int(
+            conn.execute(
+                "SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) FROM search_cache"
+            ).fetchone()[0]
+        )
+
     def _prune_if_needed(self, conn: sqlite3.Connection) -> None:
         if self.max_rows < 1 or self.prune_batch < 1:
             return
@@ -721,11 +730,7 @@ class SearchCache:
                 (limit,),
             )
         if self.max_bytes and self.max_bytes > 0:
-            # LENGTH(CAST(... AS BLOB)) counts bytes; plain LENGTH(TEXT) counts
-            # characters, which undercounts multi-byte UTF-8 (emoji, CJK) by up to 4x.
-            total = conn.execute(
-                "SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) FROM search_cache"
-            ).fetchone()[0]
+            total = self._sum_payload_bytes(conn)
             while total > self.max_bytes:
                 conn.execute(
                     """
@@ -739,9 +744,7 @@ class SearchCache:
                     """,
                     (self.prune_batch,),
                 )
-                new_total = conn.execute(
-                    "SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) FROM search_cache"
-                ).fetchone()[0]
+                new_total = self._sum_payload_bytes(conn)
                 if new_total >= total:
                     break
                 total = new_total
@@ -756,11 +759,7 @@ class SearchCache:
     def total_bytes(self) -> int:
         try:
             with self._get_conn() as conn:
-                return int(
-                    conn.execute(
-                        "SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) FROM search_cache"
-                    ).fetchone()[0]
-                )
+                return self._sum_payload_bytes(conn)
         except Exception:
             return 0
 
