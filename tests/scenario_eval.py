@@ -190,6 +190,18 @@ def _evaluate_search(spec: dict[str, Any], payload: dict[str, Any]) -> list[str]
             issues.append("expected all providers ok")
         if not any(item.get("ok") and item.get("result_count") == 0 for item in providers):
             issues.append("expected an ok provider with result_count=0")
+
+    if spec.get("require_run_at") and not payload.get("run_at"):
+        issues.append("missing run_at (agents cannot judge cached age)")
+    max_age_s = spec.get("max_age_s")
+    if max_age_s and payload.get("run_at") and payload.get("cached"):
+        try:
+            run_at = datetime.fromisoformat(str(payload["run_at"]).replace("Z", "+00:00"))
+            age = (datetime.now(timezone.utc) - run_at).total_seconds()
+        except ValueError:
+            age = None
+        if age is not None and age > max_age_s:
+            issues.append(f"stale cached result: age {int(age)}s > {max_age_s}s")
     return issues
 
 

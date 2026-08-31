@@ -28,6 +28,7 @@ EXPECTED_VERDICTS = {
     "diagnose_reachability": ("pass", None),
     "linux_kernel_year": ("pass", None),
     "empty_provider_complete": ("pass", None),
+    "stale_news_day_old_cache": ("fail", "intended_misleading"),
 }
 
 

@@ -15,6 +15,8 @@ from josty.engine import (
     SearchCache,
     SearchResult,
     SearchRun,
+    _search_run_from_dict,
+    _ttl_for,
     canonical,
     domain_weight,
     merge_query_variants,
@@ -662,6 +664,25 @@ def test_search_cache_prune_does_not_wipe_table(tmp_path):
     assert cache.row_count() == 3
 
 
+def test_cache_prunes_when_over_max_bytes(tmp_path):
+    cache = SearchCache(
+        tmp_path / "bytes.db", default_ttl=60.0, max_bytes=2000, prune_batch=1
+    )
+    big = "x" * 1000
+    for index in range(3):
+        cache.set(f"k{index}", {"blob": big})
+    assert cache.total_bytes() <= 2000
+    assert cache.row_count() < 3
+
+
+def test_max_bytes_disabled_when_zero(tmp_path):
+    cache = SearchCache(tmp_path / "nobytes.db", default_ttl=60.0, max_bytes=0)
+    for index in range(5):
+        cache.set(f"k{index}", {"blob": "x" * 1000})
+    assert cache.row_count() == 5
+    assert cache.total_bytes() >= 5000
+
+
 def test_search_cache_migrates_legacy_schema(tmp_path):
     db = tmp_path / "legacy.db"
     with sqlite3.connect(db) as conn:
@@ -692,6 +713,113 @@ def test_search_cache_ttl_expiration(tmp_path):
     key = SearchCache.hash_key("query")
     cache.set(key, {"cached": True}, ttl=-1.0)
     assert cache.get(key) is None
+
+
+def test_cache_does_not_persist_content(tmp_path, monkeypatch):
+    import json as _json
+
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            return [{"title": "Hit", "href": "https://example.com/doc", "body": "Snippet"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    engine = Josty(cache_db=tmp_path / "c.db", max_content_chars=8000)
+
+    async def allow(_self, _url):
+        return None
+
+    monkeypatch.setattr(Josty, "_validate_public_url", allow)
+    downloads = {"n": 0}
+
+    async def fake_download(_self, client, url):
+        downloads["n"] += 1
+        return f"<html><body><p>{'a' * 9000}</p></body></html>", url
+
+    monkeypatch.setattr(Josty, "_download", fake_download)
+
+    first = asyncio.run(engine.search_run("fetch query", limit=1, fetch=True))
+    assert first.results[0].content is not None
+    assert downloads["n"] == 1
+
+    with sqlite3.connect(str(engine.cache.db_path)) as conn:
+        rows = conn.execute("SELECT payload FROM search_cache").fetchall()
+    assert len(rows) == 1
+    cached_payload = _json.loads(rows[0][0])
+    assert cached_payload["results"][0]["content"] is None
+    assert cached_payload["results"][0]["fetched_at"] is None
+    assert len(rows[0][0]) < 5000
+
+    second = asyncio.run(engine.search_run("fetch query", limit=1, fetch=True))
+    assert second.cached is True
+    assert downloads["n"] == 2
+    assert second.results[0].content is not None
+    assert len(second.results[0].content) == 8000
+
+
+def test_fetch_false_serp_hit_has_no_content_and_no_download(tmp_path, monkeypatch):
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            return [{"title": "Hit", "href": "https://example.com/doc", "body": "Snippet"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    engine = Josty(cache_db=tmp_path / "c.db")
+
+    async def allow(_self, _url):
+        return None
+
+    monkeypatch.setattr(Josty, "_validate_public_url", allow)
+    downloads = {"n": 0}
+
+    async def fake_download(_self, client, url):
+        downloads["n"] += 1
+        return "<html><body><p>text</p></body></html>", url
+
+    monkeypatch.setattr(Josty, "_download", fake_download)
+
+    asyncio.run(engine.search_run("serp query", limit=1))
+    assert downloads["n"] == 0  # fetch=False never downloads
+    hit = asyncio.run(engine.search_run("serp query", limit=1))
+    assert hit.cached is True
+    assert downloads["n"] == 0
+    assert hit.results[0].content is None
+
+
+def test_old_payload_with_content_still_loads(tmp_path, monkeypatch):
+    engine = Josty(cache_db=tmp_path / "c.db")
+    legacy = {
+        "schema_version": "1.0",
+        "query": "legacy",
+        "status": "complete",
+        "count": 1,
+        "partial": False,
+        "cached": False,
+        "providers": [{"provider": "b", "query": "legacy", "ok": True, "result_count": 1}],
+        "results": [
+            {
+                "title": "t",
+                "url": "https://example.com/x",
+                "snippet": "",
+                "sources": ["b"],
+                "score": 0.0,
+                "content": "old cached body",
+                "extraction_method": "trafilatura",
+                "fetched_url": "https://example.com/x",
+                "fetched_at": "2026-01-01T00:00:00+00:00",
+                "fetch_error": None,
+            }
+        ],
+    }
+    key = SearchCache.hash_key("legacy")
+    engine.cache.set(key, legacy)
+    restored = engine.cache.get(key)
+    run = _search_run_from_dict(restored)
+    assert run.results[0].content == "old cached body"
 
 
 def test_search_run_uses_cache_and_skips_network(tmp_path, monkeypatch):
@@ -932,7 +1060,11 @@ def test_search_run_and_research_run_behavior_parity(tmp_path, monkeypatch):
         engine.research_run("test parity query", limit=5, mode="exact", include_github=False)
     )
 
-    assert search_res.dict() == research_res.dict()
+    search_dict = search_res.dict()
+    research_dict = research_res.dict()
+    search_dict.pop("run_at", None)
+    research_dict.pop("run_at", None)
+    assert search_dict == research_dict
     assert search_res.cached is False
     assert search_res.status == "complete"
     assert len(search_res.results) == 1
@@ -1055,3 +1187,86 @@ def test_github_breaker_is_independent_from_search_backends(monkeypatch):
     results, status = asyncio.run(engine.github_run("agent search", 5))
     assert status.ok is True
     assert results == []
+
+
+def test_search_run_dict_includes_run_at():
+    engine = Josty(backends=("test",), enable_cache=False)
+
+    async def parts(query, **kwargs):
+        return [[result("https://example.com/x")]], [ProviderStatus("test", query, True, 1)], []
+
+    engine._search_parts = parts
+    run = asyncio.run(engine.search_run("q", limit=1))
+    payload = run.dict()
+    assert isinstance(payload.get("run_at"), str)
+    assert payload["run_at"].endswith("+00:00")
+
+
+def test_cached_hit_preserves_run_at(tmp_path, monkeypatch):
+    engine = Josty(cache_db=tmp_path / "c.db")
+    calls = {"n": 0}
+
+    class CountingDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            calls["n"] += 1
+            return [{"title": "Hit", "href": "https://example.com/doc", "body": "Snippet"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", CountingDDGS)
+    first = asyncio.run(engine.search_run("age query", limit=1))
+    network_calls = calls["n"]
+    assert network_calls > 0
+    second = asyncio.run(engine.search_run("age query", limit=1))
+    assert second.cached is True
+    assert calls["n"] == network_calls
+    assert second.run_at == first.run_at
+
+
+def test_old_payload_without_run_at_loads():
+    restored = _search_run_from_dict({"query": "q", "results": [], "providers": []})
+    assert restored.run_at is None
+    assert "run_at" not in restored.dict()
+
+
+def test_ttl_floors_shorten_freshness_sensitive_searches():
+    default = 21600.0
+    assert _ttl_for("text", None, default) == 21600.0
+    assert _ttl_for("text", "m", default) == 21600.0
+    assert _ttl_for("text", "y", default) == 21600.0
+    assert _ttl_for("news", None, default) == 3600.0
+    assert _ttl_for("news", "m", default) == 3600.0
+    assert _ttl_for("text", "w", default) == 7200.0
+    assert _ttl_for("news", "d", default) == 1800.0
+    assert _ttl_for("text", "d", default) == 1800.0
+    # A caller-configured shorter TTL is always respected
+    assert _ttl_for("text", None, 600.0) == 600.0
+    assert _ttl_for("news", "d", 600.0) == 600.0
+
+
+def test_news_day_timelimit_cache_row_uses_floor_ttl(tmp_path, monkeypatch):
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            return [{"title": "Text", "href": "https://example.com/t", "body": "b"}]
+
+        def news(self, *args, **kwargs):
+            return [{"title": "News", "url": "https://example.com/n", "body": "b"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    engine = Josty(cache_db=tmp_path / "c.db", cache_ttl=21600.0)
+    asyncio.run(engine.search_run("today news", limit=1, category="news", timelimit="d"))
+    asyncio.run(engine.search_run("plain query", limit=1))
+
+    with sqlite3.connect(str(engine.cache.db_path)) as conn:
+        rows = conn.execute(
+            "SELECT payload, expires_at - created_at FROM search_cache"
+        ).fetchall()
+    # expires_at - created_at is a float subtraction of two timestamps; compare
+    # with a 1s tolerance rather than ==, which can flake on rounding.
+    assert len(rows) == 2
+    assert any(abs(row[1] - 1800.0) < 1.0 for row in rows)
+    assert any(abs(row[1] - 21600.0) < 1.0 for row in rows)

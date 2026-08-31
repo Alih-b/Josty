@@ -7,6 +7,16 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Envelope field `run_at` (ISO8601 UTC, optional, schema 1.0 compatible): the moment the
+  search was executed. Cached hits preserve the original `run_at`, so agents can judge
+  the age of a `cached: true` result instead of trusting it blindly.
+- Freshness TTL floors for the search cache: `timelimit=d` entries expire after 30
+  minutes, `timelimit=w` after 2 hours, and `category=news` after 1 hour (previously a
+  flat 6 hours for everything). A caller-configured shorter `cache_ttl` is always
+  respected.
+- Scenario-eval staleness check (`require_run_at`, `max_age_s`) plus a frozen
+  `stale_news_day_old_cache` fixture that pins the pre-fix behavior as
+  `intended_misleading` — cached day-news staleness is now measured, not silent.
 - Empty-ok search branches now set `providers[].error_kind` to `"empty"` (schema 1.0 compatible)
   so callers can tell a real empty result from an unclassified success.
 - Diagnose envelope field `challenged`: true when a reachable probe returns HTTP 401, 403, or 429.
@@ -41,6 +51,16 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   params, or a custom `breaker` instance.
 
 ### Changed
+
+- The search cache now stores SERPs only: per-result fetch fields (`content`,
+  `extraction_method`, `fetched_url`, `fetched_at`, `fetch_error`) are blanked before
+  write, and a `fetch=True` cache hit re-fetches page content on demand. This turns the
+  5,000-row cap into a real byte bound (~10-25 MB) instead of a potential multi-GB cache
+  of page text.
+- Added a byte-budget prune ceiling (`SearchCache(max_bytes=...)`, default 50 MB,
+  `Josty(cache_max_bytes=...)`): when cached payload bytes exceed the budget, rows are
+  evicted oldest-expiring / least-hit until back under it. The "bounded local state"
+  claim is now true in bytes, not just rows.
 
 - Removed the hidden query-rewrite fallback in `research_run` (strip quotes / drop last token).
   Empty fused results stay empty; callers rewrite. Matches the skill rule of no automatic retry.

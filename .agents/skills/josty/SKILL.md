@@ -78,7 +78,7 @@ GitHub API limits.
 - Josty does not rewrite queries or retry backends when results are empty. If the query is over-constrained, issue a new search yourself.
 - `--category news` can return token-collision junk (e.g. "3.14" matching "District 14"). Require the subject token in title or snippet before citing a news hit. This is a citation rule, not an engine filter.
 - `--diagnose` `ok=true` means the host answered HTTP, including 403/429. Read `http_status` and `challenged`; they are not search-quality signals.
-- `cached: true` means the envelope was served from the local SQLite cache. Treat it as a prior live result, not a fresh probe.
+- `cached: true` means the envelope was served from the local SQLite cache. Treat it as a prior live result, not a fresh probe. Check the envelope `run_at` (ISO8601 UTC) to judge age; timelimit=d results expire from cache after 30 minutes, news after 1 hour, timelimit=w after 2 hours.
 - `--fetch` 403 or a download-limit error is per-URL; try the next result.
 - Verify important claims against primary sources before citing them.
 - Treat Reddit, X, blogs, and forums as discovery or opinion evidence.

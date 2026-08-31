@@ -174,7 +174,7 @@ search_tool_definition = {
 
 ```mermaid
 graph TD
-    Query["Search Query"] --> Cache{"SQLite WAL Cache<br/>6h TTL, 5k row cap"}
+    Query["Search Query"] --> Cache{"SQLite WAL Cache<br/>Tiered TTL (d:30m/news:1h/w:2h, else 6h)<br/>5k rows / 50 MB, SERP-only"}
     
     Cache -- Cache Hit --> Out["<b>Pure JSON Output</b><br/>(schema_version: 1.0)"]
     
