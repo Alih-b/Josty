@@ -95,5 +95,16 @@
     "pathway": "error_kind=empty on ProviderStatus (schema 1.0 compatible).",
     "issues": [],
     "confidence": "reproduced"
+  },
+  {
+    "id": "stale_news_day_old_cache",
+    "layer": "news",
+    "verdict": "fail",
+    "taxonomy_class": "intended_misleading",
+    "pathway": "run_at + news/timelimit=d TTL floors; 6h TTL served hours-old day-news.",
+    "issues": [
+      "stale cached result: age 145396s > 1800s"
+    ],
+    "confidence": "reproduced"
   }
 ]

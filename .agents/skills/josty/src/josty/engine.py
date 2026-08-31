@@ -38,6 +38,7 @@ SCHEMA_VERSION = "1.0"
 MAX_SITES = 5
 CACHE_MAX_ROWS = 5000
 CACHE_PRUNE_BATCH = 500
+CACHE_MAX_BYTES = 50_000_000
 CHALLENGED_HTTP_STATUSES = frozenset({401, 403, 429})
 USER_AGENT = "josty/0.3 (+https://github.com/Alih-b/josty)"
 BROWSER_FETCH_HEADERS = {
@@ -375,6 +376,7 @@ class SearchRun:
     results: list[SearchResult] = field(default_factory=list)
     providers: list[ProviderStatus] = field(default_factory=list)
     cached: bool = False
+    run_at: str | None = None  # ISO8601 UTC moment the search was executed
 
     @property
     def partial(self) -> bool:
@@ -389,7 +391,7 @@ class SearchRun:
         return "complete"
 
     def dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "schema_version": SCHEMA_VERSION,
             "query": self.query,
             "status": self.status,
@@ -399,6 +401,9 @@ class SearchRun:
             "providers": [provider.dict() for provider in self.providers],
             "results": [result.dict() for result in self.results],
         }
+        if self.run_at is not None:
+            payload["run_at"] = self.run_at
+        return payload
 
 
 def canonical(url: str) -> str:
@@ -591,6 +596,7 @@ class SearchCache:
         default_ttl: float = 21600.0,
         max_rows: int = CACHE_MAX_ROWS,
         prune_batch: int = CACHE_PRUNE_BATCH,
+        max_bytes: int = CACHE_MAX_BYTES,
     ):
         if db_path is None:
             cache_dir = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache")) / "josty"
@@ -606,6 +612,7 @@ class SearchCache:
         self.default_ttl = default_ttl
         self.max_rows = max_rows
         self.prune_batch = prune_batch
+        self.max_bytes = max_bytes
         self._init_db()
 
     def _get_conn(self) -> sqlite3.Connection:
@@ -692,33 +699,67 @@ class SearchCache:
             )
             self._prune_if_needed(conn)
 
+    def _sum_payload_bytes(self, conn: sqlite3.Connection) -> int:
+        # LENGTH(CAST(... AS BLOB)) counts bytes; plain LENGTH(TEXT) counts
+        # characters, which undercounts multi-byte UTF-8 (emoji, CJK) by up to 4x.
+        return int(
+            conn.execute(
+                "SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) FROM search_cache"
+            ).fetchone()[0]
+        )
+
     def _prune_if_needed(self, conn: sqlite3.Connection) -> None:
         if self.max_rows < 1 or self.prune_batch < 1:
             return
         count = conn.execute("SELECT COUNT(*) FROM search_cache").fetchone()[0]
         overflow = count - self.max_rows
-        if overflow <= 0:
-            return
-        limit = min(self.prune_batch, overflow)
-        # Nested subquery: SQLite cannot DELETE FROM a table while the same
-        # table is used in a plain IN-select with ORDER BY/LIMIT.
-        conn.execute(
-            """
-            DELETE FROM search_cache WHERE key IN (
-                SELECT key FROM (
-                    SELECT key FROM search_cache
-                    ORDER BY expires_at ASC, hit_count ASC
-                    LIMIT ?
+        if overflow > 0:
+            limit = min(self.prune_batch, overflow)
+            # Nested subquery: SQLite cannot DELETE FROM a table while the same
+            # table is used in a plain IN-select with ORDER BY/LIMIT.
+            conn.execute(
+                """
+                DELETE FROM search_cache WHERE key IN (
+                    SELECT key FROM (
+                        SELECT key FROM search_cache
+                        ORDER BY expires_at ASC, hit_count ASC
+                        LIMIT ?
+                    )
                 )
+                """,
+                (limit,),
             )
-            """,
-            (limit,),
-        )
+        if self.max_bytes and self.max_bytes > 0:
+            total = self._sum_payload_bytes(conn)
+            while total > self.max_bytes:
+                conn.execute(
+                    """
+                    DELETE FROM search_cache WHERE key IN (
+                        SELECT key FROM (
+                            SELECT key FROM search_cache
+                            ORDER BY expires_at ASC, hit_count ASC
+                            LIMIT ?
+                        )
+                    )
+                    """,
+                    (self.prune_batch,),
+                )
+                new_total = self._sum_payload_bytes(conn)
+                if new_total >= total:
+                    break
+                total = new_total
 
     def row_count(self) -> int:
         try:
             with self._get_conn() as conn:
                 return int(conn.execute("SELECT COUNT(*) FROM search_cache").fetchone()[0])
+        except Exception:
+            return 0
+
+    def total_bytes(self) -> int:
+        try:
+            with self._get_conn() as conn:
+                return self._sum_payload_bytes(conn)
         except Exception:
             return 0
 
@@ -738,6 +779,38 @@ class SearchCache:
     def clear(self) -> None:
         with suppress(Exception), self._get_conn() as conn:
             conn.execute("DELETE FROM search_cache;")
+
+
+_FETCH_ONLY_FIELDS = ("content", "extraction_method", "fetched_url", "fetched_at", "fetch_error")
+
+# Freshness ceilings (seconds): the OLDEST a cached result may be when served.
+# The effective TTL is min(configured default, ceiling) — the rule can only ever
+# shorten, so a caller-configured shorter cache_ttl always wins.
+CACHE_TTL_MAX_DAY = 1800.0    # timelimit=d: "today's news" must not be hours old
+CACHE_TTL_MAX_WEEK = 7200.0   # timelimit=w
+CACHE_TTL_MAX_NEWS = 3600.0   # category=news without timelimit
+
+
+def _ttl_for(category: str, timelimit: str | None, default: float) -> float:
+    if timelimit == "d":
+        return min(default, CACHE_TTL_MAX_DAY)
+    if timelimit == "w":
+        return min(default, CACHE_TTL_MAX_WEEK)
+    if category == "news":
+        return min(default, CACHE_TTL_MAX_NEWS)
+    return default
+
+
+def _strip_fetch_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    """Blank per-result fetch fields so cached payloads stay small (SERPs, not page text).
+
+    Mutates ``payload`` in place; callers pass a freshly built ``run.dict()``.
+    Keys stay present as ``null`` so the schema contract is stable.
+    """
+    for result in payload.get("results", []):
+        for field_name in _FETCH_ONLY_FIELDS:
+            result[field_name] = None
+    return payload
 
 
 def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
@@ -774,6 +847,7 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         results=results,
         providers=providers,
         cached=bool(payload.get("cached", False)),
+        run_at=payload.get("run_at"),
     )
 
 
@@ -877,6 +951,7 @@ class Josty:
         enable_cache: bool = True,
         cache_ttl: float = 21600.0,
         cache_db: Path | str | None = None,
+        cache_max_bytes: int = CACHE_MAX_BYTES,
         breaker: CircuitBreaker | None = None,
         breaker_fail_threshold: int = 3,
         breaker_window_seconds: float = 60,
@@ -907,7 +982,9 @@ class Josty:
         self.enable_cache = enable_cache
         self.cache_ttl = cache_ttl
         self.cache = (
-            SearchCache(cache_db, default_ttl=cache_ttl) if enable_cache else None
+            SearchCache(cache_db, default_ttl=cache_ttl, max_bytes=cache_max_bytes)
+            if enable_cache
+            else None
         )
         self._search_sem: asyncio.Semaphore | None = None
         self._fetch_sem: asyncio.Semaphore | None = None
@@ -1414,6 +1491,9 @@ class Josty:
             cached_data = self.cache.get(cache_key)
             if cached_data is not None:
                 run = _search_run_from_dict(cached_data)
+                if fetch and any(result.content is None for result in run.results):
+                    # Cached payload is SERP-only; rehydrate page content on demand.
+                    await self.fetch_content(run.results)
                 run.cached = True
                 return run
 
@@ -1442,7 +1522,12 @@ class Josty:
         )[:limit]
         if fetch:
             await self.fetch_content(results)
-        run = SearchRun(query=query, results=results, providers=providers)
+        run = SearchRun(
+            query=query,
+            results=results,
+            providers=providers,
+            run_at=datetime.now(UTC).isoformat(),
+        )
         if (
             cache_key
             and self.enable_cache
@@ -1450,9 +1535,11 @@ class Josty:
             and run.status != "failed"
             and len(run.results) > 0
         ):
-            payload = run.dict()
+            payload = _strip_fetch_fields(run.dict())
             payload["cached"] = False
-            self.cache.set(cache_key, payload)
+            self.cache.set(
+                cache_key, payload, ttl=_ttl_for(category, timelimit, self.cache.default_ttl)
+            )
         return run
 
     async def research(self, query: str, **kwargs: Any) -> list[SearchResult]:

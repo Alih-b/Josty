@@ -165,6 +165,22 @@ SCENARIOS: list[dict[str, Any]] = [
         "pathway": "error_kind=empty on ProviderStatus (schema 1.0 compatible).",
         "notes": "Pins intended status: all ok, one result_count=0 → complete.",
     },
+    {
+        "id": "stale_news_day_old_cache",
+        "layer": "news",
+        "query": "synthetic stale cached news fixture",
+        "flags": {"category": "news", "timelimit": "d", "limit": 5},
+        "live": False,
+        "min_results": 1,
+        "expect_status": "complete",
+        "require_run_at": True,
+        "max_age_s": 1800,
+        "label_if_fail": "intended_misleading",
+        "pathway": "run_at + news/timelimit=d TTL floors; 6h TTL served hours-old day-news.",
+        "notes": "Frozen row pins the pre-fix envelope (cached, run_at 24h old). "
+        "The verdict stays fail/intended_misleading by design: the harness measures "
+        "staleness instead of hiding it; TTL floors are unit-tested in test_engine.py.",
+    },
 ]
 
 

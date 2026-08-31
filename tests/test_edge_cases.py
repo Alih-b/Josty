@@ -1103,7 +1103,11 @@ class TestResearchRun:
         monkeypatch.setattr(engine, "_search_parts", parts)
         s = asyncio.run(engine.search_run("q", limit=5))
         r = asyncio.run(engine.research_run("q", limit=5))
-        assert s.dict() == r.dict()
+        s_dict = s.dict()
+        r_dict = r.dict()
+        s_dict.pop("run_at", None)
+        r_dict.pop("run_at", None)
+        assert s_dict == r_dict
         assert s.cached is False
 
     def test_research_with_github_falls_back_when_github_fails(self, monkeypatch, tmp_path):

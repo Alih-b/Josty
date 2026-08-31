@@ -2,7 +2,7 @@
 
 Constraint checks against the frozen scenario corpus. Failures emit a taxonomy class from `docs/ISSUE_TAXONOMY.md`.
 
-**7/10 constraints passed.**
+**7/11 constraints passed.**
 
 | Case | Layer | Verdict | Class | Pathway |
 |---|---|---|---|---|
@@ -16,9 +16,11 @@ Constraint checks against the frozen scenario corpus. Failures emit a taxonomy c
 | `diagnose_reachability` | diagnose | **pass** | `—` | challenged bit plus skill text on http_status; not a probe bug. |
 | `linux_kernel_year` | fetch | **pass** | `—` | Factual fetch; over-constrained empties are caller rewrites, not RFC-1. |
 | `empty_provider_complete` | status | **pass** | `—` | error_kind=empty on ProviderStatus (schema 1.0 compatible). |
+| `stale_news_day_old_cache` | news | **fail** | `intended_misleading` | run_at + news/timelimit=d TTL floors; 6h TTL served hours-old day-news. |
 
 ## Issues
 
 - `news_token_collision` (upstream_quality): missing answer tokens ['python']
 - `news_near_miss` (upstream_quality): missing answer tokens ['3.14']; near-miss: found '3.15' but missing ['3.14']
 - `academic_profile_rag` (product_gap): no result on required hosts ('arxiv.org', 'biorxiv.org', 'medrxiv.org', 'ncbi.nlm.nih.gov', 'nih.gov', 'ieee.org')…
+- `stale_news_day_old_cache` (intended_misleading): stale cached result: age 145396s > 1800s
