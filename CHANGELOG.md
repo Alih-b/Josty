@@ -55,6 +55,10 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Changed
 
+- Version is resolved once via `importlib.metadata.version("josty")` with a static fallback for
+  pre-install runs. `josty.__version__`, the GitHub API `User-Agent`, and hatchling build metadata
+  (now `dynamic = ["version"]`) all derive from that single literal, so they can no longer drift
+  between releases.
 - The search cache now stores SERPs only: per-result fetch fields (`content`,
   `extraction_method`, `fetched_url`, `fetched_at`, `fetch_error`) are blanked before
   write, and a `fetch=True` cache hit re-fetches page content on demand. This turns the

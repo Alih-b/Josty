@@ -14,6 +14,7 @@ import time
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
@@ -40,7 +41,13 @@ CACHE_MAX_ROWS = 5000
 CACHE_PRUNE_BATCH = 500
 CACHE_MAX_BYTES = 50_000_000
 CHALLENGED_HTTP_STATUSES = frozenset({401, 403, 429})
-USER_AGENT = "josty/0.3 (+https://github.com/Alih-b/josty)"
+
+# Single version source: the static literal doubles as the pre-install fallback and
+# hatchling's build-time version; installed distributions override via importlib.metadata.
+__version__ = "0.3.0"
+with suppress(PackageNotFoundError):
+    __version__ = version("josty")
+USER_AGENT = f"josty/{__version__} (+https://github.com/Alih-b/josty)"
 BROWSER_FETCH_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "

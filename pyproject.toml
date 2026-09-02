@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "josty"
-version = "0.3.0"
+dynamic = ["version"]
 description = "Small, auditable, keyless metasearch for AI-agent research"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -43,6 +43,9 @@ dev = [
 
 [project.scripts]
 josty = "josty.cli:main"
+
+[tool.hatch.version]
+path = ".agents/skills/josty/src/josty/engine.py"
 
 [tool.hatch.build.targets.wheel]
 packages = [".agents/skills/josty/src/josty"]
