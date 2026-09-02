@@ -1,6 +1,9 @@
 ---
 name: josty
 description: Small, auditable, keyless web search for current facts, OSS discovery, comparisons, and evidence-backed research. No account, daemon, MCP server, or search API key required.
+license: MIT
+compatibility: Requires outbound internet access. Runs as a CLI installed from PyPI (`uvx josty` / `pipx install josty`).
+allowed-tools: Bash(uvx josty *), Bash(josty *), Bash(uv tool install josty), Bash(pipx install josty)
 ---
 
 # Josty
@@ -9,22 +12,19 @@ description: Small, auditable, keyless web search for current facts, OSS discove
 
 ## Quick Start & Invocation
 
-Choose the first available command matching your environment (`uvx` is strongly recommended for ~200ms cold starts without persistent venv management):
+Josty is a **CLI installed from PyPI** — this skill is its operating manual, not a code bundle. Run it with `uvx` (no install needed) or the installed `josty` command:
 
 ```bash
-# 1. Preferred (Fastest, zero-config, isolated):
+# 1. Preferred (Fastest, zero-config, isolated — no install required):
 uvx josty "query" --limit 10
 
-# 2. Installed CLI binary (if installed via pipx / pip):
+# 2. Installed CLI binary (if installed via pipx / pip / uv tool):
 josty "query" --limit 10
-
-# 3. Fallback via bundled script (resolves python3/python automatically):
-$(command -v python3 || command -v python) "$SKILL_DIR/scripts/run.py" "query" --limit 10
 ```
 
-## Agent Self-Install Bootstrap (Optional)
+### If josty is not installed
 
-If an agent needs to ensure `josty` is installed locally in the environment without user intervention:
+The skill ships no bundled code. If `uvx josty` fails because the package is missing, install it once, then run:
 
 ```bash
 command -v uv >/dev/null 2>&1 && uv tool install josty || \
@@ -32,13 +32,17 @@ command -v pipx >/dev/null 2>&1 && pipx install josty || \
 $(command -v python3 || command -v python) -m pip install --user josty
 ```
 
+> Why no bundled fallback? A belt skill is a directory of flat files; it cannot carry a multi-file Python
+> package (relative imports break when the tree is flattened). The engine lives once, on PyPI, and every
+> distribution path — belt, uvx, pip, the source repo — points at that same installed CLI.
+
 ## Options
 
 ```bash
 # Strict domain filters; repeatable up to five times
 uvx josty "query" --site github.com --site reddit.com
 
-# Query rewrites for exact phrases or OSS discovery
+# Exact-phrase or OSS discovery modes
 uvx josty "query" --mode exact
 uvx josty "query" --mode oss --github
 
@@ -56,9 +60,6 @@ uvx josty "query" --search-concurrency 12 --fetch-concurrency 8
 
 # Inspect the bounded local cache (rows, payload bytes, cumulative hits)
 uvx josty --cache-stats
-
-# Using bundled fallback script instead of uvx:
-$(command -v python3 || command -v python) "$SKILL_DIR/scripts/run.py" "query" --site github.com
 ```
 
 ## Failure handling

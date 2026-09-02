@@ -19,7 +19,7 @@ uvx josty "query" --fetch
 # 3. Targeted domain search:
 uvx josty "query" --site github.com --site stackoverflow.com
 
-# 4. Fallback execution via bundled script:
+# 4. Fallback execution via thin delegator (installs josty from PyPI on first use):
 $(command -v python3 || command -v python) .agents/skills/josty/scripts/run.py "query"
 ```
 

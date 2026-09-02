@@ -8,7 +8,7 @@ Copy `.agents/skills/josty/SKILL.md` into your agent's skills directory (e.g. `.
 ## Execution
 - Instant execution: `uvx josty "<query>" --limit 10`
 - CLI package install: `pipx install josty`
-- Fallback runner: `$(command -v python3 || command -v python) .agents/skills/josty/scripts/run.py "<query>"`
+- Fallback runner: `$(command -v python3 || command -v python) .agents/skills/josty/scripts/run.py "<query>"` (thin delegator; installs josty from PyPI on first use)
 
 ## Key Options
 - `--limit <n>`: Number of results (default: 10)

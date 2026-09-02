@@ -3,14 +3,26 @@
 Josty is intentionally shell-first. An agent calls one command and parses one versioned JSON
 object. MCP, an HTTP daemon, an LLM, and hosted credentials are not required.
 
-## Portable skill launcher
+## Running josty
+
+Preferred: run the CLI straight from PyPI — no install step, no repo checkout needed:
+
+```bash
+uvx josty "open source search for AI agents" --limit 10
+```
+
+For repeated use, install it once (`pipx install josty` / `uv tool install josty`) and run
+the `josty` console script. Agents working from a source checkout without `uvx` on PATH can
+use the bundled thin delegator instead — it installs josty from PyPI on first use, then runs it:
 
 ```bash
 python "$SKILL_DIR/scripts/run.py" "open source search for AI agents" --limit 10
 ```
 
-The launcher uses a private environment under the installed skill. If that environment is missing or
-the bundled requirements change, it creates or refreshes it from `requirements.txt` under a setup lock.
+The delegator falls back `uv tool install` → `pipx install` → `pip install --user` and needs
+only `python3`, so it also covers sandboxes where `uvx` is not installed (for example
+bare-Ubuntu cloud agents). It bundles no engine code — the single dependency manifest is
+`pyproject.toml`.
 
 ## Installed CLI
 
