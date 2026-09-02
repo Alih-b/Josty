@@ -7,6 +7,7 @@ from .engine import (
     SearchCache,
     SearchResult,
     SearchRun,
+    __version__,
     canonical,
     domain_weight,
     merge_query_variants,
@@ -21,10 +22,10 @@ __all__ = [
     "SearchCache",
     "SearchResult",
     "SearchRun",
+    "__version__",
     "canonical",
     "domain_weight",
     "merge_query_variants",
     "normalize_sites",
     "rrf",
 ]
-__version__ = "0.3.0"
