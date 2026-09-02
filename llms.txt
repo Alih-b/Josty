@@ -18,6 +18,7 @@ Copy `.agents/skills/josty/SKILL.md` into your agent's skills directory (e.g. `.
 - `--profile <general|dev|academic>`: Domain ranking profile boosting authoritative sources
 - `--mode <plain|exact|oss>`: Search query optimization mode
 - `--diagnose`: Probe reachability of search backend hosts
+- `--cache-stats`: Print local cache statistics (rows, bytes, hits) and exit
 
 ## Output Guarantees
 `stdout` is strictly versioned JSON conforming to the josty schema contract. All diagnostic logs and warnings are directed to `stderr`.

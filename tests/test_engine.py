@@ -638,14 +638,29 @@ def test_search_cache_hit_and_miss_and_clear(tmp_path):
     assert cache.get(key) is None
 
 
+def test_cache_stats_starts_and_resets_empty(tmp_path):
+    cache = SearchCache(tmp_path / "stats.db", default_ttl=60.0)
+    assert cache.stats() == {"rows": 0, "bytes": 0, "hits": 0}
+    key = SearchCache.hash_key("query")
+    cache.set(key, {"query": "query"})
+    cache.get(key)
+    cache.clear()
+    assert cache.stats() == {"rows": 0, "bytes": 0, "hits": 0}
+
+
 def test_search_cache_increments_hit_count(tmp_path):
     cache = SearchCache(tmp_path / "hits.db", default_ttl=60.0)
     key = SearchCache.hash_key("query")
     cache.set(key, {"query": "query"})
-    assert cache.hit_stats(key)[0] == 0
+    stats = cache.stats()
+    assert stats["rows"] == 1
+    assert stats["hits"] == 0
     cache.get(key)
     cache.get(key)
-    hits, last_accessed = cache.hit_stats(key)
+    with sqlite3.connect(cache.db_path) as conn:
+        hits, last_accessed = conn.execute(
+            "SELECT hit_count, last_accessed FROM search_cache WHERE key = ?", (key,)
+        ).fetchone()
     assert hits == 2
     assert last_accessed > 0
 
@@ -654,14 +669,14 @@ def test_search_cache_prunes_when_over_max_rows(tmp_path):
     cache = SearchCache(tmp_path / "prune.db", default_ttl=60.0, max_rows=5, prune_batch=2)
     for index in range(6):
         cache.set(f"k{index}", {"n": index})
-    assert cache.row_count() == 5
+    assert cache.stats()["rows"] == 5
 
 
 def test_search_cache_prune_does_not_wipe_table(tmp_path):
     cache = SearchCache(tmp_path / "wipe.db", default_ttl=60.0, max_rows=3, prune_batch=100)
     for index in range(4):
         cache.set(f"k{index}", {"n": index})
-    assert cache.row_count() == 3
+    assert cache.stats()["rows"] == 3
 
 
 def test_cache_prunes_when_over_max_bytes(tmp_path):
@@ -671,16 +686,18 @@ def test_cache_prunes_when_over_max_bytes(tmp_path):
     big = "x" * 1000
     for index in range(3):
         cache.set(f"k{index}", {"blob": big})
-    assert cache.total_bytes() <= 2000
-    assert cache.row_count() < 3
+    stats = cache.stats()
+    assert stats["bytes"] <= 2000
+    assert stats["rows"] < 3
 
 
 def test_max_bytes_disabled_when_zero(tmp_path):
     cache = SearchCache(tmp_path / "nobytes.db", default_ttl=60.0, max_bytes=0)
     for index in range(5):
         cache.set(f"k{index}", {"blob": "x" * 1000})
-    assert cache.row_count() == 5
-    assert cache.total_bytes() >= 5000
+    stats = cache.stats()
+    assert stats["rows"] == 5
+    assert stats["bytes"] >= 5000
 
 
 def test_search_cache_migrates_legacy_schema(tmp_path):
@@ -702,7 +719,10 @@ def test_search_cache_migrates_legacy_schema(tmp_path):
         )
     cache = SearchCache(db, default_ttl=60.0)
     assert cache.get("k") == {"ok": True}
-    hits, last_accessed = cache.hit_stats("k")
+    with sqlite3.connect(db) as conn:
+        hits, last_accessed = conn.execute(
+            "SELECT hit_count, last_accessed FROM search_cache WHERE key = 'k'"
+        ).fetchone()
     assert hits == 1
     assert last_accessed > 0
 

@@ -50,6 +50,9 @@ def parser() -> argparse.ArgumentParser:
         "--clear-cache", action="store_true", help="clear cached search results and exit"
     )
     command.add_argument(
+        "--cache-stats", action="store_true", help="print local cache statistics and exit"
+    )
+    command.add_argument(
         "--max-query-variants",
         type=int,
         default=None,
@@ -114,8 +117,13 @@ def main() -> None:
         Josty().clear_cache()
         print(json.dumps({"status": "cleared", "message": "Search cache cleared"}))
         return
+    if args.cache_stats:
+        print(json.dumps(Josty().cache_stats(), indent=2))
+        return
     if not args.query and not args.diagnose:
-        command.error("a query is required unless --diagnose or --clear-cache is given")
+        command.error(
+            "a query is required unless --diagnose, --clear-cache, or --cache-stats is given"
+        )
     if args.diagnose and args.results_only:
         command.error("--results-only cannot be combined with --diagnose")
     try:

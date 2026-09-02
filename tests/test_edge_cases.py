@@ -126,6 +126,21 @@ class TestCLIContract:
         payload = json.loads(out)
         assert payload["status"] == "cleared"
 
+    def test_cache_stats_reports_real_cache(self, monkeypatch, capsys, tmp_path):
+        monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+        cache = SearchCache(tmp_path / "josty" / "cache.db", default_ttl=60.0)
+        key = SearchCache.hash_key("query")
+        cache.set(key, {"query": "query"})
+        cache.get(key)
+
+        monkeypatch.setattr("sys.argv", ["josty", "--cache-stats"])
+        cli_main()
+        out, err = capsys.readouterr()
+        assert err == ""
+        payload = json.loads(out)
+        assert payload["rows"] == 1
+        assert payload["hits"] == 1
+
     def test_results_only_does_not_emit_envelope(self, monkeypatch, capsys):
         async def fake_research_run(self, query, **kwargs):
             return SearchRun(
