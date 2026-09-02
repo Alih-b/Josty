@@ -58,6 +58,26 @@ def test_main_clear_cache(monkeypatch, capsys):
     assert cleared is True
 
 
+def test_main_cache_stats(monkeypatch, capsys):
+    stats = {"rows": 3, "bytes": 1200, "hits": 7}
+
+    def fake_cache_stats(self):
+        return stats
+
+    monkeypatch.setattr("josty.engine.Josty.cache_stats", fake_cache_stats)
+    monkeypatch.setattr("sys.argv", ["josty", "--cache-stats"])
+    main()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == stats
+
+
+def test_parser_handles_cache_stats_flag():
+    args = parser().parse_args(["--cache-stats"])
+    assert args.cache_stats is True
+    args_default = parser().parse_args(["query"])
+    assert args_default.cache_stats is False
+
+
 def test_parser_handles_no_cache_flag():
     args = parser().parse_args(["query", "--no-cache"])
     assert args.no_cache is True

@@ -749,32 +749,21 @@ class SearchCache:
                     break
                 total = new_total
 
-    def row_count(self) -> int:
+    def stats(self) -> dict[str, int]:
+        """Aggregate cache telemetry: row count, payload bytes, and cumulative hits."""
         try:
             with self._get_conn() as conn:
-                return int(conn.execute("SELECT COUNT(*) FROM search_cache").fetchone()[0])
-        except Exception:
-            return 0
-
-    def total_bytes(self) -> int:
-        try:
-            with self._get_conn() as conn:
-                return self._sum_payload_bytes(conn)
-        except Exception:
-            return 0
-
-    def hit_stats(self, key: str) -> tuple[int, float] | None:
-        try:
-            with self._get_conn() as conn:
-                row = conn.execute(
-                    "SELECT hit_count, last_accessed FROM search_cache WHERE key = ?",
-                    (key,),
+                rows, payload_bytes, hits = conn.execute(
+                    """
+                    SELECT COUNT(*),
+                           COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0),
+                           COALESCE(SUM(COALESCE(hit_count, 0)), 0)
+                    FROM search_cache
+                    """
                 ).fetchone()
-                if row is None:
-                    return None
-                return int(row[0] or 0), float(row[1] or 0)
+                return {"rows": int(rows), "bytes": int(payload_bytes), "hits": int(hits)}
         except Exception:
-            return None
+            return {"rows": 0, "bytes": 0, "hits": 0}
 
     def clear(self) -> None:
         with suppress(Exception), self._get_conn() as conn:
@@ -1000,6 +989,12 @@ class Josty:
     def clear_cache(self) -> None:
         if self.cache:
             self.cache.clear()
+
+    def cache_stats(self) -> dict[str, int]:
+        """Aggregate cache telemetry; all zeros when the cache is disabled."""
+        if self.cache:
+            return self.cache.stats()
+        return {"rows": 0, "bytes": 0, "hits": 0}
 
     def _search_semaphore(self) -> asyncio.Semaphore:
         if self._search_sem is None:

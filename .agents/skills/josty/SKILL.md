@@ -54,6 +54,9 @@ uvx josty "query" --mode oss --site github.com --site gitlab.com --max-query-var
 # Tune concurrency for loop use; search (default 6) and fetch (default 4) are independent
 uvx josty "query" --search-concurrency 12 --fetch-concurrency 8
 
+# Inspect the bounded local cache (rows, payload bytes, cumulative hits)
+uvx josty --cache-stats
+
 # Using bundled fallback script instead of uvx:
 $(command -v python3 || command -v python) "$SKILL_DIR/scripts/run.py" "query" --site github.com
 ```

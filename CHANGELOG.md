@@ -22,6 +22,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Diagnose envelope field `challenged`: true when a reachable probe returns HTTP 401, 403, or 429.
 - Search cache access telemetry (`hit_count`, `last_accessed`), a 5,000-row prune ceiling, and
   envelope flag `cached` (true only on cache hit).
+- `--cache-stats` CLI flag (plus `SearchCache.stats()` / `Josty.cache_stats()`) reporting
+  aggregate cache telemetry — rows, payload bytes, cumulative hits — so the bounded cache is
+  inspectable without opening the database.
 - Issue taxonomy and offline scenario eval (`docs/ISSUE_TAXONOMY.md`,
   `tests/scenario_eval.py`) so live misses can be labeled as `contract_bug`,
   `intended_misleading`, `upstream_quality`, or `product_gap` without changing
