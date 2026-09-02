@@ -110,7 +110,8 @@ graph TD
 
 1. **Changelog**: Add entries under `## [0.4.0]` in `CHANGELOG.md`.
 2. **Skill Definition**: Sync `.agents/skills/josty/SKILL.md` (`error_kind=empty`, `challenged`, `cached`, no rewrite).
-3. **Version Bump**: `0.3.0` → `0.4.0` in `pyproject.toml` at release time (not required in this change).
+3. **Version Bump**: bump the single `__version__` literal in `.agents/skills/josty/src/josty/engine.py`
+   (drives `pyproject.toml` via hatchling `dynamic = ["version"]`) at release time (not required in this change).
 4. **Git Tag & Release**: `git tag v0.4.0` + GitHub Release when cutting the version.
 5. **Scenario eval**: News/academic cases remain documented `upstream_quality` / `product_gap` unless labeled otherwise.
 6. **Auto-Close Issues**: Link PR commits to tracking issues.
