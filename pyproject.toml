@@ -60,6 +60,17 @@ include = [
   "LICENSE",
   "pyproject.toml",
 ]
+# Keep generated/local directories out of the sdist even when they are not
+# covered by .gitignore (for example .venv-test, build/, *.egg-info).
+exclude = [
+  ".venv*",
+  "build",
+  "dist",
+  "*.egg-info",
+  "__pycache__",
+  ".pytest_cache",
+  ".ruff_cache",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
