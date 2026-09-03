@@ -88,16 +88,18 @@ josty "RRF rank fusion algorithm" --limit 3 --fetch
   "count": 3,
   "partial": false,
   "cached": false,
+  "run_at": "2026-09-02T12:00:00+00:00",
   "providers": [
-    { "provider": "bing,brave,duckduckgo", "ok": true, "result_count": 5 },
-    { "provider": "google,mojeek,startpage", "ok": true, "result_count": 5 }
+    { "provider": "brave", "query": "Python 3.13 features", "ok": true, "result_count": 5, "error": null, "error_kind": null },
+    { "provider": "duckduckgo", "query": "Python 3.13 features", "ok": true, "result_count": 5, "error": null, "error_kind": null },
+    { "provider": "google", "query": "Python 3.13 features", "ok": true, "result_count": 4, "error": null, "error_kind": null }
   ],
   "results": [
     {
       "title": "What's New In Python 3.13 — Python 3.13.0 documentation",
       "url": "https://docs.python.org/3/whatsnew/3.13.html",
       "snippet": "Python 3.13 includes an experimental free-threaded build mode...",
-      "sources": ["bing,brave,duckduckgo", "google,mojeek,startpage"],
+      "sources": ["brave", "duckduckgo", "google"],
       "score": 0.032787,
       "content": "## What's New In Python 3.13\n\nThis article explains the new features...",
       "extraction_method": "trafilatura"
@@ -177,15 +179,18 @@ graph TD
     Query["Search Query"] --> Cache{"SQLite WAL Cache<br/>Tiered TTL (d:30m/news:1h/w:2h, else 6h)<br/>5k rows / 50 MB, SERP-only"}
     
     Cache -- Cache Hit --> Out["<b>Pure JSON Output</b><br/>(schema_version: 1.0)"]
+    Cache -- "Cache Hit + --fetch" --> Traf
     
-    Cache -- Cache Miss --> Fanout["<b>Async Parallel Fanout</b><br/>(DDGS Engine Groups)"]
+    Cache -- Cache Miss --> Fanout["<b>Async Parallel Fanout</b><br/>(one call per engine)"]
     
-    Fanout --> B1["Backend Group 1<br/>(Bing, Brave, DDG)"]
-    Fanout --> B2["Backend Group 2<br/>(Google, Mojeek, Startpage)"]
+    Fanout --> B1["Engine Group 1<br/>(Brave, DuckDuckGo)"]
+    Fanout --> B2["Engine Group 2<br/>(Google, Mojeek, Startpage)"]
+    Fanout --> B3["Engine Group 3<br/>(Yahoo)"]
     Fanout --> GH["GitHub Search<br/>(Optional --github)"]
     
-    B1 --> Circuit["<b>Circuit Breakers</b><br/>(Sliding Window)"]
+    B1 --> Circuit["<b>Per-Engine Circuit Breakers</b><br/>(Sliding Window)"]
     B2 --> Circuit
+    B3 --> Circuit
     GH --> Circuit
     
     Circuit --> RRF["<b>Domain-Weighted RRF Fusion</b><br/>(k=60 + Dev/Academic Profiles)"]
@@ -210,7 +215,7 @@ graph TD
 | **Search Concurrency** | `6` (`--search-concurrency`) | Default bounded semaphore for search backends |
 | **Fetch Concurrency** | `4` (`--fetch-concurrency`) | Default bounded semaphore for page content fetching |
 | **Max Content Size** | `8,000 chars` (`--max-content-chars`) | Extracted Markdown character ceiling per page (0 for unlimited) |
-| **Download Byte Limit** | `2,097,152 bytes` (2MB) | Hard ceiling on raw HTTP downloads before parsing |
+| **Download Byte Limit** | `2,000,000 bytes` (2MB) | Hard ceiling on raw HTTP downloads before parsing |
 | **RRF Parameter** | $k=60$ | Cormack et al. (2009) reciprocal rank smoothing factor |
 | **SSRF Safeguards** | Verified | Blocks private subnets, loopback, RFC 1918, and `169.254.169.254` metadata |
 
@@ -218,7 +223,10 @@ graph TD
 
 ## Roadmap
 
-See **[ROADMAP.md](https://github.com/Alih-b/josty/blob/main/ROADMAP.md)** for `v0.4.0`: `error_kind=empty`, diagnose `challenged`, no hidden query rewrite, and a bounded cache. Query relaxation, news engine filters, and hard host floors are out of scope.
+Shipped in **v0.4.0**: `error_kind=empty`, diagnose `challenged`, no hidden query rewrite,
+and a bounded cache. Next up: per-engine `providers[]` observability (one status per engine,
+availability gate). Query relaxation, news engine filters, and hard host floors are out of
+scope. See **[ROADMAP.md](https://github.com/Alih-b/josty/blob/main/ROADMAP.md)**.
 
 ---
 

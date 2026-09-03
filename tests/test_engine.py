@@ -152,7 +152,7 @@ def test_site_results_are_post_filtered(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
     run = asyncio.run(
-        Josty(backends=("test",)).search_run("query", sites=["github.com"], limit=3)
+        Josty(backends=("duckduckgo",)).search_run("query", sites=["github.com"], limit=3)
     )
     assert [item.url for item in run.results] == ["https://docs.github.com/a"]
 
@@ -337,12 +337,150 @@ def test_provider_failures_are_reported_without_hidden_retry(monkeypatch):
             raise RuntimeError("blocked")
 
     monkeypatch.setattr("josty.engine.DDGS", BrokenDDGS)
-    run = asyncio.run(Josty(backends=("broken",)).search_run("query", limit=3))
+    run = asyncio.run(Josty(backends=("duckduckgo",)).search_run("query", limit=3))
     assert run.results == []
     assert run.status == "failed"
-    assert run.providers[0].provider == "broken"
+    assert run.providers[0].provider == "duckduckgo"
     assert "RuntimeError: blocked" in run.providers[0].error
     assert BrokenDDGS.calls == 1
+
+
+def test_duplicate_engine_names_within_a_group_are_deduped(monkeypatch):
+    seen_backends = []
+
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            seen_backends.append(kwargs["backend"])
+            return [{"title": "Hit", "href": "https://example.com/a", "body": "Snippet"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    asyncio.run(Josty(backends=("duckduckgo,duckduckgo",)).search_run("query", limit=5))
+    assert seen_backends == ["duckduckgo"]
+
+
+def test_group_backends_fan_out_per_engine_and_stay_group_fused(monkeypatch):
+    seen_backends = []
+
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            seen_backends.append(kwargs["backend"])
+            return [
+                {
+                    "title": f"Hit via {kwargs['backend']}",
+                    "href": "https://example.com/a",
+                    "body": "Snippet",
+                }
+            ]
+
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    run = asyncio.run(
+        Josty(backends=("duckduckgo,brave", "google")).search_run("query", limit=5)
+    )
+    assert sorted(seen_backends) == ["brave", "duckduckgo", "google"]
+    assert {status.provider for status in run.providers} == {"duckduckgo", "brave", "google"}
+    assert all(status.ok for status in run.providers)
+    assert len(run.results) == 1
+    assert run.results[0].sources == ["duckduckgo", "brave", "google"]
+
+
+def test_provider_status_is_one_entry_per_engine_across_variants(monkeypatch):
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            if kwargs["backend"] == "duckduckgo":
+                return [{"title": "Hit", "href": "https://example.com/shared", "body": "Snippet"}]
+            suffix = "quoted" if query.startswith('"') else "plain"
+            return [
+                {"title": "Hit", "href": f"https://example.com/brave-{suffix}", "body": "Snippet"}
+            ]
+
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    run = asyncio.run(
+        Josty(backends=("duckduckgo,brave",)).search_run("alpha", mode="exact", limit=5)
+    )
+    by_provider = {status.provider: status for status in run.providers}
+    assert len(run.providers) == 2
+    assert by_provider["duckduckgo"].result_count == 1
+    assert by_provider["brave"].result_count == 2
+    assert all(status.ok for status in run.providers)
+    assert all(status.error_kind is None for status in run.providers)
+
+
+def test_aggregated_status_keeps_most_severe_variant_outcome(monkeypatch):
+    class FlakyDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            if query.startswith('"'):
+                raise RuntimeError("blocked")
+            return [{"title": "Hit", "href": "https://example.com/a", "body": "Snippet"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", FlakyDDGS)
+    run = asyncio.run(
+        Josty(backends=("duckduckgo",)).search_run("alpha", mode="exact", limit=5)
+    )
+    status = run.providers[0]
+    assert status.provider == "duckduckgo"
+    assert status.ok is True
+    assert status.result_count == 1
+    assert status.error_kind == "unknown"
+    assert "RuntimeError: blocked" in status.error
+
+
+def test_unavailable_engine_is_skipped_visibly_without_calling_ddgs(monkeypatch):
+    class ExplodingDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            raise AssertionError("ddgs must not be called for unavailable engines")
+
+    monkeypatch.setattr("josty.engine.DDGS", ExplodingDDGS)
+    run = asyncio.run(Josty(backends=("nosuchengine",)).search_run("query", limit=5))
+    assert run.results == []
+    assert run.providers[0].provider == "nosuchengine"
+    assert run.providers[0].ok is False
+    assert run.providers[0].error_kind == "skipped"
+    assert "not enabled in the installed ddgs" in run.providers[0].error
+    assert run.status == "failed"
+
+
+def test_merge_query_variants_best_rank_merge_without_frequency_vote():
+    # Josty owns group-internal ranking: a URL's position is its best rank
+    # across engine lists, and appearing in both engines does NOT promote it
+    # (no ddgs-style frequency voting). This test pins that policy.
+    from josty.engine import SearchResult, merge_query_variants, rrf
+
+    def item(url, source):
+        return SearchResult(source, url, "query", sources=[source])
+
+    engine_a = [
+        item("https://a.example/a", "a"),
+        item("https://shared.example/x", "a"),
+    ]
+    engine_b = [
+        item("https://b.example/b", "b"),
+        item("https://shared.example/x", "b"),
+    ]
+    merged = merge_query_variants([engine_a, engine_b])
+    assert [entry.url for entry in merged] == [
+        "https://a.example/a",
+        "https://b.example/b",
+        "https://shared.example/x",
+    ]
+    fused = rrf([merged])
+    scores = {entry.url: entry.score for entry in fused}
+    # One vote at rank 3 — not two rank-2 votes.
+    assert scores["https://shared.example/x"] == round(1 / 63, 6)
 
 
 def test_news_metadata_and_filters_are_preserved(monkeypatch):
@@ -366,7 +504,7 @@ def test_news_metadata_and_filters_are_preserved(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", CapturingDDGS)
     run = asyncio.run(
-        Josty(backends=("test",)).search_run(
+        Josty(backends=("duckduckgo",)).search_run(
             "query",
             limit=3,
             category="news",
@@ -379,7 +517,7 @@ def test_news_metadata_and_filters_are_preserved(monkeypatch):
     assert (item.published_at, item.publisher) == ("2026-07-15", "Example News")
     assert captured == {
         "query": "query",
-        "backend": "test",
+        "backend": "duckduckgo",
         "max_results": 3,
         "safesearch": "on",
         "region": "de-de",
@@ -470,7 +608,7 @@ def test_diagnose_reports_http_status_for_challenged_hosts(monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
     payload = asyncio.run(Josty().diagnose_run()).dict()
-    entry = next(item for item in payload["providers"] if item["provider"] == "bing")
+    entry = next(item for item in payload["providers"] if item["provider"] == "duckduckgo")
     assert entry["ok"] is True
     assert entry["http_status"] == 403
     assert entry["challenged"] is True
@@ -494,18 +632,18 @@ def test_diagnose_200_is_not_challenged(monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
     payload = asyncio.run(Josty().diagnose_run()).dict()
-    entry = next(item for item in payload["providers"] if item["provider"] == "bing")
+    entry = next(item for item in payload["providers"] if item["provider"] == "duckduckgo")
     assert entry["ok"] is True
     assert entry["challenged"] is False
 
 
 def test_diagnose_classifies_blocked_hosts(monkeypatch):
     hosts_to_exc = {
-        "www.bing.com": httpx.ReadTimeout("timed out"),
-        "www.google.com": httpx.ConnectError("refused", request=httpx.Request("GET", "u")),
-        "yandex.com": _dns_connect_error(),
-        "www.mojeek.com": RuntimeError("boom"),
-        "www.startpage.com": _tls_connect_error(),
+        "www.google.com": httpx.ReadTimeout("timed out"),
+        "search.yahoo.com": httpx.ConnectError("refused", request=httpx.Request("GET", "u")),
+        "www.mojeek.com": _dns_connect_error(),
+        "www.startpage.com": RuntimeError("boom"),
+        "search.brave.com": _tls_connect_error(),
     }
 
     def exc_for(url):
@@ -518,24 +656,26 @@ def test_diagnose_classifies_blocked_hosts(monkeypatch):
         return httpx.Response(200, request=httpx.Request("GET", url))
 
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
-    payload = asyncio.run(Josty().diagnose_run()).dict()
+    payload = asyncio.run(
+        Josty(backends=("google,yahoo,mojeek,startpage,brave",)).diagnose_run()
+    ).dict()
 
     by_provider = {entry["provider"]: entry for entry in payload["providers"]}
-    assert by_provider["bing"]["error_kind"] == "timeout"
-    assert by_provider["google"]["error_kind"] == "network"
-    assert by_provider["yandex"]["error_kind"] == "dns"
-    assert by_provider["startpage"]["error_kind"] == "tls"
-    assert by_provider["mojeek"]["error_kind"] == "unknown"
-    for provider in ("bing", "google", "yandex", "startpage", "mojeek"):
+    assert by_provider["google"]["error_kind"] == "timeout"
+    assert by_provider["yahoo"]["error_kind"] == "network"
+    assert by_provider["mojeek"]["error_kind"] == "dns"
+    assert by_provider["brave"]["error_kind"] == "tls"
+    assert by_provider["startpage"]["error_kind"] == "unknown"
+    for provider in ("google", "yahoo", "mojeek", "brave", "startpage"):
         entry = by_provider[provider]
         assert entry["ok"] is False
         assert entry["http_status"] is None
         assert entry["error"]
         assert entry["challenged"] is False
-    assert payload["status"] == "degraded"
+    assert payload["status"] == "failed"
 
 
-def test_diagnose_reports_unknown_backends_instead_of_skipping(monkeypatch):
+def test_diagnose_reports_unavailable_engine_as_skipped_without_probing(monkeypatch):
     async def fail_get(self, url, **kwargs):
         raise AssertionError("no probe should run")
 
@@ -544,7 +684,8 @@ def test_diagnose_reports_unknown_backends_instead_of_skipping(monkeypatch):
     by_provider = {entry["provider"]: entry for entry in payload["providers"]}
     assert set(by_provider) == {"mystery"}
     assert by_provider["mystery"]["ok"] is False
-    assert by_provider["mystery"]["error_kind"] == "unknown"
+    assert by_provider["mystery"]["error_kind"] == "skipped"
+    assert "not enabled in the installed ddgs" in by_provider["mystery"]["error"]
     assert payload["status"] == "failed"
 
 
@@ -557,7 +698,7 @@ def test_diagnose_scopes_probes_to_category_and_github_opt_in(monkeypatch):
     text = asyncio.run(Josty().diagnose_run()).dict()
     text_providers = {entry["provider"] for entry in text["providers"]}
     assert "github-api" not in text_providers
-    assert all(p in text_providers for p in ("bing", "google", "yandex"))
+    assert all(p in text_providers for p in ("brave", "google", "yahoo"))
 
     news = asyncio.run(Josty().diagnose_run(category="news")).dict()
     news_providers = {entry["provider"] for entry in news["providers"]}
@@ -976,7 +1117,7 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", MockDDGS)
 
-    engine = Josty(backends=("test-group",), enable_cache=True)
+    engine = Josty(backends=("duckduckgo",), enable_cache=True)
 
     # Mode oss with 2 sites creates 8 variants uncapped; cap at 2
     queries_seen.clear()
@@ -1098,7 +1239,7 @@ def test_circuit_breaker_opens_after_threshold_failures_and_skips_calls():
     allowed, message = breaker.status("bing", "search")
     assert allowed is False
     assert message is not None
-    assert message.startswith("skipped: backend in cool-down until ")
+    assert message.startswith("skipped: engine in cool-down until ")
     assert message.endswith("Z")
 
 
@@ -1169,13 +1310,13 @@ def test_search_run_skips_backend_in_cool_down(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", BrokenDDGS)
     breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
-    engine = Josty(backends=("broken",), breaker=breaker)
+    engine = Josty(backends=("duckduckgo",), breaker=breaker)
     for _ in range(2):
         run = asyncio.run(engine.search_run("q", limit=3))
         assert run.providers[0].error == "RuntimeError: blocked"
     skipped = asyncio.run(engine.search_run("q", limit=3))
     assert skipped.providers[0].error is not None
-    assert skipped.providers[0].error.startswith("skipped: backend in cool-down until ")
+    assert skipped.providers[0].error.startswith("skipped: engine in cool-down until ")
     assert skipped.providers[0].error.endswith("Z")
     assert skipped.results == []
 
@@ -1190,7 +1331,7 @@ def test_github_breaker_is_independent_from_search_backends(monkeypatch):
 
     monkeypatch.setattr("josty.engine.DDGS", BrokenDDGS)
     breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
-    engine = Josty(backends=("broken",), breaker=breaker)
+    engine = Josty(backends=("duckduckgo",), breaker=breaker)
 
     async def fake_get(self, url, **kwargs):
         return httpx.Response(
@@ -1202,7 +1343,7 @@ def test_github_breaker_is_independent_from_search_backends(monkeypatch):
     monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
     for _ in range(2):
         asyncio.run(engine.search_run("q", limit=3))
-    assert breaker.status("broken", "search")[0] is False
+    assert breaker.status("duckduckgo", "search")[0] is False
     assert breaker.status("github-api", "search")[0] is True
     results, status = asyncio.run(engine.github_run("agent search", 5))
     assert status.ok is True

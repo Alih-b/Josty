@@ -843,7 +843,7 @@ class TestCache:
             def text(self, *args, **kwargs):
                 return []
         monkeypatch.setattr("josty.engine.DDGS", EmptyDDGS)
-        engine = Josty(backends=("empty",), cache_db=tmp_path / "c.db")
+        engine = Josty(backends=("duckduckgo",), cache_db=tmp_path / "c.db")
         calls = {"n": 0}
         original = EmptyDDGS.text
         def counting(self, *a, **kw):
@@ -867,7 +867,7 @@ class TestCache:
             def text(self, *args, **kwargs):
                 raise DDGSException("no results found")
         monkeypatch.setattr("josty.engine.DDGS", EmptyDDGS)
-        engine = Josty(backends=("empty",))
+        engine = Josty(backends=("duckduckgo",))
         run = asyncio.run(engine.search_run("anything", limit=5))
         # The provider reports success (no error), but with 0 results
         assert run.providers[0].ok is True
@@ -882,7 +882,7 @@ class TestCache:
             def text(self, *args, **kwargs):
                 return []
         monkeypatch.setattr("josty.engine.DDGS", EmptyDDGS)
-        engine = Josty(backends=("empty",), cache_db=None)
+        engine = Josty(backends=("duckduckgo",), cache_db=None)
         run = asyncio.run(engine.search_run("anything", limit=5))
         assert run.providers[0].ok is True
         assert run.providers[0].result_count == 0
@@ -1105,7 +1105,7 @@ class TestResearchRun:
             def text(self, *args, **kwargs):
                 raise RuntimeError("nope")
         monkeypatch.setattr("josty.engine.DDGS", BrokenDDGS)
-        engine = Josty(backends=("broken",), cache_db=tmp_path / "c.db")
+        engine = Josty(backends=("duckduckgo",), cache_db=tmp_path / "c.db")
         run1 = asyncio.run(engine.search_run("q", limit=1))
         run2 = asyncio.run(engine.search_run("q", limit=1))
         assert run1.status == "failed"
@@ -1282,7 +1282,7 @@ class TestDiagnose:
         entry = d["providers"][0]
         assert entry["provider"] == "mystery"
         assert entry["ok"] is False
-        assert entry["error_kind"] == "unknown"
+        assert entry["error_kind"] == "skipped"
         assert d["status"] == "failed"
 
     def test_diagnose_with_github_uses_api_host(self, monkeypatch):
@@ -1300,14 +1300,14 @@ class TestDiagnose:
         async def ok(self, url, **kw):
             return httpx.Response(200, request=httpx.Request("GET", url))
         monkeypatch.setattr(httpx.AsyncClient, "get", ok)
-        d = asyncio.run(Josty(backends=("bing,brave",)).diagnose_run()).dict()
+        d = asyncio.run(Josty(backends=("brave,duckduckgo",)).diagnose_run()).dict()
         assert d["status"] == "complete"
         assert d["reachable"] == 2
 
     def test_diagnose_partial_status(self, monkeypatch):
         # Inject failure for one provider
         async def gate(self, url, **kw):
-            if "www.bing.com" in url:
+            if "search.brave.com" in url:
                 raise httpx.ConnectError("refused", request=httpx.Request("GET", url))
             return httpx.Response(200, request=httpx.Request("GET", url))
         monkeypatch.setattr(httpx.AsyncClient, "get", gate)

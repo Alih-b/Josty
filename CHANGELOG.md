@@ -3,6 +3,35 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Per-engine search fanout: backend groups (`"brave,duckduckgo"`) now issue one ddgs call
+  per engine instead of one blended group call. Group-level RRF fusion is preserved, with
+  group-internal ranking now owned by Josty: a URL's position is its best rank across
+  engines, without ddgs's hidden frequency voting or wikipedia pin. `providers[]` reports
+  exactly one status per engine, aggregated across query variants (`result_count` = distinct
+  canonical URLs; `error_kind` = most severe variant outcome, so partial throttling stays
+  visible; `error` = first failure message) — an engine that silently returns empty or fails
+  inside a healthy group is visible instead of absorbed. The circuit breaker is per-engine
+  as a result. Unlike raw ddgs, which early-stops and can leave engines unqueried at small
+  limits, Josty always queries every configured engine: complete per-engine breaker health
+  is worth the extra page-1 requests (bounded by engine count × `max_query_variants`).
+- Engine-availability gate: engines that are unknown or disabled in the installed ddgs
+  (e.g. ddgs 9.16.0 has bing/yandex text engines disabled upstream) are skipped with
+  `ok=false`, `error_kind="skipped"` and a named error, instead of triggering ddgs's
+  silent fallback to `backend="auto"` (all engines) or being dropped without a trace.
+- Default text backends updated to engines ddgs 9.16.0 actually serves:
+  `("brave,duckduckgo", "google,mojeek,startpage", "yahoo")` — the previous defaults
+  included bing and yandex, which ddgs has disabled, silently running 6 engines instead
+  of the configured 8.
+- Circuit-breaker cool-down skips now report `error_kind: "skipped"` (schema 1.0 additive)
+  on the affected `providers[]` entries, so agents can distinguish a deliberate breaker
+  skip from an unclassified `unknown` failure.
+- `--diagnose` now skips unknown/disabled engines with `error_kind="skipped"` and a named
+  error instead of probing their hosts and reporting a generic failure.
+
 ## [0.4.0] - 2026-09-02
 
 ### Added

@@ -32,7 +32,7 @@ SearchMode = Literal["plain", "exact", "oss"]
 SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]
-ErrorKind = Literal["network", "rate_limited", "empty", "parse", "unknown"]
+ErrorKind = Literal["network", "rate_limited", "empty", "parse", "unknown", "skipped"]
 ProfileType = Literal["general", "dev", "academic"]
 
 SCHEMA_VERSION = "1.0"
@@ -270,7 +270,7 @@ class HostStatus:
     host: str
     ok: bool
     http_status: int | None = None
-    error_kind: Literal["timeout", "dns", "tls", "network", "unknown"] | None = None
+    error_kind: Literal["timeout", "dns", "tls", "network", "unknown", "skipped"] | None = None
     error: str | None = None
     challenged: bool = False
 
@@ -312,6 +312,94 @@ _TLS_TOKENS = (
 )
 _PARSE_TOKENS = ("failed to fetch", "parse", "decode", "json")
 _EMPTY_RESULTS_MESSAGE = "no results found"
+
+try:
+    from ddgs.engines import ENGINES as _DDGS_ENGINES
+except ImportError:
+    _DDGS_ENGINES = None
+
+_KNOWN_TEXT_ENGINES = frozenset(
+    {
+        "bing",
+        "brave",
+        "duckduckgo",
+        "google",
+        "grokipedia",
+        "mojeek",
+        "startpage",
+        "wikipedia",
+        "yahoo",
+        "yandex",
+    }
+)
+_KNOWN_NEWS_ENGINES = frozenset({"bing", "duckduckgo", "yahoo"})
+
+
+def _engine_available(category: SearchCategory, name: str) -> tuple[bool, str | None]:
+    """Check engine availability without calling ddgs.
+
+    ddgs silently drops unknown or disabled engine names inside a group call and
+    falls back to ``backend="auto"`` (all engines) when none match — a silent
+    amplification and downgrade trap. Checking availability here lets a dead or
+    misspelled engine be skipped with a visible status instead.
+    """
+    if _DDGS_ENGINES is not None:
+        if name in _DDGS_ENGINES.get(category, {}):
+            return True, None
+        return False, f"skipped: engine '{name}' is not enabled in the installed ddgs"
+    known = _KNOWN_NEWS_ENGINES if category == "news" else _KNOWN_TEXT_ENGINES
+    if name in known:
+        return True, None
+    return False, f"skipped: unknown engine '{name}'"
+
+
+# Severity order for aggregating per-variant error_kind values into the single
+# per-engine status. Higher wins; None (a clean successful variant) is ignored
+# unless every variant was clean.
+_ERROR_KIND_SEVERITY: dict[str | None, int] = {
+    None: -1,
+    "empty": 0,
+    "skipped": 1,
+    "unknown": 2,
+    "parse": 3,
+    "network": 4,
+    "rate_limited": 5,
+}
+
+
+def _aggregate_engine_status(
+    statuses: list[ProviderStatus], item_lists: list[list[SearchResult]]
+) -> ProviderStatus:
+    """Collapse one engine's per-variant statuses into a single per-engine entry.
+
+    ``ok`` is true when any variant reached the engine; ``result_count`` counts
+    distinct canonical URLs across all variants (a URL found by two variants is
+    one result); ``error_kind`` is the most severe variant outcome so partial
+    throttling stays visible; ``error`` is the first failure message.
+    """
+    provider = statuses[0].provider
+    query = statuses[0].query
+    ok = any(status.ok for status in statuses)
+    seen_urls: set[str] = set()
+    for items in item_lists:
+        for item in items:
+            try:
+                seen_urls.add(canonical(item.url))
+            except ValueError:
+                continue
+    error = next((status.error for status in statuses if status.error), None)
+    error_kind = max(
+        (status.error_kind for status in statuses),
+        key=lambda kind: _ERROR_KIND_SEVERITY.get(kind, -1),
+    )
+    return ProviderStatus(
+        provider,
+        query,
+        ok,
+        len(seen_urls),
+        error=error,
+        error_kind=error_kind,
+    )
 
 
 def _classify_search_error(exc: BaseException) -> ErrorKind:
@@ -882,7 +970,7 @@ class CircuitBreaker:
                     .isoformat()
                     .replace("+00:00", "Z")
                 )
-                return False, f"skipped: backend in cool-down until {until_iso}"
+                return False, f"skipped: engine in cool-down until {until_iso}"
             del self._open_until[key]
             self._state.pop(key, None)
         return True, None
@@ -906,9 +994,9 @@ class Josty:
     group-level RRF fusion and safe text extraction."""
 
     DEFAULT_BACKENDS = (
-        "bing,brave,duckduckgo",
+        "brave,duckduckgo",
         "google,mojeek,startpage",
-        "yandex,yahoo",
+        "yahoo",
     )
     DEFAULT_NEWS_BACKENDS = ("bing,duckduckgo,yahoo",)
 
@@ -1055,9 +1143,16 @@ class Josty:
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
     ) -> tuple[list[SearchResult], ProviderStatus]:
+        available, unavailable_message = _engine_available(category, backend)
+        if not available:
+            return [], ProviderStatus(
+                backend, query, False, error=unavailable_message, error_kind="skipped"
+            )
         allowed, skip_message = self.breaker.status(backend, "search")
         if not allowed:
-            return [], ProviderStatus(backend, query, False, error=skip_message)
+            return [], ProviderStatus(
+                backend, query, False, error=skip_message, error_kind="skipped"
+            )
         async with self._search_semaphore():
 
             def run() -> tuple[list[SearchResult], ProviderStatus]:
@@ -1147,30 +1242,58 @@ class Josty:
             mode,
             max_query_variants=effective_max_variants,
         )
-        backends = self.news_backends if category == "news" else self.backends
+        groups = self.news_backends if category == "news" else self.backends
+        engine_specs = []
+        for group_index, group in enumerate(groups):
+            seen_in_group: set[str] = set()
+            for name in group.split(","):
+                name = name.strip()
+                if not name or name in seen_in_group:
+                    continue
+                seen_in_group.add(name)
+                engine_specs.append((group_index, name))
         batches = await asyncio.gather(
             *(
                 self._ddgs(
                     variant,
-                    backend,
+                    engine,
                     limit,
                     category=category,
                     region=region,
                     safesearch=safesearch,
                     timelimit=timelimit,
                 )
-                for backend in backends
+                for _group_index, engine in engine_specs
                 for variant in queries
             )
         )
-        width = len(queries)
+        group_results: dict[int, list[list[SearchResult]]] = {}
+        engine_statuses: dict[tuple[int, str], list[ProviderStatus]] = {}
+        engine_items: dict[tuple[int, str], list[list[SearchResult]]] = {}
+        call_specs = [
+            (group_index, _engine)
+            for group_index, _engine in engine_specs
+            for _variant in queries
+        ]
+        for (group_index, engine), (items, status) in zip(
+            call_specs, batches, strict=True
+        ):
+            group_results.setdefault(group_index, []).append(items)
+            key = (group_index, engine)
+            engine_statuses.setdefault(key, []).append(status)
+            engine_items.setdefault(key, []).append(items)
+        statuses = [
+            _aggregate_engine_status(engine_statuses[key], engine_items[key])
+            for key in engine_statuses
+        ]
         lists = []
-        for index, _backend in enumerate(backends):
-            variant_lists = [items for items, _ in batches[index * width : (index + 1) * width]]
-            merged = merge_query_variants([items for items in variant_lists if items])
+        for group_index in range(len(groups)):
+            merged = merge_query_variants(
+                [items for items in group_results.get(group_index, []) if items]
+            )
             if merged:
                 lists.append(merged)
-        return lists, [status for _, status in batches], normalized_sites
+        return lists, statuses, normalized_sites
 
     @staticmethod
     def _filter_sites(results: list[SearchResult], sites: list[str]) -> list[SearchResult]:
@@ -1346,7 +1469,9 @@ class Josty:
     ) -> tuple[list[SearchResult], ProviderStatus]:
         allowed, skip_message = self.breaker.status("github-api", "search")
         if not allowed:
-            return [], ProviderStatus("github-api", query, False, error=skip_message)
+            return [], ProviderStatus(
+                "github-api", query, False, error=skip_message, error_kind="skipped"
+            )
         url = "https://api.github.com/search/repositories"
         headers = {
             "Accept": "application/vnd.github+json",
@@ -1434,18 +1559,25 @@ class Josty:
         """
         groups = self.news_backends if category == "news" else self.backends
         targets: list[tuple[str, str]] = []
+        skipped: list[HostStatus] = []
         seen_providers: set[str] = set()
         for group in groups:
             for name in group.split(","):
                 name = name.strip()
-                if name in seen_providers:
+                if not name or name in seen_providers:
                     continue
                 seen_providers.add(name)
+                available, unavailable_message = _engine_available(category, name)
+                if not available:
+                    skipped.append(
+                        HostStatus(name, "", False, None, "skipped", unavailable_message)
+                    )
+                    continue
                 targets.append((name, self.BACKEND_HOSTS.get(name, "")))
         if include_github:
             targets.append(("github-api", self.BACKEND_HOSTS["github-api"]))
         statuses = await asyncio.gather(*(self._probe_host(name, host) for name, host in targets))
-        return DiagnoseRun(providers=list(statuses))
+        return DiagnoseRun(providers=[*statuses, *skipped])
 
     async def research_run(
         self,

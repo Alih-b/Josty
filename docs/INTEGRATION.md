@@ -40,9 +40,9 @@ The default output envelope is:
   "query": "...",
   "status": "complete",
   "count": 10,
-      "partial": false,
-      "cached": false,
-      "providers": [],
+  "partial": false,
+  "cached": false,
+  "providers": [],
   "results": []
 }
 ```
@@ -51,7 +51,11 @@ The default output envelope is:
 - `degraded`: at least one branch failed, while another branch completed or results remain available.
 - `failed`: no results and every attempted branch failed.
 - `cached`: `true` only when the envelope was loaded from the local SQLite cache.
-- Empty-ok branches set `error_kind` to `"empty"`. Diagnose probes set `challenged` when `http_status` is 401, 403, or 429.
+- Empty-ok branches set `error_kind` to `"empty"`. Skipped branches set `error_kind` to
+  `"skipped"`: a deliberate non-call, either a breaker cool-down (not evidence the engine is
+  down) or an engine that is unknown or disabled in the installed ddgs (it will not answer
+  until the configuration changes). Diagnose probes set `challenged` when `http_status` is
+  401, 403, or 429.
 
 Always inspect `providers`; an upstream failure or empty branch must not be interpreted as evidence that no
 information exists. Josty does not rewrite the query on empty results.
