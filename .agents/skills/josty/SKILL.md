@@ -67,7 +67,9 @@ uvx josty --cache-stats
 - `providers[]` reports one entry per search engine (e.g. `brave`, `duckduckgo`), each with its
   own `result_count`, `error_kind`, and breaker state. A throttled or emptying engine is visible
   even when the fused output looks healthy; prefer engines with non-zero counts when weighing
-  evidence.
+  evidence. `error_kind: "empty"` means the engine was reached and returned zero URLs
+  (`result_count=0`). `error_kind: "skipped"` means no call was made. A hit (`result_count>0`)
+  never carries `empty` or `skipped` from a sibling query variant.
 - Each `(engine, error class)` pair has an in-process circuit breaker: 3 failures within 60 s
   opens the breaker for 30 s. Subsequent calls are skipped with a stable error string
   `skipped: engine in cool-down until <iso8601>` reported in `providers[].error`, and
@@ -75,7 +77,8 @@ uvx josty --cache-stats
   breaker skip it is not evidence the engine is down; for an engine that is unknown or disabled
   in the installed ddgs, the error names the engine and it will not answer until the
   configuration changes.
-- A successful call clears the failure history for that pair. The breaker is per-process.
+- A non-empty successful call clears the failure history for that pair. An empty-ok branch
+  neither trips nor clears the breaker. The breaker is per-process.
 - No automatic retry: hidden amplification is treated as a worse failure mode than
   surfacing a `degraded` or `failed` status.
 

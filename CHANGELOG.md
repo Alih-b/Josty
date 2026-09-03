@@ -12,8 +12,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   group-internal ranking now owned by Josty: a URL's position is its best rank across
   engines, without ddgs's hidden frequency voting or wikipedia pin. `providers[]` reports
   exactly one status per engine, aggregated across query variants (`result_count` = distinct
-  canonical URLs; `error_kind` = most severe variant outcome, so partial throttling stays
-  visible; `error` = first failure message) — an engine that silently returns empty or fails
+  canonical URLs; `error_kind` is the most severe real failure across variants so partial
+  throttling stays visible; `empty`/`skipped` never attach to a non-empty hit; `error` is
+  the first failure message) — an engine that silently returns empty or fails
   inside a healthy group is visible instead of absorbed. The circuit breaker is per-engine
   as a result. Unlike raw ddgs, which early-stops and can leave engines unqueried at small
   limits, Josty always queries every configured engine: complete per-engine breaker health
@@ -40,6 +41,24 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   successful empty branch and does not degrade the run.
 - Engines configured in multiple groups are queried once, in their first group; duplicate
   names across groups no longer double-call upstream or duplicate `providers[]` entries.
+- Aggregated `error_kind` no longer lets `empty` or `skipped` outrank a clean hit: a
+  variant that returned URLs keeps `error_kind=null` even if a sibling variant was empty
+  or skipped. `empty` is only emitted when `ok=true` and `result_count=0`; `skipped` only
+  when no variant reached the engine.
+- Empty-ok branches no longer call `record_success` on the circuit breaker, so an empty
+  query variant cannot wipe sibling rate-limit failures. Only a non-empty success clears
+  the breaker. Breaker state is guarded with a lock; expired cool-down uses `.pop` instead
+  of `del`.
+- `--diagnose` maps `wikipedia` and `grokipedia` to their upstream hosts. An available
+  engine with no mapped host is skipped with a named `error_kind="skipped"` instead of
+  `unknown` / "no known upstream host".
+- Fetch `Content-Type` matching uses the media type token only (so `text/html; charset=utf-8`
+  still works) and rejects a missing header or substring spoofs such as
+  `application/pdf; x=text/html`.
+- Fetch URL validation blocks multicast destinations (`224/4`, `ff00::/8`) in addition to
+  non-global addresses.
+- Search cache creation no longer falls back to world-shared `/tmp/josty_cache.db`; if the
+  cache directory cannot be created, caching is disabled. New cache files are mode `0600`.
 
 ## [0.4.0] - 2026-09-02
 

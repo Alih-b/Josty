@@ -15,6 +15,9 @@ from josty.engine import (
     SearchCache,
     SearchResult,
     SearchRun,
+    _aggregate_engine_status,
+    _content_type_allowed,
+    _engine_available,
     _search_run_from_dict,
     _ttl_for,
     canonical,
@@ -306,6 +309,58 @@ def test_unsupported_content_type_is_blocked(monkeypatch):
         asyncio.run(download())
 
 
+def test_content_type_charset_parameter_is_allowed(monkeypatch):
+    async def allow(_self, _url):
+        return None
+
+    monkeypatch.setattr(Josty, "_validate_public_url", allow)
+
+    async def download():
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                headers={"content-type": "text/html; charset=utf-8"},
+                content=b"<html>ok</html>",
+            )
+        )
+        async with httpx.AsyncClient(transport=transport) as client:
+            return await Josty()._download(client, "https://example.com")
+
+    body, _url = asyncio.run(download())
+    assert "ok" in body
+
+
+@pytest.mark.parametrize(
+    "header",
+    ["", None, "application/pdf; x=text/html", "application/json"],
+)
+def test_content_type_empty_or_spoofed_is_rejected(monkeypatch, header):
+    async def allow(_self, _url):
+        return None
+
+    monkeypatch.setattr(Josty, "_validate_public_url", allow)
+
+    async def download():
+        headers = {} if header is None else {"content-type": header}
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(200, headers=headers, content=b"%PDF")
+        )
+        async with httpx.AsyncClient(transport=transport) as client:
+            await Josty()._download(client, "https://example.com")
+
+    with pytest.raises(ValueError, match="unsupported content type"):
+        asyncio.run(download())
+
+
+def test_content_type_allowed_helper():
+    assert _content_type_allowed("text/html; charset=utf-8") is True
+    assert _content_type_allowed("application/xhtml+xml") is True
+    assert _content_type_allowed("text/plain") is True
+    assert _content_type_allowed("") is False
+    assert _content_type_allowed(None) is False
+    assert _content_type_allowed("application/pdf; x=text/html") is False
+
+
 def test_empty_trafilatura_result_uses_safe_fallback(monkeypatch):
     monkeypatch.setitem(sys.modules, "trafilatura", SimpleNamespace(extract=lambda *a, **k: None))
     content, method = Josty._extract(
@@ -438,6 +493,61 @@ def test_aggregated_status_keeps_most_severe_variant_outcome(monkeypatch):
     # mark the run degraded — a variant did fail, so "complete" would be a lie.
     assert run.partial is True
     assert run.status == "degraded"
+
+
+def test_aggregated_empty_variant_does_not_label_a_hit_empty(monkeypatch):
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            if query.startswith('"'):
+                return []
+            return [{"title": "Hit", "href": "https://example.com/a", "body": "Snippet"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    run = asyncio.run(
+        Josty(backends=("yahoo",), enable_cache=False).search_run(
+            "alpha", mode="exact", limit=5
+        )
+    )
+    status = run.providers[0]
+    assert status.ok is True
+    assert status.result_count >= 1
+    assert status.error_kind is None
+    assert status.error is None
+    assert run.partial is False
+    assert run.status == "complete"
+
+
+def test_aggregated_skip_variant_does_not_label_a_hit_skipped():
+    hit = SearchResult("Hit", "https://example.com/a", "s", sources=["brave"])
+    ok = ProviderStatus("brave", "q", True, 1, error_kind=None)
+    skip = ProviderStatus(
+        "brave",
+        '"q"',
+        False,
+        0,
+        error="skipped: engine in cool-down until 2099-01-01T00:00:00Z",
+        error_kind="skipped",
+    )
+    agg = _aggregate_engine_status([ok, skip], [[hit], []])
+    assert agg.ok is True
+    assert agg.result_count == 1
+    assert agg.error_kind is None
+    assert agg.error is None
+
+
+def test_aggregated_all_empty_stays_empty():
+    empty = ProviderStatus("yahoo", "q", True, 0, error_kind="empty")
+    agg = _aggregate_engine_status([empty, empty], [[], []])
+    assert agg.ok is True
+    assert agg.result_count == 0
+    assert agg.error_kind == "empty"
+    assert agg.error is None
+    run = SearchRun("q", results=[], providers=[agg])
+    assert run.partial is False
+    assert run.status == "complete"
 
 
 def test_duplicate_engine_across_groups_is_queried_once(monkeypatch):
@@ -718,6 +828,51 @@ def test_diagnose_reports_unavailable_engine_as_skipped_without_probing(monkeypa
     assert by_provider["mystery"]["error_kind"] == "skipped"
     assert "not enabled in the installed ddgs" in by_provider["mystery"]["error"]
     assert payload["status"] == "failed"
+
+
+def test_diagnose_probes_grokipedia_and_wikipedia_hosts(monkeypatch):
+    grok_ok, _ = _engine_available("text", "grokipedia")
+    wiki_ok, _ = _engine_available("text", "wikipedia")
+    if not grok_ok or not wiki_ok:
+        pytest.skip("grokipedia/wikipedia not enabled in installed ddgs")
+
+    seen: list[str] = []
+
+    async def fake_get(self, url, **kwargs):
+        seen.append(url)
+        return httpx.Response(200, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    payload = asyncio.run(
+        Josty(backends=("grokipedia,wikipedia",)).diagnose_run()
+    ).dict()
+    by_provider = {entry["provider"]: entry for entry in payload["providers"]}
+    assert by_provider["grokipedia"]["ok"] is True
+    assert by_provider["grokipedia"]["host"] == "grokipedia.com"
+    assert by_provider["wikipedia"]["ok"] is True
+    assert by_provider["wikipedia"]["host"] == "en.wikipedia.org"
+    assert by_provider["grokipedia"]["error_kind"] is None
+    assert any("grokipedia.com" in url for url in seen)
+
+
+def test_diagnose_unmapped_available_engine_is_named_skip(monkeypatch):
+    grok_ok, _ = _engine_available("text", "grokipedia")
+    if not grok_ok:
+        pytest.skip("grokipedia not enabled in installed ddgs")
+
+    hosts = {key: value for key, value in Josty.BACKEND_HOSTS.items() if key != "grokipedia"}
+    monkeypatch.setattr(Josty, "BACKEND_HOSTS", hosts)
+
+    async def fail_get(self, url, **kwargs):
+        raise AssertionError(f"must not probe {url}")
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fail_get)
+    payload = asyncio.run(Josty(backends=("grokipedia",)).diagnose_run()).dict()
+    entry = payload["providers"][0]
+    assert entry["provider"] == "grokipedia"
+    assert entry["ok"] is False
+    assert entry["error_kind"] == "skipped"
+    assert "no known upstream host" in entry["error"]
 
 
 def test_diagnose_scopes_probes_to_category_and_github_opt_in(monkeypatch):
@@ -1311,6 +1466,85 @@ def test_circuit_breaker_does_not_extend_cool_down_on_repeated_failures(monkeypa
     _, later_msg = breaker.status("bing", "search")
     later_until = later_msg.split("until ")[1]
     assert first_until == later_until, "cool-down timer must freeze at the trip point"
+
+
+def test_empty_variants_do_not_clear_rate_limit_failures(monkeypatch):
+    from ddgs.exceptions import DDGSException, RatelimitException
+
+    n = {"i": 0}
+
+    class FlipDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            n["i"] += 1
+            if n["i"] % 2 == 1:
+                raise RatelimitException("429")
+            raise DDGSException("No results found")
+
+    monkeypatch.setattr("josty.engine.DDGS", FlipDDGS)
+    breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
+    engine = Josty(backends=("duckduckgo",), enable_cache=False, breaker=breaker)
+    asyncio.run(engine.search_run("document indexing", mode="oss", limit=5))
+    allowed, message = breaker.status("duckduckgo", "search")
+    assert allowed is False
+    assert message is not None
+    assert "cool-down" in message
+
+
+def test_empty_only_sequence_does_not_open_breaker(monkeypatch):
+    from ddgs.exceptions import DDGSException
+
+    class EmptyDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            raise DDGSException("no results found")
+
+    monkeypatch.setattr("josty.engine.DDGS", EmptyDDGS)
+    breaker = CircuitBreaker(fail_threshold=3, window_seconds=60, cool_down_seconds=30)
+    engine = Josty(backends=("duckduckgo",), enable_cache=False, breaker=breaker)
+    for _ in range(4):
+        run = asyncio.run(engine.search_run("anything", limit=5))
+        assert run.providers[0].error_kind == "empty"
+        assert run.status == "complete"
+    assert breaker.status("duckduckgo", "search")[0] is True
+
+
+def test_circuit_breaker_thread_hammer_does_not_raise():
+    import threading
+    import time
+
+    breaker = CircuitBreaker(fail_threshold=1, window_seconds=1, cool_down_seconds=0.01)
+    errors: list[Exception] = []
+    stop = threading.Event()
+
+    def hammer_status() -> None:
+        while not stop.is_set():
+            try:
+                breaker.status("brave", "search")
+            except Exception as exc:
+                errors.append(exc)
+
+    def hammer_mutate() -> None:
+        while not stop.is_set():
+            try:
+                breaker.record_failure("brave", "search")
+                breaker.record_success("brave", "search")
+            except Exception as exc:
+                errors.append(exc)
+
+    threads = [threading.Thread(target=hammer_status) for _ in range(4)]
+    threads.append(threading.Thread(target=hammer_mutate))
+    for thread in threads:
+        thread.start()
+    time.sleep(0.3)
+    stop.set()
+    for thread in threads:
+        thread.join()
+    assert errors == []
 
 
 def test_circuit_breaker_success_clears_history():

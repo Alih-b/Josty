@@ -17,6 +17,7 @@ import json
 import socket
 import sqlite3
 import ssl
+from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
@@ -528,15 +529,17 @@ class TestSSRFGuard:
         with pytest.raises(ValueError, match="private or reserved"):
             asyncio.run(Josty()._validate_public_url("http://example.test"))
 
-    def test_does_not_block_multicast(self, monkeypatch):
-        # FINDING: 224.0.0.0/4 is IPv4 multicast and Python's is_global returns
-        # True for it. The guard therefore does not block multicast. This is
-        # a real gap: an attacker could trick the fetcher into attempting to
-        # connect to a multicast address. Mitigation: httpx would still need
-        # to actually dial the address.
+    def test_blocks_multicast(self, monkeypatch):
+        # 224.0.0.0/4 is IPv4 multicast; Python's is_global is True, so the
+        # guard must also check is_multicast.
         self._set_dns(monkeypatch, [(socket.AF_INET, "224.0.0.1")])
-        # The current code allows this — no exception raised.
-        asyncio.run(Josty()._validate_public_url("http://example.test"))
+        with pytest.raises(ValueError, match="private or reserved"):
+            asyncio.run(Josty()._validate_public_url("http://example.test"))
+
+    def test_blocks_ipv6_multicast(self, monkeypatch):
+        self._set_dns(monkeypatch, [(socket.AF_INET6, "ff02::1")])
+        with pytest.raises(ValueError, match="private or reserved"):
+            asyncio.run(Josty()._validate_public_url("http://example.test"))
 
     def test_blocks_multihomed_dns_with_private(self, monkeypatch):
         # If DNS returns one public and one private address, the guard must
@@ -828,6 +831,27 @@ class TestCache:
             mode = conn.execute("PRAGMA journal_mode;").fetchone()[0]
         assert mode.lower() == "wal"
 
+    def test_new_cache_db_is_owner_read_write_only(self, tmp_path):
+        cache = SearchCache(tmp_path / "perm" / "c.db", default_ttl=60.0)
+        cache.set(SearchCache.hash_key("k"), {"x": 1})
+        assert cache.db_path is not None
+        mode = cache.db_path.stat().st_mode & 0o777
+        assert mode == 0o600
+
+    def test_unwritable_cache_dir_disables_cache_instead_of_tmp(self, tmp_path, monkeypatch):
+        blocker = tmp_path / "not-a-dir"
+        blocker.write_text("x")
+        monkeypatch.setenv("XDG_CACHE_HOME", str(blocker))
+        before = Path("/tmp/josty_cache.db").exists()
+        cache = SearchCache()
+        assert cache.disabled is True
+        assert cache.db_path is None
+        cache.set("k", {"x": 1})
+        assert cache.get("k") is None
+        assert cache.stats() == {"rows": 0, "bytes": 0, "hits": 0}
+        if not before:
+            assert not Path("/tmp/josty_cache.db").exists()
+
     def test_empty_results_NOT_cached(self, monkeypatch, tmp_path):
         """FINDING (intentional but worth pinning): empty results are NOT cached.
 
@@ -857,10 +881,9 @@ class TestCache:
         assert calls["n"] == 2
 
     def test_empty_ddgs_results_count_as_success(self, monkeypatch):
-        """Per the recent refactor: when ddgs raises 'no results found' it is
-        classified as 'empty' and treated as a success (record_success on the
-        breaker). This means a sequence of empty queries does NOT trip the
-        circuit breaker — they look like successful queries with 0 results."""
+        """When ddgs raises 'no results found' it is classified as 'empty'.
+        Empty is a successful empty branch (ok=true, status=complete) but does
+        not record_success on the breaker — it neither trips nor clears it."""
         from ddgs.exceptions import DDGSException
         class EmptyDDGS:
             def __init__(self, **kwargs): pass
@@ -945,7 +968,33 @@ class TestCircuitBreakerAdvanced:
         for _ in range(100):
             assert breaker.status("bing", "search")[0] is True
 
-    def test_record_success_on_unknown_is_noop(self):
+    def test_thread_hammer_status_success_failure_no_keyerror(self):
+        import threading
+        breaker = CircuitBreaker(fail_threshold=1, window_seconds=1, cool_down_seconds=0.01)
+        errors: list[str] = []
+        stop = threading.Event()
+
+        def status_loop():
+            while not stop.is_set():
+                try:
+                    breaker.status("brave", "search")
+                except Exception as exc:
+                    errors.append(type(exc).__name__)
+
+        def mutate_loop():
+            while not stop.is_set():
+                breaker.record_failure("brave", "search")
+                breaker.record_success("brave", "search")
+
+        threads = [threading.Thread(target=status_loop) for _ in range(4)]
+        threads.append(threading.Thread(target=mutate_loop))
+        for thread in threads:
+            thread.start()
+        stop.wait(timeout=0.4)
+        stop.set()
+        for thread in threads:
+            thread.join()
+        assert errors == []
         breaker = CircuitBreaker()
         # Should not raise
         breaker.record_success("never-failed", "search")
