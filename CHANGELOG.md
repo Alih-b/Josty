@@ -32,6 +32,15 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - `--diagnose` now skips unknown/disabled engines with `error_kind="skipped"` and a named
   error instead of probing their hosts and reporting a generic failure.
 
+### Fixed
+
+- `SearchRun.partial` now accounts for aggregated per-engine statuses whose query variants
+  partially failed (`ok=true` with a failure `error_kind`): a run where one variant was
+  throttled or errored reports `degraded` instead of a clean `complete`. `"empty"` remains a
+  successful empty branch and does not degrade the run.
+- Engines configured in multiple groups are queried once, in their first group; duplicate
+  names across groups no longer double-call upstream or duplicate `providers[]` entries.
+
 ## [0.4.0] - 2026-09-02
 
 ### Added

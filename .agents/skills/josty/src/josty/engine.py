@@ -475,7 +475,13 @@ class SearchRun:
 
     @property
     def partial(self) -> bool:
-        return any(not provider.ok for provider in self.providers)
+        # A provider is a failed branch when its call failed outright, or when it
+        # answered but an aggregated query variant failed (ok=true with a failure
+        # error_kind). "empty" is a successful empty branch, not a failure.
+        return any(
+            not provider.ok or provider.error_kind not in (None, "empty")
+            for provider in self.providers
+        )
 
     @property
     def status(self) -> str:
@@ -1244,13 +1250,15 @@ class Josty:
         )
         groups = self.news_backends if category == "news" else self.backends
         engine_specs = []
+        seen_engines: set[str] = set()
         for group_index, group in enumerate(groups):
-            seen_in_group: set[str] = set()
             for name in group.split(","):
                 name = name.strip()
-                if not name or name in seen_in_group:
+                # An engine listed in multiple groups is queried once, in its
+                # first group: one call and one status per engine, contract-wide.
+                if not name or name in seen_engines:
                     continue
-                seen_in_group.add(name)
+                seen_engines.add(name)
                 engine_specs.append((group_index, name))
         batches = await asyncio.gather(
             *(

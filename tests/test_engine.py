@@ -434,6 +434,37 @@ def test_aggregated_status_keeps_most_severe_variant_outcome(monkeypatch):
     assert status.result_count == 1
     assert status.error_kind == "unknown"
     assert "RuntimeError: blocked" in status.error
+    # Regression: a partially-failed engine (ok=true, failure error_kind) must
+    # mark the run degraded — a variant did fail, so "complete" would be a lie.
+    assert run.partial is True
+    assert run.status == "degraded"
+
+
+def test_duplicate_engine_across_groups_is_queried_once(monkeypatch):
+    # Regression: an engine configured in multiple groups must be called and
+    # reported exactly once (in its first group), not once per group.
+    calls = []
+
+    class FakeDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            calls.append(kwargs["backend"])
+            return [{"title": "Hit", "href": "https://example.com/a", "body": "Snippet"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+
+    run = asyncio.run(Josty(backends=("brave", "brave")).search_run("q", limit=3))
+    assert calls == ["brave"]
+    assert [status.provider for status in run.providers] == ["brave"]
+
+    calls.clear()
+    run = asyncio.run(
+        Josty(backends=("brave,duckduckgo", "brave")).search_run("q", limit=3)
+    )
+    assert sorted(calls) == ["brave", "duckduckgo"]
+    assert sorted(status.provider for status in run.providers) == ["brave", "duckduckgo"]
 
 
 def test_unavailable_engine_is_skipped_visibly_without_calling_ddgs(monkeypatch):

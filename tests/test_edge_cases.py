@@ -1305,16 +1305,17 @@ class TestDiagnose:
         assert d["reachable"] == 2
 
     def test_diagnose_partial_status(self, monkeypatch):
-        # Inject failure for one provider
+        # Inject failure for one provider; match the parsed host, not a substring
+        # of the URL (CodeQL py/incomplete-url-substring-sanitization).
         async def gate(self, url, **kw):
-            if "search.brave.com" in url:
+            if urlparse(url).hostname == "search.brave.com":
                 raise httpx.ConnectError("refused", request=httpx.Request("GET", url))
             return httpx.Response(200, request=httpx.Request("GET", url))
         monkeypatch.setattr(httpx.AsyncClient, "get", gate)
-        d = asyncio.run(Josty(backends=("bing,brave",)).diagnose_run()).dict()
-        assert d["status"] in ("degraded", "failed")
-        # reachable < total
-        assert d["reachable"] < d["count"]
+        d = asyncio.run(Josty(backends=("brave,duckduckgo",)).diagnose_run()).dict()
+        assert d["status"] == "degraded"
+        assert d["reachable"] == 1
+        assert d["count"] == 2
 
     def test_diagnose_does_not_probe_github_by_default(self, monkeypatch):
         seen = []
