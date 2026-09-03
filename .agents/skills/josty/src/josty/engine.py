@@ -333,6 +333,10 @@ _KNOWN_TEXT_ENGINES = frozenset(
     }
 )
 _KNOWN_NEWS_ENGINES = frozenset({"bing", "duckduckgo", "yahoo"})
+# Both frozensets are a best-effort fallback for the case where the
+# ddgs.engines registry cannot be imported at all (non-standard ddgs layout).
+# They can drift from ddgs releases; the live registry is authoritative
+# whenever the import succeeds.
 
 
 def _engine_available(category: SearchCategory, name: str) -> tuple[bool, str | None]:
@@ -1163,6 +1167,12 @@ class Josty:
 
             def run() -> tuple[list[SearchResult], ProviderStatus]:
                 try:
+                    # A fresh DDGS client per call is deliberate, not waste:
+                    # ddgs engine instances carry a shared cached_property lxml
+                    # parser, which is not thread-safe. Caching one client per
+                    # backend would let concurrent query variants of the same
+                    # engine parse HTML on one parser — the same C-level
+                    # corruption class already fixed for trafilatura extraction.
                     ddgs = DDGS(timeout=self.timeout)
                     method = ddgs.news if category == "news" else ddgs.text
                     kwargs: dict[str, Any] = {
