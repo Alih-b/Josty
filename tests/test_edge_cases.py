@@ -1341,7 +1341,7 @@ class TestDiagnose:
             return httpx.Response(200, request=httpx.Request("GET", url))
         monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
         d = asyncio.run(Josty().diagnose_run(include_github=True)).dict()
-        assert "https://api.github.com/" in seen
+        assert any(urlparse(url).hostname == "api.github.com" for url in seen)
         assert any(p["provider"] == "github-api" for p in d["providers"])
 
     def test_diagnose_status_complete(self, monkeypatch):
