@@ -852,7 +852,8 @@ def test_diagnose_probes_grokipedia_and_wikipedia_hosts(monkeypatch):
     assert by_provider["wikipedia"]["ok"] is True
     assert by_provider["wikipedia"]["host"] == "en.wikipedia.org"
     assert by_provider["grokipedia"]["error_kind"] is None
-    assert any("grokipedia.com" in url for url in seen)
+    assert any(urlsplit(url).hostname == "grokipedia.com" for url in seen)
+    assert any(urlsplit(url).hostname == "en.wikipedia.org" for url in seen)
 
 
 def test_diagnose_unmapped_available_engine_is_named_skip(monkeypatch):
