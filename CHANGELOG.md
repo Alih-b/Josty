@@ -3,6 +3,63 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-09-03
+
+### Added
+
+- Per-engine search fanout: backend groups (`"brave,duckduckgo"`) now issue one ddgs call
+  per engine instead of one blended group call. Group-level RRF fusion is preserved, with
+  group-internal ranking now owned by Josty: a URL's position is its best rank across
+  engines, without ddgs's hidden frequency voting or wikipedia pin. `providers[]` reports
+  exactly one status per engine, aggregated across query variants (`result_count` = distinct
+  canonical URLs; `error_kind` is the most severe real failure across variants so partial
+  throttling stays visible; `empty`/`skipped` never attach to a non-empty hit; `error` is
+  the first failure message) — an engine that silently returns empty or fails
+  inside a healthy group is visible instead of absorbed. The circuit breaker is per-engine
+  as a result. Unlike raw ddgs, which early-stops and can leave engines unqueried at small
+  limits, Josty always queries every configured engine: complete per-engine breaker health
+  is worth the extra page-1 requests (bounded by engine count × `max_query_variants`).
+- Engine-availability gate: engines that are unknown or disabled in the installed ddgs
+  (e.g. ddgs 9.16.0 has bing/yandex text engines disabled upstream) are skipped with
+  `ok=false`, `error_kind="skipped"` and a named error, instead of triggering ddgs's
+  silent fallback to `backend="auto"` (all engines) or being dropped without a trace.
+- Default text backends updated to engines ddgs 9.16.0 actually serves:
+  `("brave,duckduckgo", "google,mojeek,startpage", "yahoo")` — the previous defaults
+  included bing and yandex, which ddgs has disabled, silently running 6 engines instead
+  of the configured 8.
+- Circuit-breaker cool-down skips now report `error_kind: "skipped"` (schema 1.0 additive)
+  on the affected `providers[]` entries, so agents can distinguish a deliberate breaker
+  skip from an unclassified `unknown` failure.
+- `--diagnose` now skips unknown/disabled engines with `error_kind="skipped"` and a named
+  error instead of probing their hosts and reporting a generic failure.
+
+### Fixed
+
+- `SearchRun.partial` now accounts for aggregated per-engine statuses whose query variants
+  partially failed (`ok=true` with a failure `error_kind`): a run where one variant was
+  throttled or errored reports `degraded` instead of a clean `complete`. `"empty"` remains a
+  successful empty branch and does not degrade the run.
+- Engines configured in multiple groups are queried once, in their first group; duplicate
+  names across groups no longer double-call upstream or duplicate `providers[]` entries.
+- Aggregated `error_kind` no longer lets `empty` or `skipped` outrank a clean hit: a
+  variant that returned URLs keeps `error_kind=null` even if a sibling variant was empty
+  or skipped. `empty` is only emitted when `ok=true` and `result_count=0`; `skipped` only
+  when no variant reached the engine.
+- Empty-ok branches no longer call `record_success` on the circuit breaker, so an empty
+  query variant cannot wipe sibling rate-limit failures. Only a non-empty success clears
+  the breaker. Breaker state is guarded with a lock; expired cool-down uses `.pop` instead
+  of `del`.
+- `--diagnose` maps `wikipedia` and `grokipedia` to their upstream hosts. An available
+  engine with no mapped host is skipped with a named `error_kind="skipped"` instead of
+  `unknown` / "no known upstream host".
+- Fetch `Content-Type` matching uses the media type token only (so `text/html; charset=utf-8`
+  still works) and rejects a missing header or substring spoofs such as
+  `application/pdf; x=text/html`.
+- Fetch URL validation blocks multicast destinations (`224/4`, `ff00::/8`) in addition to
+  non-global addresses.
+- Search cache creation no longer falls back to world-shared `/tmp/josty_cache.db`; if the
+  cache directory cannot be created, caching is disabled. New cache files are mode `0600`.
+
 ## [0.4.0] - 2026-09-02
 
 ### Added

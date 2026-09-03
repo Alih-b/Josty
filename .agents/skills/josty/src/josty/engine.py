@@ -32,7 +32,7 @@ SearchMode = Literal["plain", "exact", "oss"]
 SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]
-ErrorKind = Literal["network", "rate_limited", "empty", "parse", "unknown"]
+ErrorKind = Literal["network", "rate_limited", "empty", "parse", "unknown", "skipped"]
 ProfileType = Literal["general", "dev", "academic"]
 
 SCHEMA_VERSION = "1.0"
@@ -41,10 +41,13 @@ CACHE_MAX_ROWS = 5000
 CACHE_PRUNE_BATCH = 500
 CACHE_MAX_BYTES = 50_000_000
 CHALLENGED_HTTP_STATUSES = frozenset({401, 403, 429})
+_ALLOWED_FETCH_CONTENT_TYPES = frozenset(
+    {"text/html", "application/xhtml+xml", "text/plain"}
+)
 
 # Single version source: the static literal doubles as the pre-install fallback and
 # hatchling's build-time version; installed distributions override via importlib.metadata.
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 with suppress(PackageNotFoundError):
     __version__ = version("josty")
 USER_AGENT = f"josty/{__version__} (+https://github.com/Alih-b/josty)"
@@ -270,7 +273,7 @@ class HostStatus:
     host: str
     ok: bool
     http_status: int | None = None
-    error_kind: Literal["timeout", "dns", "tls", "network", "unknown"] | None = None
+    error_kind: Literal["timeout", "dns", "tls", "network", "unknown", "skipped"] | None = None
     error: str | None = None
     challenged: bool = False
 
@@ -312,6 +315,121 @@ _TLS_TOKENS = (
 )
 _PARSE_TOKENS = ("failed to fetch", "parse", "decode", "json")
 _EMPTY_RESULTS_MESSAGE = "no results found"
+
+try:
+    from ddgs.engines import ENGINES as _DDGS_ENGINES
+except ImportError:
+    _DDGS_ENGINES = None
+
+_KNOWN_TEXT_ENGINES = frozenset(
+    {
+        "bing",
+        "brave",
+        "duckduckgo",
+        "google",
+        "grokipedia",
+        "mojeek",
+        "startpage",
+        "wikipedia",
+        "yahoo",
+        "yandex",
+    }
+)
+_KNOWN_NEWS_ENGINES = frozenset({"bing", "duckduckgo", "yahoo"})
+# Both frozensets are a best-effort fallback for the case where the
+# ddgs.engines registry cannot be imported at all (non-standard ddgs layout).
+# They can drift from ddgs releases; the live registry is authoritative
+# whenever the import succeeds.
+
+
+def _engine_available(category: SearchCategory, name: str) -> tuple[bool, str | None]:
+    """Check engine availability without calling ddgs.
+
+    ddgs silently drops unknown or disabled engine names inside a group call and
+    falls back to ``backend="auto"`` (all engines) when none match — a silent
+    amplification and downgrade trap. Checking availability here lets a dead or
+    misspelled engine be skipped with a visible status instead.
+    """
+    if _DDGS_ENGINES is not None:
+        if name in _DDGS_ENGINES.get(category, {}):
+            return True, None
+        return False, f"skipped: engine '{name}' is not enabled in the installed ddgs"
+    known = _KNOWN_NEWS_ENGINES if category == "news" else _KNOWN_TEXT_ENGINES
+    if name in known:
+        return True, None
+    return False, f"skipped: unknown engine '{name}'"
+
+
+# Severity order for aggregating real failure kinds across query variants.
+# empty/skipped are not failures: they must not outrank a clean hit.
+_ERROR_KIND_SEVERITY: dict[str | None, int] = {
+    None: -1,
+    "empty": 0,
+    "skipped": 1,
+    "unknown": 2,
+    "parse": 3,
+    "network": 4,
+    "rate_limited": 5,
+}
+_FAILURE_ERROR_KINDS = frozenset({"unknown", "parse", "network", "rate_limited"})
+
+
+def _content_type_allowed(header: str | None) -> bool:
+    """Return True when the Content-Type media type is an allowed fetch type."""
+    if not header or not header.strip():
+        return False
+    media = header.split(";", 1)[0].strip().lower()
+    return media in _ALLOWED_FETCH_CONTENT_TYPES
+
+
+def _aggregate_engine_status(
+    statuses: list[ProviderStatus], item_lists: list[list[SearchResult]]
+) -> ProviderStatus:
+    """Collapse one engine's per-variant statuses into a single per-engine entry.
+
+    ``ok`` is true when any variant reached the engine; ``result_count`` counts
+    distinct canonical URLs across all variants (a URL found by two variants is
+    one result). Real failures (``unknown`` / ``parse`` / ``network`` /
+    ``rate_limited``) win so partial throttling stays visible. ``empty`` is only
+    set when the engine was reached and produced zero URLs. ``skipped`` is only
+    set when no variant reached the engine. A clean hit does not inherit
+    empty/skip from a sibling variant.
+    """
+    provider = statuses[0].provider
+    query = statuses[0].query
+    ok = any(status.ok for status in statuses)
+    seen_urls: set[str] = set()
+    for items in item_lists:
+        for item in items:
+            try:
+                seen_urls.add(canonical(item.url))
+            except ValueError:
+                continue
+    result_count = len(seen_urls)
+    failures = [status for status in statuses if status.error_kind in _FAILURE_ERROR_KINDS]
+    if failures:
+        error_kind = max(
+            (status.error_kind for status in failures),
+            key=lambda kind: _ERROR_KIND_SEVERITY.get(kind, -1),
+        )
+        error = next((status.error for status in failures if status.error), None)
+    elif result_count > 0:
+        error_kind = None
+        error = None
+    elif ok:
+        error_kind = "empty"
+        error = None
+    else:
+        error_kind = "skipped"
+        error = next((status.error for status in statuses if status.error), None)
+    return ProviderStatus(
+        provider,
+        query,
+        ok,
+        result_count,
+        error=error,
+        error_kind=error_kind,
+    )
 
 
 def _classify_search_error(exc: BaseException) -> ErrorKind:
@@ -387,7 +505,13 @@ class SearchRun:
 
     @property
     def partial(self) -> bool:
-        return any(not provider.ok for provider in self.providers)
+        # A provider is a failed branch when its call failed outright, or when it
+        # answered but an aggregated query variant failed (ok=true with a failure
+        # error_kind). "empty" is a successful empty branch, not a failure.
+        return any(
+            not provider.ok or provider.error_kind not in (None, "empty")
+            for provider in self.providers
+        )
 
     @property
     def status(self) -> str:
@@ -605,24 +729,42 @@ class SearchCache:
         prune_batch: int = CACHE_PRUNE_BATCH,
         max_bytes: int = CACHE_MAX_BYTES,
     ):
+        self.disabled = False
+        self.db_path: Path | None
         if db_path is None:
             cache_dir = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache")) / "josty"
             try:
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 self.db_path = cache_dir / "cache.db"
             except Exception:
-                self.db_path = Path("/tmp/josty_cache.db")
+                # Fail closed: never fall back to a world-shared /tmp path.
+                self.disabled = True
+                self.db_path = None
         else:
             self.db_path = Path(db_path)
-            with suppress(Exception):
+            try:
                 self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                self.disabled = True
+                self.db_path = None
         self.default_ttl = default_ttl
         self.max_rows = max_rows
         self.prune_batch = prune_batch
         self.max_bytes = max_bytes
-        self._init_db()
+        if not self.disabled:
+            self._init_db()
+            self._restrict_db_mode()
+
+    def _restrict_db_mode(self) -> None:
+        if self.db_path is None:
+            return
+        with suppress(OSError):
+            if self.db_path.exists():
+                os.chmod(self.db_path, 0o600)
 
     def _get_conn(self) -> sqlite3.Connection:
+        if self.disabled or self.db_path is None:
+            raise sqlite3.OperationalError("search cache is disabled")
         conn = sqlite3.connect(str(self.db_path), timeout=5.0)
         conn.execute("PRAGMA journal_mode=WAL;")
         return conn
@@ -664,6 +806,8 @@ class SearchCache:
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     def get(self, key: str) -> dict[str, Any] | None:
+        if self.disabled:
+            return None
         try:
             now = time.time()
             with self._get_conn() as conn:
@@ -692,6 +836,8 @@ class SearchCache:
             return None
 
     def set(self, key: str, payload: dict[str, Any], ttl: float | None = None) -> None:
+        if self.disabled:
+            return
         with suppress(Exception), self._get_conn() as conn:
             now = time.time()
             expires = now + (ttl if ttl is not None else self.default_ttl)
@@ -758,6 +904,8 @@ class SearchCache:
 
     def stats(self) -> dict[str, int]:
         """Aggregate cache telemetry: row count, payload bytes, and cumulative hits."""
+        if self.disabled:
+            return {"rows": 0, "bytes": 0, "hits": 0}
         try:
             with self._get_conn() as conn:
                 rows, payload_bytes, hits = conn.execute(
@@ -773,6 +921,8 @@ class SearchCache:
             return {"rows": 0, "bytes": 0, "hits": 0}
 
     def clear(self) -> None:
+        if self.disabled:
+            return
         with suppress(Exception), self._get_conn() as conn:
             conn.execute("DELETE FROM search_cache;")
 
@@ -869,36 +1019,40 @@ class CircuitBreaker:
         self.cool_down_seconds = cool_down_seconds
         self._state: dict[tuple[str, str], list[float]] = {}
         self._open_until: dict[tuple[str, str], float] = {}
+        self._lock = threading.Lock()
 
     def status(self, backend: str, error_class: str) -> tuple[bool, str | None]:
         """Return ``(allowed, skip_message)`` for a backend/error pair."""
         now = time.monotonic()
         key = (backend, error_class)
-        open_until = self._open_until.get(key)
-        if open_until is not None:
-            if now < open_until:
-                until_iso = (
-                    datetime.fromtimestamp(time.time() + (open_until - now), UTC)
-                    .isoformat()
-                    .replace("+00:00", "Z")
-                )
-                return False, f"skipped: backend in cool-down until {until_iso}"
-            del self._open_until[key]
-            self._state.pop(key, None)
-        return True, None
+        with self._lock:
+            open_until = self._open_until.get(key)
+            if open_until is not None:
+                if now < open_until:
+                    until_iso = (
+                        datetime.fromtimestamp(time.time() + (open_until - now), UTC)
+                        .isoformat()
+                        .replace("+00:00", "Z")
+                    )
+                    return False, f"skipped: engine in cool-down until {until_iso}"
+                self._open_until.pop(key, None)
+                self._state.pop(key, None)
+            return True, None
 
     def record_failure(self, backend: str, error_class: str) -> None:
         now = time.monotonic()
         key = (backend, error_class)
-        events = [t for t in self._state.get(key, []) if now - t <= self.window_seconds]
-        events.append(now)
-        self._state[key] = events
-        if len(events) >= self.fail_threshold and key not in self._open_until:
-            self._open_until[key] = now + self.cool_down_seconds
+        with self._lock:
+            events = [t for t in self._state.get(key, []) if now - t <= self.window_seconds]
+            events.append(now)
+            self._state[key] = events
+            if len(events) >= self.fail_threshold and key not in self._open_until:
+                self._open_until[key] = now + self.cool_down_seconds
 
     def record_success(self, backend: str, error_class: str) -> None:
-        self._state.pop((backend, error_class), None)
-        self._open_until.pop((backend, error_class), None)
+        with self._lock:
+            self._state.pop((backend, error_class), None)
+            self._open_until.pop((backend, error_class), None)
 
 
 class Josty:
@@ -906,9 +1060,9 @@ class Josty:
     group-level RRF fusion and safe text extraction."""
 
     DEFAULT_BACKENDS = (
-        "bing,brave,duckduckgo",
+        "brave,duckduckgo",
         "google,mojeek,startpage",
-        "yandex,yahoo",
+        "yahoo",
     )
     DEFAULT_NEWS_BACKENDS = ("bing,duckduckgo,yahoo",)
 
@@ -921,6 +1075,8 @@ class Josty:
         "startpage": "www.startpage.com",
         "yandex": "yandex.com",
         "yahoo": "search.yahoo.com",
+        "wikipedia": "en.wikipedia.org",
+        "grokipedia": "grokipedia.com",
         "github-api": "api.github.com",
     }
 
@@ -1055,13 +1211,26 @@ class Josty:
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
     ) -> tuple[list[SearchResult], ProviderStatus]:
+        available, unavailable_message = _engine_available(category, backend)
+        if not available:
+            return [], ProviderStatus(
+                backend, query, False, error=unavailable_message, error_kind="skipped"
+            )
         allowed, skip_message = self.breaker.status(backend, "search")
         if not allowed:
-            return [], ProviderStatus(backend, query, False, error=skip_message)
+            return [], ProviderStatus(
+                backend, query, False, error=skip_message, error_kind="skipped"
+            )
         async with self._search_semaphore():
 
             def run() -> tuple[list[SearchResult], ProviderStatus]:
                 try:
+                    # A fresh DDGS client per call is deliberate, not waste:
+                    # ddgs engine instances carry a shared cached_property lxml
+                    # parser, which is not thread-safe. Caching one client per
+                    # backend would let concurrent query variants of the same
+                    # engine parse HTML on one parser — the same C-level
+                    # corruption class already fixed for trafilatura extraction.
                     ddgs = DDGS(timeout=self.timeout)
                     method = ddgs.news if category == "news" else ddgs.text
                     kwargs: dict[str, Any] = {
@@ -1088,7 +1257,8 @@ class Josty:
                                     publisher=row.get("source"),
                                 )
                             )
-                    self.breaker.record_success(backend, "search")
+                    if results:
+                        self.breaker.record_success(backend, "search")
                     return results, ProviderStatus(
                         backend,
                         query,
@@ -1099,7 +1269,6 @@ class Josty:
                 except Exception as exc:
                     err_kind = _classify_search_error(exc)
                     if err_kind == "empty":
-                        self.breaker.record_success(backend, "search")
                         return [], ProviderStatus(
                             backend, query, True, 0, error_kind="empty"
                         )
@@ -1147,30 +1316,60 @@ class Josty:
             mode,
             max_query_variants=effective_max_variants,
         )
-        backends = self.news_backends if category == "news" else self.backends
+        groups = self.news_backends if category == "news" else self.backends
+        engine_specs = []
+        seen_engines: set[str] = set()
+        for group_index, group in enumerate(groups):
+            for name in group.split(","):
+                name = name.strip()
+                # An engine listed in multiple groups is queried once, in its
+                # first group: one call and one status per engine, contract-wide.
+                if not name or name in seen_engines:
+                    continue
+                seen_engines.add(name)
+                engine_specs.append((group_index, name))
         batches = await asyncio.gather(
             *(
                 self._ddgs(
                     variant,
-                    backend,
+                    engine,
                     limit,
                     category=category,
                     region=region,
                     safesearch=safesearch,
                     timelimit=timelimit,
                 )
-                for backend in backends
+                for _group_index, engine in engine_specs
                 for variant in queries
             )
         )
-        width = len(queries)
+        group_results: dict[int, list[list[SearchResult]]] = {}
+        engine_statuses: dict[tuple[int, str], list[ProviderStatus]] = {}
+        engine_items: dict[tuple[int, str], list[list[SearchResult]]] = {}
+        call_specs = [
+            (group_index, _engine)
+            for group_index, _engine in engine_specs
+            for _variant in queries
+        ]
+        for (group_index, engine), (items, status) in zip(
+            call_specs, batches, strict=True
+        ):
+            group_results.setdefault(group_index, []).append(items)
+            key = (group_index, engine)
+            engine_statuses.setdefault(key, []).append(status)
+            engine_items.setdefault(key, []).append(items)
+        statuses = [
+            _aggregate_engine_status(engine_statuses[key], engine_items[key])
+            for key in engine_statuses
+        ]
         lists = []
-        for index, _backend in enumerate(backends):
-            variant_lists = [items for items, _ in batches[index * width : (index + 1) * width]]
-            merged = merge_query_variants([items for items in variant_lists if items])
+        for group_index in range(len(groups)):
+            merged = merge_query_variants(
+                [items for items in group_results.get(group_index, []) if items]
+            )
             if merged:
                 lists.append(merged)
-        return lists, [status for _, status in batches], normalized_sites
+        return lists, statuses, normalized_sites
 
     @staticmethod
     def _filter_sites(results: list[SearchResult], sites: list[str]) -> list[SearchResult]:
@@ -1250,12 +1449,11 @@ class Josty:
                     current = urljoin(current, location)
                     continue
                 response.raise_for_status()
-                content_type = response.headers.get("content-type", "").lower()
-                if content_type and not any(
-                    allowed in content_type
-                    for allowed in ("text/html", "application/xhtml+xml", "text/plain")
-                ):
-                    raise ValueError(f"unsupported content type: {content_type}")
+                content_type = response.headers.get("content-type")
+                if not _content_type_allowed(content_type):
+                    raise ValueError(
+                        f"unsupported content type: {content_type or 'missing'}"
+                    )
                 content_length = response.headers.get("content-length")
                 if (
                     content_length
@@ -1297,7 +1495,7 @@ class Josty:
             raise ValueError("hostname could not be resolved") from exc
         for address in addresses:
             ip = ipaddress.ip_address(address[4][0])
-            if not ip.is_global:
+            if not ip.is_global or ip.is_multicast:
                 raise ValueError("private or reserved network destinations are blocked")
 
     @staticmethod
@@ -1346,7 +1544,9 @@ class Josty:
     ) -> tuple[list[SearchResult], ProviderStatus]:
         allowed, skip_message = self.breaker.status("github-api", "search")
         if not allowed:
-            return [], ProviderStatus("github-api", query, False, error=skip_message)
+            return [], ProviderStatus(
+                "github-api", query, False, error=skip_message, error_kind="skipped"
+            )
         url = "https://api.github.com/search/repositories"
         headers = {
             "Accept": "application/vnd.github+json",
@@ -1434,18 +1634,38 @@ class Josty:
         """
         groups = self.news_backends if category == "news" else self.backends
         targets: list[tuple[str, str]] = []
+        skipped: list[HostStatus] = []
         seen_providers: set[str] = set()
         for group in groups:
             for name in group.split(","):
                 name = name.strip()
-                if name in seen_providers:
+                if not name or name in seen_providers:
                     continue
                 seen_providers.add(name)
-                targets.append((name, self.BACKEND_HOSTS.get(name, "")))
+                available, unavailable_message = _engine_available(category, name)
+                if not available:
+                    skipped.append(
+                        HostStatus(name, "", False, None, "skipped", unavailable_message)
+                    )
+                    continue
+                host = self.BACKEND_HOSTS.get(name, "")
+                if not host:
+                    skipped.append(
+                        HostStatus(
+                            name,
+                            "",
+                            False,
+                            None,
+                            "skipped",
+                            f"skipped: no known upstream host for '{name}'",
+                        )
+                    )
+                    continue
+                targets.append((name, host))
         if include_github:
             targets.append(("github-api", self.BACKEND_HOSTS["github-api"]))
         statuses = await asyncio.gather(*(self._probe_host(name, host) for name, host in targets))
-        return DiagnoseRun(providers=list(statuses))
+        return DiagnoseRun(providers=[*statuses, *skipped])
 
     async def research_run(
         self,
