@@ -108,10 +108,17 @@ graph TD
 
 ## Release Checklist (When Merging to Main)
 
-1. **Changelog**: Add entries under `## [0.4.0]` in `CHANGELOG.md`.
-2. **Skill Definition**: Sync `.agents/skills/josty/SKILL.md` (`error_kind=empty`, `challenged`, `cached`, no rewrite).
+1. **Changelog**: Convert `## [Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD`.
+2. **Skill Definition**: Sync `.agents/skills/josty/SKILL.md` with any contract changes.
 3. **Version Bump**: bump the single `__version__` literal in `.agents/skills/josty/src/josty/engine.py`
-   (drives `pyproject.toml` via hatchling `dynamic = ["version"]`) at release time (not required in this change).
-4. **Git Tag & Release**: `git tag v0.4.0` + GitHub Release when cutting the version.
-5. **Scenario eval**: News/academic cases remain documented `upstream_quality` / `product_gap` unless labeled otherwise.
-6. **Auto-Close Issues**: Link PR commits to tracking issues.
+   (drives `pyproject.toml` via hatchling `dynamic = ["version"]`) at release time.
+4. **PyPI Publish**: build sdist/wheel (`python -m build`) from the release commit and upload
+   (e.g. `twine upload dist/*` or `uv publish`). PyPI is the single engine source — every
+   distribution path (uvx, pip, the belt skill) serves the installed CLI, so a missed publish
+   makes `uvx josty` silently stale.
+5. **Belt Skill Upload**: `belt skill upload .agents/skills/josty/SKILL.md --name josty`.
+   Same name = a new belt version; identical content is deduped. The belt skill is
+   instructions-only and drifts from the contract until re-uploaded.
+6. **Git Tag & Release**: `git tag vX.Y.Z` + GitHub Release when cutting the version.
+7. **Scenario eval**: News/academic cases remain documented `upstream_quality` / `product_gap` unless labeled otherwise.
+8. **Auto-Close Issues**: Link PR commits to tracking issues.

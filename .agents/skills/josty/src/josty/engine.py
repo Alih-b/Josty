@@ -47,7 +47,7 @@ _ALLOWED_FETCH_CONTENT_TYPES = frozenset(
 
 # Single version source: the static literal doubles as the pre-install fallback and
 # hatchling's build-time version; installed distributions override via importlib.metadata.
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 with suppress(PackageNotFoundError):
     __version__ = version("josty")
 USER_AGENT = f"josty/{__version__} (+https://github.com/Alih-b/josty)"
