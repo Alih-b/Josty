@@ -55,7 +55,7 @@ SEARCH_THREAD_TIMEOUT_HEADROOM = 2.0
 __version__ = "0.5.0"
 with suppress(PackageNotFoundError):
     __version__ = version("josty")
-USER_AGENT = f"josty/{__version__} (+https://github.com/Alih-b/josty)"
+USER_AGENT = f"josty/{__version__} (+https://github.com/Alih-b/Josty)"
 BROWSER_FETCH_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "

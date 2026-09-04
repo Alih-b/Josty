@@ -1,6 +1,6 @@
 # Contributing
 
-1. Use Python 3.11 or newer.
+1. Use Python 3.10 or newer.
 2. Install development dependencies with `python -m pip install -e ".[dev]"`.
 3. Keep the skill shell-first, keyless by default, and independent of MCP or an LLM.
 4. Add tests for behavior changes and provider failure modes.

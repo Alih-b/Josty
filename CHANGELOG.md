@@ -5,8 +5,18 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+### Added
+
+- `--version` CLI flag, single-sourced from the same `__version__` literal that drives the
+  build metadata (closes the SECURITY.md reporting instruction referencing it).
+
 ### Fixed
 
+- Repository URLs normalized to the canonical `Alih-b/Josty` casing (pyproject metadata,
+  README links, GitHub API `User-Agent`); GitHub redirects masked the drift.
+- README development flow creates and activates a virtualenv before the editable install
+  (PEP 668 externally-managed-environment on Debian/Ubuntu system Python).
+- CONTRIBUTING Python floor reconciled to the packaging floor: 3.10 or newer.
 - RRF fusion and query-variant merge clone caller-owned results before backfilling
   `engine_ranks`, so fusion no longer mutates input lists.
 - Search-error classification uses word-boundary tokens and status codes first:

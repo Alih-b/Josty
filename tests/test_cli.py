@@ -173,4 +173,20 @@ def test_parser_handles_max_content_chars_flag():
         parser().parse_args(["query", "--max-content-chars", "invalid"])
 
 
+def test_version_flag_prints_single_source_version(capsys):
+    from josty.engine import __version__
 
+    with pytest.raises(SystemExit) as exc:
+        parser().parse_args(["--version"])
+    assert exc.value.code == 0
+    assert f"josty {__version__}" in capsys.readouterr().out
+
+
+def test_version_flag_ends_only_flags_run(monkeypatch, capsys):
+    from josty.engine import __version__
+
+    monkeypatch.setattr("sys.argv", ["josty", "--version"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 0
+    assert f"josty {__version__}" in capsys.readouterr().out

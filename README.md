@@ -1,7 +1,7 @@
 <!--
   name: Josty
   description: Zero-config, keyless metasearch engine and bounded content extraction.
-  repository: https://github.com/Alih-b/josty
+  repository: https://github.com/Alih-b/Josty
   license: MIT
   specification: .agents/skills/josty/SKILL.md
   compatibility: Compatible with all AI agent runtimes, LLM harnesses, and developer CLI workflows.
@@ -10,17 +10,17 @@
 
 <div align="center">
 
-![Josty Logo](https://raw.githubusercontent.com/Alih-b/josty/main/docs/assets/logo.svg)
+![Josty Logo](https://raw.githubusercontent.com/Alih-b/Josty/main/docs/assets/logo.svg)
 
 <p>
   <strong>Zero-config, keyless metasearch and bounded content extraction.</strong>
 </p>
 
 <p>
-  <a href="https://github.com/Alih-b/josty/actions/workflows/ci.yml"><img src="https://github.com/Alih-b/josty/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/Alih-b/Josty/actions/workflows/ci.yml"><img src="https://github.com/Alih-b/Josty/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+" /></a>
-  <a href="https://github.com/Alih-b/josty/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" /></a>
-  <a href="https://github.com/Alih-b/josty/blob/main/CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-CHANGELOG.md-orange" alt="Changelog" /></a>
+  <a href="https://github.com/Alih-b/Josty/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" /></a>
+  <a href="https://github.com/Alih-b/Josty/blob/main/CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-CHANGELOG.md-orange" alt="Changelog" /></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/code%20style-ruff-261230" alt="Code Style: Ruff" /></a>
 </p>
 
@@ -212,6 +212,7 @@ graph TD
 | :--- | :--- | :--- |
 | **Schema Version** | `1.0` | Output format contract on `stdout` |
 | **Max Domain Filters** | `5` (`--site`) | Maximum concurrent site constraints per query |
+| **Max Query Variants** | unlimited (`--max-query-variants`) | Caps mode/site query expansion — set this for `--mode oss` with multiple `--site` filters to bound upstream fanout |
 | **Search Concurrency** | `6` (`--search-concurrency`) | Default bounded semaphore for search backends |
 | **Fetch Concurrency** | `4` (`--fetch-concurrency`) | Default bounded semaphore for page content fetching |
 | **Max Content Size** | `8,000 chars` (`--max-content-chars`) | Extracted Markdown character ceiling per page (0 for unlimited) |
@@ -227,7 +228,7 @@ Shipped in **v0.4.0**: `error_kind=empty`, diagnose `challenged`, no hidden quer
 and a bounded cache. Shipped in **v0.5.0**: per-engine `providers[]` observability (one
 status per engine) and an engine-availability gate. Query relaxation, news engine filters,
 and hard host floors are out of scope. See
-**[ROADMAP.md](https://github.com/Alih-b/josty/blob/main/ROADMAP.md)**.
+**[ROADMAP.md](https://github.com/Alih-b/Josty/blob/main/ROADMAP.md)**.
 
 ---
 
@@ -235,8 +236,13 @@ and hard host floors are out of scope. See
 
 ```bash
 # Clone repository
-git clone https://github.com/Alih-b/josty.git
+git clone https://github.com/Alih-b/Josty.git
 cd josty
+
+# Create and activate a virtual environment first (PEP 668:
+# Debian/Ubuntu system Python rejects direct pip installs)
+python -m venv .venv
+source .venv/bin/activate
 
 # Install in editable mode with dev dependencies
 python -m pip install -e ".[dev]"
@@ -252,4 +258,4 @@ ruff check .
 
 ## License
 
-MIT © Ali Bayest. See [LICENSE](https://github.com/Alih-b/josty/blob/main/LICENSE) for details.
+MIT © Ali Bayest. See [LICENSE](https://github.com/Alih-b/Josty/blob/main/LICENSE) for details.
