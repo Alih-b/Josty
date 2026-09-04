@@ -68,17 +68,25 @@ uvx josty --cache-stats
   own `result_count`, `error_kind`, and breaker state. A throttled or emptying engine is visible
   even when the fused output looks healthy; prefer engines with non-zero counts when weighing
   evidence. `error_kind: "empty"` means the engine was reached and returned zero URLs
-  (`result_count=0`). `error_kind: "skipped"` means no call was made. A hit (`result_count>0`)
-  never carries `empty` or `skipped` from a sibling query variant.
+  (`result_count=0`). `error_kind: "skipped"` means no call was made. `error_kind: "blocked"`
+  means HTTP 401/403 or an auth/forbidden challenge — not throttling. `error_kind: "rate_limited"`
+  is reserved for 429 / rate-limit tokens. A hit (`result_count>0`) never carries `empty` or
+  `skipped` from a sibling query variant.
 - Each `(engine, error class)` pair has an in-process circuit breaker: 3 failures within 60 s
-  opens the breaker for 30 s. Subsequent calls are skipped with a stable error string
-  `skipped: engine in cool-down until <iso8601>` reported in `providers[].error`, and
+  opens the breaker for 30 s (exponential backoff on consecutive trips, capped at `2^6`).
+  HALF_OPEN admits one trial probe; other concurrent callers skip until that probe completes.
+  Subsequent cool-down skips report a stable error string
+  `skipped: engine in cool-down until <iso8601>` in `providers[].error`, and
   `error_kind: "skipped"`. A `"skipped"` kind means the call was deliberately not made — for a
   breaker skip it is not evidence the engine is down; for an engine that is unknown or disabled
   in the installed ddgs, the error names the engine and it will not answer until the
   configuration changes.
 - A non-empty successful call clears the failure history for that pair. An empty-ok branch
-  neither trips nor clears the breaker. The breaker is per-process.
+  neither trips nor clears the breaker. Consecutive trip counts decay after idle time past
+  the last backoff plus the failure window, so a backend idle for hours does not resume at
+  an inflated backoff. The breaker is per-process.
+- `--diagnose` does not probe a host whose search breaker is OPEN; it reports
+  `error_kind: "skipped"` with cool-down telemetry instead.
 - No automatic retry: hidden amplification is treated as a worse failure mode than
   surfacing a `degraded` or `failed` status.
 
@@ -92,7 +100,7 @@ GitHub API limits.
 - `status=complete` with empty or off-topic results is not evidence of absence. An `ok` provider with `result_count=0` and `error_kind="empty"` is a successful empty branch, not a backend outage.
 - Josty does not rewrite queries or retry backends when results are empty. If the query is over-constrained, issue a new search yourself.
 - `--category news` can return token-collision junk (e.g. "3.14" matching "District 14"). Require the subject token in title or snippet before citing a news hit. This is a citation rule, not an engine filter.
-- `--diagnose` `ok=true` means the host answered HTTP, including 403/429. Read `http_status` and `challenged`; they are not search-quality signals.
+- `--diagnose` `ok=true` means the host answered HTTP, including 403/429. Read `http_status` and `challenged`; they are not search-quality signals. An OPEN circuit is not probed: `error_kind` is `"skipped"`.
 - `cached: true` means the envelope was served from the local SQLite cache. Treat it as a prior live result, not a fresh probe. Check the envelope `run_at` (ISO8601 UTC) to judge age; timelimit=d results expire from cache after 30 minutes, news after 1 hour, timelimit=w after 2 hours.
 - `--fetch` 403 or a download-limit error is per-URL; try the next result.
 - Verify important claims against primary sources before citing them.

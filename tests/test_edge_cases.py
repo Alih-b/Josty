@@ -403,6 +403,9 @@ class TestRRF:
         rrf([first, second])
         # First list's snippet is preserved (cloned)
         assert first[0].snippet == "first snippet"
+        # Rank backfill must not mutate caller-owned engine_ranks
+        assert first[0].engine_ranks == {}
+        assert second[0].engine_ranks == {}
 
     def test_two_distinct_urls_keep_separate_scores(self):
         first = [result("https://example.com/a")]
@@ -421,6 +424,8 @@ class TestMergeQueryVariants:
         ]
         merged = merge_query_variants([a, b])
         assert [item.url for item in merged] == ["https://example.com/a", "https://example.com/b"]
+        assert a[0].engine_ranks == {}
+        assert b[0].engine_ranks == {}
 
     def test_invalid_urls_skipped(self):
         merged = merge_query_variants([
@@ -1061,6 +1066,54 @@ class TestCircuitBreakerAdvanced:
         assert state["state"] == "open"
         assert 639.0 <= state["backoff_remaining"] <= 640.0
 
+    def test_get_state_does_not_mutate_open_to_half_open(self, monkeypatch):
+        breaker = CircuitBreaker(fail_threshold=1, window_seconds=60, cool_down_seconds=10)
+        t = [1000.0]
+        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+        breaker.record_failure("bing", "search")
+        assert breaker._state[("bing", "search")] == "open"
+        t[0] = 1020.0
+        snap = breaker.get_state("bing")
+        assert snap["state"] == "half-open"
+        assert snap["backoff_remaining"] == 0.0
+        # Stored state stays OPEN until status()/record_failure transitions it
+        assert breaker._state[("bing", "search")] == "open"
+
+    def test_half_open_admits_one_probe(self, monkeypatch):
+        breaker = CircuitBreaker(fail_threshold=1, window_seconds=60, cool_down_seconds=10)
+        t = [1000.0]
+        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+        breaker.record_failure("bing", "search")
+        t[0] = 1020.0
+        allowed, message = breaker.status("bing", "search")
+        assert allowed is True
+        assert message is None
+        allowed2, message2 = breaker.status("bing", "search")
+        assert allowed2 is False
+        assert message2 is not None
+        assert "half-open probe" in message2
+        breaker.release_probe("bing", "search")
+        allowed3, _ = breaker.status("bing", "search")
+        assert allowed3 is True
+
+    def test_consecutive_trips_decay_after_idle(self, monkeypatch):
+        breaker = CircuitBreaker(fail_threshold=1, window_seconds=10, cool_down_seconds=10)
+        t = [1000.0]
+        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+        remaining = 0.0
+        for _ in range(5):
+            breaker.record_failure("bing", "search")
+            remaining = breaker.get_state("bing")["backoff_remaining"]
+            t[0] += remaining + 1.0
+        assert remaining > 10.0
+        # Loop already advanced just past the last cool-down; idle another full
+        # failure window so the trip streak decays.
+        t[0] += breaker.window_seconds
+        breaker.record_failure("bing", "search")
+        state = breaker.get_state("bing")
+        assert state["state"] == "open"
+        assert 9.0 <= state["backoff_remaining"] <= 10.0
+
     def test_record_success_on_unknown_is_noop(self):
         breaker = CircuitBreaker()
         # Should not raise
@@ -1069,6 +1122,34 @@ class TestCircuitBreakerAdvanced:
     def test_status_on_unknown_is_allowed(self):
         breaker = CircuitBreaker()
         assert breaker.status("never-failed", "search") == (True, None)
+
+
+def test_search_executor_saturated_skips_without_calling_ddgs(monkeypatch):
+    calls = {"n": 0}
+
+    class CountingDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            calls["n"] += 1
+            return [{"title": "t", "href": "https://example.com/x", "body": "b"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", CountingDDGS)
+    engine = Josty(
+        backends=("duckduckgo",),
+        max_search_concurrency=1,
+        enable_cache=False,
+    )
+    engine._ensure_search_executor()
+    assert engine._executor_slots is not None
+    assert engine._executor_slots.acquire(blocking=False)
+    run = asyncio.run(engine.search_run("q", limit=3))
+    engine._executor_slots.release()
+    assert calls["n"] == 0
+    assert run.providers[0].ok is False
+    assert run.providers[0].error_kind == "skipped"
+    assert run.providers[0].error == "skipped: search executor saturated"
 
 
 # ======================================================================================
@@ -1096,11 +1177,40 @@ class TestClassifyError:
         exc = httpx.HTTPStatusError("Server Error", request=request, response=resp)
         assert _classify_search_error(exc) == "network"
 
-    def test_httpx_400_is_parse(self):
+    def test_httpx_403_is_blocked_not_rate_limited(self):
         request = httpx.Request("GET", "u")
-        resp = httpx.Response(400, request=request)
-        exc = httpx.HTTPStatusError("Bad", request=request, response=resp)
-        assert _classify_search_error(exc) == "parse"
+        resp = httpx.Response(403, request=request)
+        exc = httpx.HTTPStatusError("Forbidden", request=request, response=resp)
+        assert _classify_search_error(exc) == "blocked"
+
+    def test_httpx_401_is_blocked(self):
+        request = httpx.Request("GET", "u")
+        resp = httpx.Response(401, request=request)
+        exc = httpx.HTTPStatusError("Unauthorized", request=request, response=resp)
+        assert _classify_search_error(exc) == "blocked"
+
+    def test_ddgs_unblocked_is_not_rate_limited(self):
+        from ddgs.exceptions import DDGSException
+
+        assert _classify_search_error(DDGSException("connection unblocked after retry")) != (
+            "rate_limited"
+        )
+
+    def test_ddgs_challenge_response_is_not_rate_limited(self):
+        from ddgs.exceptions import DDGSException
+
+        kind = _classify_search_error(DDGSException("challenge-response authentication failed"))
+        assert kind != "rate_limited"
+
+    def test_ddgs_403_forbidden_is_blocked(self):
+        from ddgs.exceptions import DDGSException
+
+        assert _classify_search_error(DDGSException("HTTP 403 Forbidden")) == "blocked"
+
+    def test_ddgs_too_many_requests_is_rate_limited(self):
+        from ddgs.exceptions import DDGSException
+
+        assert _classify_search_error(DDGSException("too many requests")) == "rate_limited"
 
     def test_unknown_exception_is_unknown(self):
         assert _classify_search_error(ValueError("?")) == "unknown"

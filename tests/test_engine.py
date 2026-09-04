@@ -74,6 +74,8 @@ def test_rrf_fuses_independent_lists_and_preserves_provenance():
     # per-engine contributions, not from unrounded list-position terms.
     assert results[0].score == round(2 * round(1 / 61, 6), 6)
     assert first[0].score == 0.0  # fusion does not mutate caller-owned results
+    assert first[0].engine_ranks == {}
+    assert second[0].engine_ranks == {}
 
 
 def test_rrf_rejects_invalid_k_and_malformed_urls():
@@ -766,6 +768,27 @@ def test_diagnose_reports_http_status_for_challenged_hosts(monkeypatch):
     assert entry["ok"] is True
     assert entry["http_status"] == 403
     assert entry["challenged"] is True
+
+
+def test_diagnose_skips_open_breaker_without_network(monkeypatch):
+    hits = {"n": 0}
+
+    async def fake_get(self, url, **kwargs):
+        hits["n"] += 1
+        return httpx.Response(200, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    breaker = CircuitBreaker(fail_threshold=1, window_seconds=60, cool_down_seconds=30)
+    breaker.record_failure("brave", "search")
+    engine = Josty(backends=("brave",), breaker=breaker)
+    payload = asyncio.run(engine.diagnose_run()).dict()
+    entry = next(item for item in payload["providers"] if item["provider"] == "brave")
+    assert hits["n"] == 0
+    assert entry["ok"] is False
+    assert entry["error_kind"] == "skipped"
+    assert entry["circuit_state"] == "open"
+    assert entry["error"] is not None
+    assert entry["error"].startswith("skipped: engine in cool-down until ")
 
 
 def test_diagnose_marks_429_as_challenged(monkeypatch):

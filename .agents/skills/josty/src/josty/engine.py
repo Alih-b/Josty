@@ -12,6 +12,7 @@ import sqlite3
 import ssl
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
@@ -33,7 +34,7 @@ SearchMode = Literal["plain", "exact", "oss"]
 SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]
-ErrorKind = Literal["network", "rate_limited", "empty", "parse", "unknown", "skipped"]
+ErrorKind = Literal["network", "rate_limited", "blocked", "empty", "parse", "unknown", "skipped"]
 ProfileType = Literal["general", "dev", "academic"]
 
 SCHEMA_VERSION = "1.0"
@@ -269,6 +270,7 @@ class ProviderStatus:
     result_count: int = 0
     error: str | None = None
     error_kind: ErrorKind | None = None
+    # Worst-case across concurrent query variants, not a representative sample.
     latency_ms: float | None = None
     circuit_state: str | None = None
     failures: int | None = None
@@ -296,7 +298,6 @@ class HostStatus:
         return asdict(self)
 
 
-
 def _classify_probe_error(exc: Exception) -> str:
     if isinstance(exc, httpx.TimeoutException):
         return "timeout"
@@ -309,37 +310,31 @@ def _classify_probe_error(exc: Exception) -> str:
     return "unknown"
 
 
-_RATE_LIMIT_TOKENS = (
-    "rate limit",
-    "too many",
-    "429",
-    "too many requests",
-    "403",
-    "forbidden",
-    "challenge",
-    "captcha",
-    "blocked",
+# Word-boundary token matchers. Substring tokens like "blocked" must not match
+# "unblocked", and broad fragments like "too many" / "challenge" are omitted
+# because they misfire on unrelated network/parse errors.
+_RATE_LIMIT_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:rate[\s_-]?limit|too many requests|429)(?![\w])",
+    re.IGNORECASE,
 )
-_NETWORK_TOKENS = (
-    "connecterror",
-    "connection refused",
-    "connection reset",
-    "dns",
-    "getaddrinfo",
-    "name or service not known",
-    "timed out",
-    "timeout",
-    "network",
+_BLOCKED_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:403|401|forbidden|captcha|access denied|blocked)(?![\w])",
+    re.IGNORECASE,
 )
-_TLS_TOKENS = (
-    "decodeerror",
-    "invalid peer certificate",
-    "certificate verify",
-    "handshake failure",
-    "ssl",
-    "tls",
+_NETWORK_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:connecterror|connection refused|connection reset|dns|"
+    r"getaddrinfo|name or service not known|timed out|timeout|network)(?![\w])",
+    re.IGNORECASE,
 )
-_PARSE_TOKENS = ("failed to fetch", "parse", "decode", "json")
+_TLS_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:decodeerror|invalid peer certificate|certificate verify|"
+    r"handshake failure|ssl|tls)(?![\w])",
+    re.IGNORECASE,
+)
+_PARSE_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:failed to fetch|parse|decode|json)(?![\w])",
+    re.IGNORECASE,
+)
 _EMPTY_RESULTS_MESSAGE = "no results found"
 
 try:
@@ -412,8 +407,9 @@ _ERROR_KIND_SEVERITY: dict[str | None, int] = {
     "parse": 3,
     "network": 4,
     "rate_limited": 5,
+    "blocked": 5,
 }
-_FAILURE_ERROR_KINDS = frozenset({"unknown", "parse", "network", "rate_limited"})
+_FAILURE_ERROR_KINDS = frozenset({"unknown", "parse", "network", "rate_limited", "blocked"})
 
 
 def _content_type_allowed(header: str | None) -> bool:
@@ -465,6 +461,9 @@ def _aggregate_engine_status(
         error_kind = "skipped"
         error = next((status.error for status in statuses if status.error), None)
     latencies = [s.latency_ms for s in statuses if s.latency_ms is not None]
+    # Worst-case across concurrent query variants, not a representative sample.
+    # Concurrent variants overlap, so a mean would understate the stall; max is
+    # the time the slowest variant actually occupied.
     latency_ms = round(max(latencies), 2) if latencies else None
     # circuit_state/failures/backoff_remaining are intentionally NOT aggregated
     # from per-variant snapshots (they run concurrently, so snapshot order is
@@ -484,11 +483,12 @@ def _aggregate_engine_status(
 def _classify_search_error(exc: BaseException) -> ErrorKind:
     """Map a ddgs-side (or GitHub-API) exception to an error_kind category.
 
-    ddgs 9.15.0 wraps engine exceptions in a flat ``DDGSException`` whose ``str``
-    contains the original exception's repr (e.g. ``"ConnectError: ...(Connection refused)"``)
-    but does not chain the original via ``__cause__``/``__context__``. We therefore
-    use ``isinstance`` for the outer class where we can, and substring-match the
-    flattened message otherwise. See issue #9 for the research behind this mapping.
+    Status codes are classified first. Message tokens are word-boundary matched
+    so fragments like ``blocked`` do not fire on ``unblocked``. HTTP 401/403 are
+    ``blocked`` (auth/forbidden), not ``rate_limited`` — a persistently 403
+    backend must not be treated as throttling. ddgs 9.15.0 wraps engine
+    exceptions in a flat ``DDGSException`` whose ``str`` contains the original
+    exception's repr but does not chain ``__cause__``/``__context__``.
     """
     if isinstance(exc, TimeoutException):
         return "network"
@@ -498,8 +498,12 @@ def _classify_search_error(exc: BaseException) -> ErrorKind:
         return "network"
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code if exc.response is not None else 0
-        if status in (429, 403) or 500 <= status < 600:
-            return "rate_limited" if status in (429, 403) else "network"
+        if status == 429:
+            return "rate_limited"
+        if status in (401, 403):
+            return "blocked"
+        if 500 <= status < 600:
+            return "network"
         return "parse"
     if isinstance(exc, httpx.HTTPError):
         return "network"
@@ -507,13 +511,15 @@ def _classify_search_error(exc: BaseException) -> ErrorKind:
         text = str(exc).lower()
         if _EMPTY_RESULTS_MESSAGE in text:
             return "empty"
-        if any(token in text for token in _RATE_LIMIT_TOKENS):
+        if _RATE_LIMIT_TOKEN_RE.search(text):
             return "rate_limited"
-        if any(token in text for token in _TLS_TOKENS):
+        if _BLOCKED_TOKEN_RE.search(text):
+            return "blocked"
+        if _TLS_TOKEN_RE.search(text):
             return "network"
-        if any(token in text for token in _NETWORK_TOKENS):
+        if _NETWORK_TOKEN_RE.search(text):
             return "network"
-        if any(token in text for token in _PARSE_TOKENS):
+        if _PARSE_TOKEN_RE.search(text):
             return "parse"
     return "unknown"
 
@@ -683,6 +689,15 @@ def domain_weight(url: str, profile: ProfileType = "general") -> float:
     return 1.0
 
 
+def _with_discovery_ranks(item: SearchResult, rank: int) -> SearchResult:
+    """Clone ``item`` and fill missing ``engine_ranks`` on the clone only."""
+    cloned = _clone(item)
+    for source in cloned.sources:
+        if source not in cloned.engine_ranks:
+            cloned.engine_ranks[source] = rank
+    return cloned
+
+
 def rrf(
     ranked: list[list[SearchResult]],
     k: int = 60,
@@ -697,6 +712,8 @@ def rrf(
     Engine agreement therefore counts: a URL found by two engines of the same
     group carries both votes. That is the deliberate per-engine fusion
     semantics (see PROJECT.md, "Transparent RRF Attribution Contract").
+
+    Fusion never mutates caller-owned items: ranks are backfilled on clones.
     """
     if k < 1:
         raise ValueError("k must be positive")
@@ -712,15 +729,11 @@ def rrf(
             if not key or key in seen_in_list:
                 continue
             seen_in_list.add(key)
-            # Rank-less sources adopt the position of their first occurrence
-            # so every engine named in ``sources`` carries a rank.
-            for s in item.sources:
-                if s not in item.engine_ranks:
-                    item.engine_ranks[s] = rank
+            candidate = _with_discovery_ranks(item, rank)
             if key not in merged:
-                merged[key] = _clone(item)
+                merged[key] = candidate
             else:
-                _merge_result(merged[key], item)
+                _merge_result(merged[key], candidate)
 
     for item in merged.values():
         w = domain_weight(item.url, profile=profile)
@@ -745,15 +758,13 @@ def merge_query_variants(ranked: list[list[SearchResult]]) -> list[SearchResult]
                 key = canonical(item.url)
             except ValueError:
                 continue
-            for s in item.sources:
-                if s not in item.engine_ranks:
-                    item.engine_ranks[s] = rank
+            candidate = _with_discovery_ranks(item, rank)
             current = merged.get(key)
             if current is None:
-                merged[key] = (rank, variant_index, _clone(item))
+                merged[key] = (rank, variant_index, candidate)
                 continue
             best_rank, best_variant, saved = current
-            _merge_result(saved, item)
+            _merge_result(saved, candidate)
             merged[key] = (min(rank, best_rank), min(variant_index, best_variant), saved)
     return [
         item
@@ -1186,8 +1197,9 @@ class CircuitBreaker:
       the circuit trips to OPEN.
     - OPEN: Calls are blocked with a cool-down timestamp. Consecutive trips apply
       exponential backoff. When cool-down expires, transitions to HALF_OPEN.
-    - HALF_OPEN: Allows trial probe(s). Success resets circuit to CLOSED and clears
-      failure history and consecutive trips. Failure trips back to OPEN.
+    - HALF_OPEN: Exactly one in-flight trial probe is admitted. Success resets
+      to CLOSED and clears failure history and consecutive trips. Failure trips
+      back to OPEN. Concurrent callers skip until the probe completes.
 
     ``error_class`` exists for contract compatibility: ``"rate_limit"`` and
     ``"search"`` are aliases sharing one failure namespace, and the default
@@ -1210,6 +1222,9 @@ class CircuitBreaker:
         self._failures: dict[tuple[str, str], list[float]] = {}
         self._open_until: dict[tuple[str, str], float] = {}
         self._consecutive_trips: dict[tuple[str, str], int] = {}
+        self._last_trip_at: dict[tuple[str, str], float] = {}
+        self._probe_inflight: dict[tuple[str, str], bool] = {}
+        self._keys_by_backend: dict[str, set[tuple[str, str]]] = {}
         self._latencies: dict[str, float] = {}
         self._lock = threading.Lock()
 
@@ -1219,37 +1234,77 @@ class CircuitBreaker:
             error_class = "search"
         return (backend, error_class)
 
+    def _register_key(self, key: tuple[str, str]) -> None:
+        self._keys_by_backend.setdefault(key[0], set()).add(key)
+
+    def _cool_down_message(self, open_until: float, now: float) -> str:
+        until_iso = (
+            datetime.fromtimestamp(time.time() + (open_until - now), UTC)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        return f"skipped: engine in cool-down until {until_iso}"
+
+    def _admit_half_open_locked(self, key: tuple[str, str]) -> tuple[bool, str | None]:
+        """Admit a single HALF_OPEN trial probe; concurrent callers are skipped.
+
+        Waiting here would block the asyncio event loop (status() is sync), so
+        non-probe callers skip until the in-flight probe completes.
+        """
+        if self._probe_inflight.get(key):
+            return False, "skipped: engine half-open probe in flight"
+        self._probe_inflight[key] = True
+        return True, None
+
+    def _decay_trips_locked(self, key: tuple[str, str], now: float) -> int:
+        """Reset consecutive trips after idle time past the last backoff window."""
+        prev = self._consecutive_trips.get(key, 0)
+        last = self._last_trip_at.get(key, 0.0)
+        if prev and last:
+            last_backoff = self.cool_down_seconds * (2 ** min(prev - 1, 6))
+            if now - last > last_backoff + self.window_seconds:
+                return 0
+        return prev
+
+    def _trip_locked(self, key: tuple[str, str], now: float) -> None:
+        trips = self._decay_trips_locked(key, now) + 1
+        self._consecutive_trips[key] = trips
+        self._last_trip_at[key] = now
+        backoff = self.cool_down_seconds * (2 ** min(trips - 1, 6))
+        self._open_until[key] = now + backoff
+        self._state[key] = "open"
+        self._probe_inflight.pop(key, None)
+        self._register_key(key)
+
     def status(self, backend: str, error_class: str = "rate_limit") -> tuple[bool, str | None]:
         """Return ``(allowed, skip_message)`` for a backend/error pair.
 
-        HALF_OPEN deliberately admits the full concurrent fanout as trial
-        probes (no in-flight cap): a struggling backend gets one full probe
-        round when its cool-down expires, and the first failure re-trips it.
-        Complete per-engine visibility is preferred over conservative probe
-        limiting.
+        HALF_OPEN admits exactly one in-flight trial probe. Concurrent fanout
+        callers are skipped until that probe succeeds (CLOSED) or fails (OPEN).
         """
         now = time.monotonic()
         key = self._key(backend, error_class)
 
         with self._lock:
+            self._register_key(key)
             if self._state.get(key) == "open":
                 open_until = self._open_until.get(key, 0.0)
                 if now < open_until:
-                    until_iso = (
-                        datetime.fromtimestamp(time.time() + (open_until - now), UTC)
-                        .isoformat()
-                        .replace("+00:00", "Z")
-                    )
-                    return False, f"skipped: engine in cool-down until {until_iso}"
-                # Cool down elapsed -> transition to half-open and reset failure window
+                    return False, self._cool_down_message(open_until, now)
                 self._state[key] = "half-open"
                 self._failures[key] = []
-                return True, None
+                return self._admit_half_open_locked(key)
 
             if self._state.get(key) == "half-open":
-                return True, None
+                return self._admit_half_open_locked(key)
 
             return True, None
+
+    def release_probe(self, backend: str, error_class: str = "rate_limit") -> None:
+        """Drop the HALF_OPEN in-flight flag after a trial call completes."""
+        key = self._key(backend, error_class)
+        with self._lock:
+            self._probe_inflight.pop(key, None)
 
     def record_failure(self, backend: str, error_class: str = "rate_limit") -> None:
         """Record a failure event for backend/error_class within sliding window."""
@@ -1257,6 +1312,7 @@ class CircuitBreaker:
         key = self._key(backend, error_class)
 
         with self._lock:
+            self._register_key(key)
             # Freeze timer while open; do not extend on repeated failures during cool-down
             if self._state.get(key) == "open" and now < self._open_until.get(key, 0.0):
                 return
@@ -1273,20 +1329,18 @@ class CircuitBreaker:
             self._failures[key] = events
 
             if is_half_open or len(events) >= self.fail_threshold:
-                trips = self._consecutive_trips.get(key, 0) + 1
-                self._consecutive_trips[key] = trips
-                backoff = self.cool_down_seconds * (2 ** min(trips - 1, 6))
-                self._open_until[key] = now + backoff
-                self._state[key] = "open"
+                self._trip_locked(key, now)
 
     def record_success(self, backend: str, error_class: str = "rate_limit") -> None:
         """Record a success event, resetting circuit state to closed and clearing history."""
         key = self._key(backend, error_class)
         with self._lock:
+            self._register_key(key)
             self._state[key] = "closed"
             self._failures[key] = []
             self._open_until[key] = 0.0
             self._consecutive_trips[key] = 0
+            self._probe_inflight.pop(key, None)
 
     def record_latency(self, backend: str, latency_ms: float) -> None:
         """Record the most recent execution latency for a backend."""
@@ -1294,52 +1348,60 @@ class CircuitBreaker:
             self._latencies[backend] = float(latency_ms)
 
     def get_state(self, backend: str) -> dict[str, Any]:
-        """Return standardized circuit breaker telemetry for a backend."""
+        """Return circuit-breaker telemetry for a backend without mutating state.
+
+        An expired OPEN cool-down is reported as ``half-open``. The OPEN →
+        HALF_OPEN transition itself happens on ``status()`` / ``record_failure``.
+        """
         now = time.monotonic()
         with self._lock:
-            matching_keys = [k for k in self._state if k[0] == backend]
+            matching_keys = list(self._keys_by_backend.get(backend, ()))
             if not matching_keys:
-                matching_keys = [k for k in self._failures if k[0] == backend]
-
-            for k in matching_keys:
-                if self._state.get(k) == "open" and now >= self._open_until.get(k, 0.0):
-                    self._state[k] = "half-open"
-                    self._failures[k] = []
+                matching_keys = [k for k in self._state if k[0] == backend]
+                if not matching_keys:
+                    matching_keys = [k for k in self._failures if k[0] == backend]
 
             state = "closed"
             backoff_remaining = 0.0
             failures = 0
+            has_half_open = False
 
-            for k in matching_keys:
-                if self._state.get(k) == "open":
-                    state = "open"
-                    rem = max(0.0, self._open_until.get(k, 0.0) - now)
-                    if rem > backoff_remaining:
-                        backoff_remaining = rem
-                    active_fails = len(
-                        [t for t in self._failures.get(k, []) if now - t <= self.window_seconds]
-                    )
-                    if active_fails > failures:
-                        failures = active_fails
+            for key in matching_keys:
+                stored = self._state.get(key, "closed")
+                open_until = self._open_until.get(key, 0.0)
+                if stored == "open":
+                    remaining = open_until - now
+                    if remaining > 0:
+                        state = "open"
+                        if remaining > backoff_remaining:
+                            backoff_remaining = remaining
+                        active = [
+                            t
+                            for t in self._failures.get(key, [])
+                            if now - t <= self.window_seconds
+                        ]
+                        failures = max(failures, len(active))
+                    else:
+                        has_half_open = True
+                elif stored == "half-open":
+                    has_half_open = True
+                    active = [
+                        t for t in self._failures.get(key, []) if now - t <= self.window_seconds
+                    ]
+                    failures = max(failures, len(active))
+                else:
+                    active = [
+                        t for t in self._failures.get(key, []) if now - t <= self.window_seconds
+                    ]
+                    failures = max(failures, len(active))
 
-            if state == "closed":
-                for k in matching_keys:
-                    if self._state.get(k) == "half-open":
-                        state = "half-open"
-                        break
-
-            if failures == 0:
-                for k in matching_keys:
-                    active_fails = len(
-                        [t for t in self._failures.get(k, []) if now - t <= self.window_seconds]
-                    )
-                    if active_fails > failures:
-                        failures = active_fails
+            if state != "open" and has_half_open:
+                state = "half-open"
 
             return {
                 "state": state,
                 "failures": failures,
-                "backoff_remaining": round(backoff_remaining, 2),
+                "backoff_remaining": round(max(0.0, backoff_remaining), 2),
                 "last_latency_ms": self._latencies.get(backend),
             }
 
@@ -1429,6 +1491,8 @@ class Josty:
         )
         self._search_sem: asyncio.Semaphore | None = None
         self._fetch_sem: asyncio.Semaphore | None = None
+        self._search_executor: ThreadPoolExecutor | None = None
+        self._executor_slots: threading.BoundedSemaphore | None = None
         if breaker is not None:
             self.breaker = breaker
         else:
@@ -1479,6 +1543,17 @@ class Josty:
         if self._fetch_sem is None:
             self._fetch_sem = asyncio.Semaphore(self.max_fetch_concurrency)
         return self._fetch_sem
+
+    def _ensure_search_executor(self) -> tuple[ThreadPoolExecutor, threading.BoundedSemaphore]:
+        """Bounded DDGS worker pool: ghost threads occupy a slot until they return."""
+        if self._search_executor is None or self._executor_slots is None:
+            workers = self.max_search_concurrency
+            self._search_executor = ThreadPoolExecutor(
+                max_workers=workers,
+                thread_name_prefix="josty-search",
+            )
+            self._executor_slots = threading.BoundedSemaphore(workers)
+        return self._search_executor, self._executor_slots
 
     @staticmethod
     def expand(
@@ -1542,7 +1617,41 @@ class Josty:
                 error_kind="skipped",
                 **self._breaker_telemetry(backend),
             )
+        try:
+            return await self._ddgs_execute(
+                query,
+                backend,
+                limit,
+                category=category,
+                region=region,
+                safesearch=safesearch,
+                timelimit=timelimit,
+            )
+        finally:
+            self.breaker.release_probe(backend, "search")
+
+    async def _ddgs_execute(
+        self,
+        query: str,
+        backend: str,
+        limit: int,
+        *,
+        category: SearchCategory,
+        region: str | None,
+        safesearch: SafeSearch,
+        timelimit: TimeLimit | None,
+    ) -> tuple[list[SearchResult], ProviderStatus]:
         async with self._search_semaphore():
+            executor, slots = self._ensure_search_executor()
+            if not slots.acquire(blocking=False):
+                return [], ProviderStatus(
+                    backend,
+                    query,
+                    False,
+                    error="skipped: search executor saturated",
+                    error_kind="skipped",
+                    **self._breaker_telemetry(backend),
+                )
 
             cancelled = threading.Event()
 
@@ -1591,11 +1700,15 @@ class Josty:
                 except Exception as exc:
                     latency_ms = round((time.perf_counter() - t0) * 1000, 2)
                     return [], latency_ms, exc
+                finally:
+                    slots.release()
 
             t_start = time.perf_counter()
+            loop = asyncio.get_running_loop()
             try:
                 results, latency_ms, exc = await asyncio.wait_for(
-                    asyncio.to_thread(run), timeout=self.timeout + SEARCH_THREAD_TIMEOUT_HEADROOM
+                    loop.run_in_executor(executor, run),
+                    timeout=self.timeout + SEARCH_THREAD_TIMEOUT_HEADROOM,
                 )
             except (asyncio.TimeoutError, TimeoutError):
                 cancelled.set()
@@ -1991,7 +2104,13 @@ class Josty:
 
     async def _probe_host(self, provider: str, host: str) -> HostStatus:
         """Bare HTTPS probe; any HTTP response (even 3xx/4xx) means the host is reachable —
-        a status like 403/429 signals reachable-but-challenged, not blocked."""
+        a status like 403/429 signals reachable-but-challenged, not blocked.
+
+        OPEN circuits are not probed: ``--diagnose`` must not hit a backend that
+        search already has in cool-down. HALF_OPEN/CLOSED still get a GET.
+        Uses ``get_state()`` (read-only) so diagnose does not consume the
+        single HALF_OPEN search probe slot.
+        """
         if not host:
             return HostStatus(
                 provider,
@@ -2000,6 +2119,24 @@ class Josty:
                 None,
                 "unknown",
                 "no known upstream host",
+                **self._breaker_telemetry(provider),
+            )
+        snap = self.breaker.get_state(provider)
+        if snap["state"] == "open":
+            remaining = snap["backoff_remaining"]
+            until_iso = (
+                datetime.fromtimestamp(time.time() + remaining, UTC)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
+            return HostStatus(
+                provider,
+                host,
+                False,
+                None,
+                "skipped",
+                f"skipped: engine in cool-down until {until_iso}",
+                latency_ms=None,
                 **self._breaker_telemetry(provider),
             )
         async with self._search_semaphore():

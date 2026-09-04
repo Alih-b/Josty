@@ -25,6 +25,7 @@ uv.lock
 # The skill source under .agents/skills stays tracked.
 .agents/*
 !.agents/skills/
+!.agents/skills/**
 
 .agents/skills/wayfinder/
 .agents/skills/retro/

@@ -132,6 +132,22 @@ def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch
     assert parsed["query"] == "test"
 
 
+def test_cli_sanitizes_nan_instead_of_exiting(monkeypatch, capsys):
+    from josty.engine import SearchResult, SearchRun
+
+    async def fake_research(self, *args, **kwargs):
+        return SearchRun(
+            query="nan-test",
+            results=[SearchResult("t", "https://example.com/x", score=float("nan"))],
+        )
+
+    monkeypatch.setattr("josty.engine.Josty.research_run", fake_research)
+    monkeypatch.setattr("sys.argv", ["josty", "nan-test"])
+    main()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["results"][0]["score"] is None
+
+
 def test_parser_handles_max_query_variants_flag():
     args_default = parser().parse_args(["query"])
     assert args_default.max_query_variants is None
