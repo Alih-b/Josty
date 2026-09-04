@@ -28,11 +28,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Alih-b/josty"
-Repository = "https://github.com/Alih-b/josty"
-Issues = "https://github.com/Alih-b/josty/issues"
-Changelog = "https://github.com/Alih-b/josty/blob/main/CHANGELOG.md"
-Security = "https://github.com/Alih-b/josty/security/policy"
+Homepage = "https://github.com/Alih-b/Josty"
+Repository = "https://github.com/Alih-b/Josty"
+Issues = "https://github.com/Alih-b/Josty/issues"
+Changelog = "https://github.com/Alih-b/Josty/blob/main/CHANGELOG.md"
+Security = "https://github.com/Alih-b/Josty/security/policy"
 
 [project.optional-dependencies]
 dev = [

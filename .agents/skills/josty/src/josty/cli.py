@@ -5,12 +5,18 @@ import math
 import os
 import sys
 
-from .engine import Josty
+from .engine import Josty, __version__
 
 
 def parser() -> argparse.ArgumentParser:
     command = argparse.ArgumentParser(
         description="Small, auditable metasearch for AI agents"
+    )
+    command.add_argument(
+        "--version",
+        action="version",
+        version=f"josty {__version__}",
+        help="print the version and exit",
     )
     command.add_argument(
         "query", nargs="?", default="", help="search query (not needed with --diagnose)"
