@@ -21,6 +21,10 @@ tests/scenario_out/*/
 .commandcode/
 uv.lock
 
+# Agent scratch working directories (orchestrator/reviewer/worker outputs).
+# The skill source under .agents/skills stays tracked.
+.agents/*
+!.agents/skills/
 
 .agents/skills/wayfinder/
 .agents/skills/retro/
