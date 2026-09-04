@@ -3,6 +3,26 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- RRF fusion and query-variant merge clone caller-owned results before backfilling
+  `engine_ranks`, so fusion no longer mutates input lists.
+- Search-error classification uses word-boundary tokens and status codes first:
+  `"blocked"` no longer matches `"unblocked"`, and HTTP 401/403 is `error_kind: "blocked"`
+  rather than `rate_limited`.
+- `CircuitBreaker.get_state()` is a read-only snapshot (expired OPEN is reported as
+  HALF_OPEN without clearing failures or flipping stored state).
+- HALF_OPEN admits a single in-flight trial probe; concurrent fanout callers skip until
+  that probe completes.
+- Consecutive trip counts decay after idle time past the last backoff plus the failure
+  window, so a backend idle for hours does not resume at max exponential backoff.
+- `--diagnose` skips OPEN circuits instead of probing them over the network.
+- Timed-out DDGS calls occupy a bounded executor slot until the ghost thread returns;
+  further work is skipped with `error_kind: "skipped"` when the pool is saturated.
+- CLI JSON sanitizes non-finite floats to `null` so one NaN field cannot fail the query.
+
 ## [0.5.0] - 2026-09-03
 
 ### Added

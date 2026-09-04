@@ -54,9 +54,12 @@ The default output envelope is:
 - Empty-ok branches set `error_kind` to `"empty"` only when `result_count` is 0. Skipped
   branches set `error_kind` to `"skipped"` only when no call was made: a breaker cool-down
   (not evidence the engine is down), an engine unknown or disabled in the installed ddgs,
-  or an available engine with no mapped diagnose host. Diagnose probes set `challenged`
-  when `http_status` is 401, 403, or 429. An empty-ok branch neither trips nor clears the
-  circuit breaker; only a non-empty success clears failure history.
+  an available engine with no mapped diagnose host, or `--diagnose` against an OPEN
+  circuit. `error_kind: "blocked"` is HTTP 401/403 or an auth/forbidden challenge;
+  `error_kind: "rate_limited"` is 429 / rate-limit tokens only. Diagnose probes set
+  `challenged` when `http_status` is 401, 403, or 429. An empty-ok branch neither trips
+  nor clears the circuit breaker; only a non-empty success clears failure history.
+  HALF_OPEN admits one trial probe; other concurrent callers skip until it completes.
 
 Always inspect `providers`; an upstream failure or empty branch must not be interpreted as evidence that no
 information exists. Josty does not rewrite the query on empty results.

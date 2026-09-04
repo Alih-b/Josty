@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+import math
 import os
 import sys
 
@@ -110,6 +111,17 @@ async def run(args: argparse.Namespace) -> dict | list:
     return [item.dict() for item in search.results] if args.results_only else search.dict()
 
 
+def _sanitize_json(value: object) -> object:
+    """Replace non-finite floats with None so one NaN field cannot fail the query."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: _sanitize_json(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_json(item) for item in value]
+    return value
+
+
 def main() -> None:
     command = parser()
     args = command.parse_args()
@@ -128,10 +140,20 @@ def main() -> None:
         command.error("--results-only cannot be combined with --diagnose")
     try:
         payload = asyncio.run(run(args))
+        # allow_nan=False keeps stdout strictly RFC-8259 JSON. Non-finite
+        # floats are sanitized to null first so one bad field degrades in-band
+        # instead of exiting 2 for the whole query.
+        print(
+            json.dumps(
+                _sanitize_json(payload),
+                ensure_ascii=False,
+                indent=2,
+                allow_nan=False,
+            )
+        )
     except (ValueError, KeyboardInterrupt) as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         raise SystemExit(2) from exc
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import ipaddress
 import json
+import math
 import os
 import re
 import socket
@@ -11,6 +12,7 @@ import sqlite3
 import ssl
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
@@ -32,7 +34,7 @@ SearchMode = Literal["plain", "exact", "oss"]
 SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]
-ErrorKind = Literal["network", "rate_limited", "empty", "parse", "unknown", "skipped"]
+ErrorKind = Literal["network", "rate_limited", "blocked", "empty", "parse", "unknown", "skipped"]
 ProfileType = Literal["general", "dev", "academic"]
 
 SCHEMA_VERSION = "1.0"
@@ -44,6 +46,9 @@ CHALLENGED_HTTP_STATUSES = frozenset({401, 403, 429})
 _ALLOWED_FETCH_CONTENT_TYPES = frozenset(
     {"text/html", "application/xhtml+xml", "text/plain"}
 )
+# Headroom over the DDGS client timeout so ddgs's own TimeoutException fires
+# first where possible; asyncio.wait_for is the outer belt, not the inner one.
+SEARCH_THREAD_TIMEOUT_HEADROOM = 2.0
 
 # Single version source: the static literal doubles as the pre-install fallback and
 # hatchling's build-time version; installed distributions override via importlib.metadata.
@@ -249,6 +254,9 @@ class SearchResult:
     fetched_url: str | None = None
     fetched_at: str | None = None
     fetch_error: str | None = None
+    engine_ranks: dict[str, int] = field(default_factory=dict)
+    rank_contributions: dict[str, float] = field(default_factory=dict)
+    score_weights: dict[str, float] = field(default_factory=dict)
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -262,6 +270,11 @@ class ProviderStatus:
     result_count: int = 0
     error: str | None = None
     error_kind: ErrorKind | None = None
+    # Worst-case across concurrent query variants, not a representative sample.
+    latency_ms: float | None = None
+    circuit_state: str | None = None
+    failures: int | None = None
+    backoff_remaining: float | None = None
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -276,6 +289,10 @@ class HostStatus:
     error_kind: Literal["timeout", "dns", "tls", "network", "unknown", "skipped"] | None = None
     error: str | None = None
     challenged: bool = False
+    latency_ms: float | None = None
+    circuit_state: str | None = None
+    failures: int | None = None
+    backoff_remaining: float | None = None
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -293,32 +310,52 @@ def _classify_probe_error(exc: Exception) -> str:
     return "unknown"
 
 
-_RATE_LIMIT_TOKENS = ("rate limit", "too many", "429", "too many requests")
-_NETWORK_TOKENS = (
-    "connecterror",
-    "connection refused",
-    "connection reset",
-    "dns",
-    "getaddrinfo",
-    "name or service not known",
-    "timed out",
-    "timeout",
-    "network",
+# Word-boundary token matchers. Substring tokens like "blocked" must not match
+# "unblocked", and broad fragments like "too many" / "challenge" are omitted
+# because they misfire on unrelated network/parse errors.
+_RATE_LIMIT_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:rate[\s_-]?limit|too many requests|429)(?![\w])",
+    re.IGNORECASE,
 )
-_TLS_TOKENS = (
-    "decodeerror",
-    "invalid peer certificate",
-    "certificate verify",
-    "handshake failure",
-    "ssl",
-    "tls",
+_BLOCKED_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:403|401|forbidden|captcha|access denied|blocked)(?![\w])",
+    re.IGNORECASE,
 )
-_PARSE_TOKENS = ("failed to fetch", "parse", "decode", "json")
+_NETWORK_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:connecterror|connection refused|connection reset|dns|"
+    r"getaddrinfo|name or service not known|timed out|timeout|network)(?![\w])",
+    re.IGNORECASE,
+)
+_TLS_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:decodeerror|invalid peer certificate|certificate verify|"
+    r"handshake failure|ssl|tls)(?![\w])",
+    re.IGNORECASE,
+)
+_PARSE_TOKEN_RE = re.compile(
+    r"(?<![\w])(?:failed to fetch|parse|decode|json)(?![\w])",
+    re.IGNORECASE,
+)
 _EMPTY_RESULTS_MESSAGE = "no results found"
 
 try:
     from ddgs.engines import ENGINES as _DDGS_ENGINES
-except ImportError:
+    try:
+        # Re-register Google when an installed ddgs dropped it from its engine
+        # table (9.15.0 deprecation). This mutates the ddgs global engine map
+        # for the whole process — deliberate, since josty is the process's
+        # search layer. Any layout change upstream is swallowed: registration
+        # is best-effort, never a startup failure.
+        from ddgs.engines.google import Google as _GoogleEngine
+
+        if (
+            _DDGS_ENGINES is not None
+            and "text" in _DDGS_ENGINES
+            and "google" not in _DDGS_ENGINES["text"]
+        ):
+            _DDGS_ENGINES["text"]["google"] = _GoogleEngine
+    except Exception:
+        pass
+except Exception:
     _DDGS_ENGINES = None
 
 _KNOWN_TEXT_ENGINES = frozenset(
@@ -370,8 +407,9 @@ _ERROR_KIND_SEVERITY: dict[str | None, int] = {
     "parse": 3,
     "network": 4,
     "rate_limited": 5,
+    "blocked": 5,
 }
-_FAILURE_ERROR_KINDS = frozenset({"unknown", "parse", "network", "rate_limited"})
+_FAILURE_ERROR_KINDS = frozenset({"unknown", "parse", "network", "rate_limited", "blocked"})
 
 
 def _content_type_allowed(header: str | None) -> bool:
@@ -422,6 +460,15 @@ def _aggregate_engine_status(
     else:
         error_kind = "skipped"
         error = next((status.error for status in statuses if status.error), None)
+    latencies = [s.latency_ms for s in statuses if s.latency_ms is not None]
+    # Worst-case across concurrent query variants, not a representative sample.
+    # Concurrent variants overlap, so a mean would understate the stall; max is
+    # the time the slowest variant actually occupied.
+    latency_ms = round(max(latencies), 2) if latencies else None
+    # circuit_state/failures/backoff_remaining are intentionally NOT aggregated
+    # from per-variant snapshots (they run concurrently, so snapshot order is
+    # not recency): _search_parts stamps them from a fresh breaker.get_state()
+    # after the gather.
     return ProviderStatus(
         provider,
         query,
@@ -429,17 +476,19 @@ def _aggregate_engine_status(
         result_count,
         error=error,
         error_kind=error_kind,
+        latency_ms=latency_ms,
     )
 
 
 def _classify_search_error(exc: BaseException) -> ErrorKind:
     """Map a ddgs-side (or GitHub-API) exception to an error_kind category.
 
-    ddgs 9.15.0 wraps engine exceptions in a flat ``DDGSException`` whose ``str``
-    contains the original exception's repr (e.g. ``"ConnectError: ...(Connection refused)"``)
-    but does not chain the original via ``__cause__``/``__context__``. We therefore
-    use ``isinstance`` for the outer class where we can, and substring-match the
-    flattened message otherwise. See issue #9 for the research behind this mapping.
+    Status codes are classified first. Message tokens are word-boundary matched
+    so fragments like ``blocked`` do not fire on ``unblocked``. HTTP 401/403 are
+    ``blocked`` (auth/forbidden), not ``rate_limited`` — a persistently 403
+    backend must not be treated as throttling. ddgs 9.15.0 wraps engine
+    exceptions in a flat ``DDGSException`` whose ``str`` contains the original
+    exception's repr but does not chain ``__cause__``/``__context__``.
     """
     if isinstance(exc, TimeoutException):
         return "network"
@@ -449,8 +498,12 @@ def _classify_search_error(exc: BaseException) -> ErrorKind:
         return "network"
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code if exc.response is not None else 0
-        if status in (429,) or 500 <= status < 600:
-            return "rate_limited" if status == 429 else "network"
+        if status == 429:
+            return "rate_limited"
+        if status in (401, 403):
+            return "blocked"
+        if 500 <= status < 600:
+            return "network"
         return "parse"
     if isinstance(exc, httpx.HTTPError):
         return "network"
@@ -458,13 +511,15 @@ def _classify_search_error(exc: BaseException) -> ErrorKind:
         text = str(exc).lower()
         if _EMPTY_RESULTS_MESSAGE in text:
             return "empty"
-        if any(token in text for token in _RATE_LIMIT_TOKENS):
+        if _RATE_LIMIT_TOKEN_RE.search(text):
             return "rate_limited"
-        if any(token in text for token in _TLS_TOKENS):
+        if _BLOCKED_TOKEN_RE.search(text):
+            return "blocked"
+        if _TLS_TOKEN_RE.search(text):
             return "network"
-        if any(token in text for token in _NETWORK_TOKENS):
+        if _NETWORK_TOKEN_RE.search(text):
             return "network"
-        if any(token in text for token in _PARSE_TOKENS):
+        if _PARSE_TOKEN_RE.search(text):
             return "parse"
     return "unknown"
 
@@ -561,7 +616,13 @@ def canonical(url: str) -> str:
 
 
 def _clone(item: SearchResult) -> SearchResult:
-    return replace(item, sources=list(item.sources))
+    return replace(
+        item,
+        sources=list(item.sources),
+        engine_ranks=dict(item.engine_ranks),
+        rank_contributions=dict(item.rank_contributions),
+        score_weights=dict(item.score_weights),
+    )
 
 
 def _merge_result(current: SearchResult, candidate: SearchResult) -> None:
@@ -571,6 +632,11 @@ def _merge_result(current: SearchResult, candidate: SearchResult) -> None:
         current.title = candidate.title or current.title
     current.published_at = current.published_at or candidate.published_at
     current.publisher = current.publisher or candidate.publisher
+    # Only engine_ranks merge here; rank_contributions and score_weights are
+    # derived from engine_ranks (and the profile weight) inside rrf().
+    for engine, rank in candidate.engine_ranks.items():
+        if engine not in current.engine_ranks or rank < current.engine_ranks[engine]:
+            current.engine_ranks[engine] = rank
 
 
 def domain_weight(url: str, profile: ProfileType = "general") -> float:
@@ -623,16 +689,36 @@ def domain_weight(url: str, profile: ProfileType = "general") -> float:
     return 1.0
 
 
+def _with_discovery_ranks(item: SearchResult, rank: int) -> SearchResult:
+    """Clone ``item`` and fill missing ``engine_ranks`` on the clone only."""
+    cloned = _clone(item)
+    for source in cloned.sources:
+        if source not in cloned.engine_ranks:
+            cloned.engine_ranks[source] = rank
+    return cloned
+
+
 def rrf(
     ranked: list[list[SearchResult]],
     k: int = 60,
     profile: ProfileType = "general",
 ) -> list[SearchResult]:
-    """Fuse independent backend-group ranked lists with Reciprocal Rank Fusion."""
+    """Fuse independent backend-group ranked lists with Reciprocal Rank Fusion.
+
+    Each engine contributes at most one vote per URL, taken from its 1-indexed
+    discovery rank in ``engine_ranks`` (min-merged across lists). The fused
+    score is ``round(domain_weight * sum(round(1/(k + rank_e), 6) for e), 6)``
+    so a caller can verify the score from the recorded attribution alone.
+    Engine agreement therefore counts: a URL found by two engines of the same
+    group carries both votes. That is the deliberate per-engine fusion
+    semantics (see PROJECT.md, "Transparent RRF Attribution Contract").
+
+    Fusion never mutates caller-owned items: ranks are backfilled on clones.
+    """
     if k < 1:
         raise ValueError("k must be positive")
     merged: dict[str, SearchResult] = {}
-    scores: dict[str, float] = {}
+
     for results in ranked:
         seen_in_list: set[str] = set()
         for rank, item in enumerate(results, 1):
@@ -643,16 +729,20 @@ def rrf(
             if not key or key in seen_in_list:
                 continue
             seen_in_list.add(key)
-            scores[key] = (
-                scores.get(key, 0.0)
-                + (1 / (k + rank)) * domain_weight(item.url, profile=profile)
-            )
+            candidate = _with_discovery_ranks(item, rank)
             if key not in merged:
-                merged[key] = _clone(item)
+                merged[key] = candidate
             else:
-                _merge_result(merged[key], item)
-    for key, item in merged.items():
-        item.score = round(scores[key], 6)
+                _merge_result(merged[key], candidate)
+
+    for item in merged.values():
+        w = domain_weight(item.url, profile=profile)
+        item.score_weights = {"k": float(k), "domain_weight": w}
+        item.rank_contributions = {
+            engine: round(1.0 / (k + rank), 6) for engine, rank in item.engine_ranks.items()
+        }
+        item.score = round(w * sum(item.rank_contributions.values()), 6)
+
     return sorted(
         merged.values(),
         key=lambda item: (-item.score, canonical(item.url)),
@@ -668,12 +758,13 @@ def merge_query_variants(ranked: list[list[SearchResult]]) -> list[SearchResult]
                 key = canonical(item.url)
             except ValueError:
                 continue
+            candidate = _with_discovery_ranks(item, rank)
             current = merged.get(key)
             if current is None:
-                merged[key] = (rank, variant_index, _clone(item))
+                merged[key] = (rank, variant_index, candidate)
                 continue
             best_rank, best_variant, saved = current
-            _merge_result(saved, item)
+            _merge_result(saved, candidate)
             merged[key] = (min(rank, best_rank), min(variant_index, best_variant), saved)
     return [
         item
@@ -831,7 +922,11 @@ class SearchCache:
                     """,
                     (now, key),
                 )
-                return json.loads(payload_str)
+                try:
+                    return json.loads(payload_str)
+                except Exception:
+                    conn.execute("DELETE FROM search_cache WHERE key = ?", (key,))
+                    return None
         except Exception:
             return None
 
@@ -926,6 +1021,13 @@ class SearchCache:
         with suppress(Exception), self._get_conn() as conn:
             conn.execute("DELETE FROM search_cache;")
 
+    def delete(self, key: str) -> None:
+        """Evict a specific cache entry (e.g. on corruption or invalidation)."""
+        if self.disabled:
+            return
+        with suppress(Exception), self._get_conn() as conn:
+            conn.execute("DELETE FROM search_cache WHERE key = ?", (key,))
+
 
 _FETCH_ONLY_FIELDS = ("content", "extraction_method", "fetched_url", "fetched_at", "fetch_error")
 
@@ -960,36 +1062,126 @@ def _strip_fetch_fields(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
-    results = [
-        SearchResult(
-            title=item.get("title", ""),
-            url=item.get("url", ""),
-            snippet=item.get("snippet", ""),
-            sources=list(item.get("sources", [])),
-            published_at=item.get("published_at"),
-            publisher=item.get("publisher"),
-            score=float(item.get("score", 0.0)),
-            content=item.get("content"),
-            extraction_method=item.get("extraction_method"),
-            fetched_url=item.get("fetched_url"),
-            fetched_at=item.get("fetched_at"),
-            fetch_error=item.get("fetch_error"),
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid payload: expected dict")
+    raw_results = payload.get("results")
+    if not isinstance(raw_results, list):
+        raw_results = []
+    results: list[SearchResult] = []
+    for item in raw_results:
+        if not isinstance(item, dict):
+            continue
+        engine_ranks_raw = item.get("engine_ranks")
+        engine_ranks: dict[str, int] = {}
+        if isinstance(engine_ranks_raw, dict):
+            for k, v in engine_ranks_raw.items():
+                try:
+                    engine_ranks[str(k)] = int(v)
+                except (ValueError, TypeError):
+                    continue
+        rank_contribs_raw = item.get("rank_contributions")
+        rank_contributions: dict[str, float] = {}
+        if isinstance(rank_contribs_raw, dict):
+            for k, v in rank_contribs_raw.items():
+                try:
+                    contrib = float(v)
+                except (ValueError, TypeError):
+                    continue
+                if math.isfinite(contrib):
+                    rank_contributions[str(k)] = contrib
+        score_weights_raw = item.get("score_weights")
+        score_weights: dict[str, float] = {}
+        if isinstance(score_weights_raw, dict):
+            for k, v in score_weights_raw.items():
+                try:
+                    weight = float(v)
+                except (ValueError, TypeError):
+                    continue
+                if math.isfinite(weight):
+                    score_weights[str(k)] = weight
+        try:
+            score = float(item.get("score", 0.0))
+            if not math.isfinite(score):
+                score = 0.0
+        except (ValueError, TypeError):
+            score = 0.0
+        raw_sources = item.get("sources")
+        if isinstance(raw_sources, list):
+            sources = [str(s) for s in raw_sources]
+        elif isinstance(raw_sources, str):
+            sources = [raw_sources]
+        else:
+            sources = []
+        results.append(
+            SearchResult(
+                title=str(item.get("title") or ""),
+                url=str(item.get("url") or ""),
+                snippet=str(item.get("snippet") or ""),
+                sources=sources,
+                published_at=item.get("published_at"),
+                publisher=item.get("publisher"),
+                score=score,
+                content=item.get("content"),
+                extraction_method=item.get("extraction_method"),
+                fetched_url=item.get("fetched_url"),
+                fetched_at=item.get("fetched_at"),
+                fetch_error=item.get("fetch_error"),
+                engine_ranks=engine_ranks,
+                rank_contributions=rank_contributions,
+                score_weights=score_weights,
+            )
         )
-        for item in payload.get("results", [])
-    ]
-    providers = [
-        ProviderStatus(
-            provider=p.get("provider", ""),
-            query=p.get("query", ""),
-            ok=bool(p.get("ok", True)),
-            result_count=int(p.get("result_count", 0)),
-            error=p.get("error"),
-            error_kind=p.get("error_kind"),
+    raw_providers = payload.get("providers")
+    if not isinstance(raw_providers, list):
+        raw_providers = []
+    providers: list[ProviderStatus] = []
+    for p in raw_providers:
+        if not isinstance(p, dict):
+            continue
+        raw_ok = p.get("ok", True)
+        if isinstance(raw_ok, str):
+            ok = raw_ok.strip().lower() not in ("false", "0", "no", "")
+        else:
+            ok = bool(raw_ok)
+        try:
+            rc = int(p.get("result_count", 0))
+        except (ValueError, TypeError):
+            rc = 0
+        try:
+            lat = float(p["latency_ms"]) if p.get("latency_ms") is not None else None
+            if lat is not None and not math.isfinite(lat):
+                lat = None
+        except (ValueError, TypeError):
+            lat = None
+        try:
+            fails = int(p["failures"]) if p.get("failures") is not None else None
+        except (ValueError, TypeError):
+            fails = None
+        try:
+            bo = float(p["backoff_remaining"]) if p.get("backoff_remaining") is not None else None
+            if bo is not None and not math.isfinite(bo):
+                bo = None
+        except (ValueError, TypeError):
+            bo = None
+        cs = p.get("circuit_state")
+        if cs not in ("closed", "open", "half-open"):
+            cs = "closed" if cs is not None else None
+        providers.append(
+            ProviderStatus(
+                provider=str(p.get("provider", "")),
+                query=str(p.get("query", "")),
+                ok=ok,
+                result_count=rc,
+                error=p.get("error"),
+                error_kind=p.get("error_kind"),
+                latency_ms=lat,
+                circuit_state=cs,
+                failures=fails,
+                backoff_remaining=bo,
+            )
         )
-        for p in payload.get("providers", [])
-    ]
     return SearchRun(
-        query=payload.get("query", ""),
+        query=str(payload.get("query", "")),
         results=results,
         providers=providers,
         cached=bool(payload.get("cached", False)),
@@ -998,61 +1190,220 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
 
 
 class CircuitBreaker:
-    """In-process per-(backend, error_class) breaker.
+    """In-process per-(backend, error_class) tri-state circuit breaker.
 
-    After ``fail_threshold`` failures within ``window_seconds`` the breaker
-    opens for ``cool_down_seconds`` and subsequent calls are skipped with
-    a stable error string until the cool-down elapses.
+    State lifecycle:
+    - CLOSED: Normal operation. If failures in sliding window reach ``fail_threshold``,
+      the circuit trips to OPEN.
+    - OPEN: Calls are blocked with a cool-down timestamp. Consecutive trips apply
+      exponential backoff. When cool-down expires, transitions to HALF_OPEN.
+    - HALF_OPEN: Exactly one in-flight trial probe is admitted. Success resets
+      to CLOSED and clears failure history and consecutive trips. Failure trips
+      back to OPEN. Concurrent callers skip until the probe completes.
+
+    ``error_class`` exists for contract compatibility: ``"rate_limit"`` and
+    ``"search"`` are aliases sharing one failure namespace, and the default
+    follows the PROJECT.md contract (``"rate_limit"``).
     """
 
     def __init__(
         self,
         *,
         fail_threshold: int = 3,
-        window_seconds: float = 60,
-        cool_down_seconds: float = 30,
+        window_seconds: float = 60.0,
+        cool_down_seconds: float = 30.0,
     ):
         if fail_threshold < 1 or window_seconds <= 0 or cool_down_seconds <= 0:
             raise ValueError("breaker thresholds must be positive")
-        self.fail_threshold = fail_threshold
-        self.window_seconds = window_seconds
-        self.cool_down_seconds = cool_down_seconds
-        self._state: dict[tuple[str, str], list[float]] = {}
+        self.fail_threshold = int(fail_threshold)
+        self.window_seconds = float(window_seconds)
+        self.cool_down_seconds = float(cool_down_seconds)
+        self._state: dict[tuple[str, str], str] = {}
+        self._failures: dict[tuple[str, str], list[float]] = {}
         self._open_until: dict[tuple[str, str], float] = {}
+        self._consecutive_trips: dict[tuple[str, str], int] = {}
+        self._last_trip_at: dict[tuple[str, str], float] = {}
+        self._probe_inflight: dict[tuple[str, str], bool] = {}
+        self._keys_by_backend: dict[str, set[tuple[str, str]]] = {}
+        self._latencies: dict[str, float] = {}
         self._lock = threading.Lock()
 
-    def status(self, backend: str, error_class: str) -> tuple[bool, str | None]:
-        """Return ``(allowed, skip_message)`` for a backend/error pair."""
+    @staticmethod
+    def _key(backend: str, error_class: str) -> tuple[str, str]:
+        if error_class == "rate_limit":
+            error_class = "search"
+        return (backend, error_class)
+
+    def _register_key(self, key: tuple[str, str]) -> None:
+        self._keys_by_backend.setdefault(key[0], set()).add(key)
+
+    def _cool_down_message(self, open_until: float, now: float) -> str:
+        until_iso = (
+            datetime.fromtimestamp(time.time() + (open_until - now), UTC)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        return f"skipped: engine in cool-down until {until_iso}"
+
+    def _admit_half_open_locked(self, key: tuple[str, str]) -> tuple[bool, str | None]:
+        """Admit a single HALF_OPEN trial probe; concurrent callers are skipped.
+
+        Waiting here would block the asyncio event loop (status() is sync), so
+        non-probe callers skip until the in-flight probe completes.
+        """
+        if self._probe_inflight.get(key):
+            return False, "skipped: engine half-open probe in flight"
+        self._probe_inflight[key] = True
+        return True, None
+
+    def _decay_trips_locked(self, key: tuple[str, str], now: float) -> int:
+        """Reset consecutive trips after idle time past the last backoff window."""
+        prev = self._consecutive_trips.get(key, 0)
+        last = self._last_trip_at.get(key, 0.0)
+        if prev and last:
+            last_backoff = self.cool_down_seconds * (2 ** min(prev - 1, 6))
+            if now - last > last_backoff + self.window_seconds:
+                return 0
+        return prev
+
+    def _trip_locked(self, key: tuple[str, str], now: float) -> None:
+        trips = self._decay_trips_locked(key, now) + 1
+        self._consecutive_trips[key] = trips
+        self._last_trip_at[key] = now
+        backoff = self.cool_down_seconds * (2 ** min(trips - 1, 6))
+        self._open_until[key] = now + backoff
+        self._state[key] = "open"
+        self._probe_inflight.pop(key, None)
+        self._register_key(key)
+
+    def status(self, backend: str, error_class: str = "rate_limit") -> tuple[bool, str | None]:
+        """Return ``(allowed, skip_message)`` for a backend/error pair.
+
+        HALF_OPEN admits exactly one in-flight trial probe. Concurrent fanout
+        callers are skipped until that probe succeeds (CLOSED) or fails (OPEN).
+        """
         now = time.monotonic()
-        key = (backend, error_class)
+        key = self._key(backend, error_class)
+
         with self._lock:
-            open_until = self._open_until.get(key)
-            if open_until is not None:
+            self._register_key(key)
+            if self._state.get(key) == "open":
+                open_until = self._open_until.get(key, 0.0)
                 if now < open_until:
-                    until_iso = (
-                        datetime.fromtimestamp(time.time() + (open_until - now), UTC)
-                        .isoformat()
-                        .replace("+00:00", "Z")
-                    )
-                    return False, f"skipped: engine in cool-down until {until_iso}"
-                self._open_until.pop(key, None)
-                self._state.pop(key, None)
+                    return False, self._cool_down_message(open_until, now)
+                self._state[key] = "half-open"
+                self._failures[key] = []
+                return self._admit_half_open_locked(key)
+
+            if self._state.get(key) == "half-open":
+                return self._admit_half_open_locked(key)
+
             return True, None
 
-    def record_failure(self, backend: str, error_class: str) -> None:
-        now = time.monotonic()
-        key = (backend, error_class)
+    def release_probe(self, backend: str, error_class: str = "rate_limit") -> None:
+        """Drop the HALF_OPEN in-flight flag after a trial call completes."""
+        key = self._key(backend, error_class)
         with self._lock:
-            events = [t for t in self._state.get(key, []) if now - t <= self.window_seconds]
-            events.append(now)
-            self._state[key] = events
-            if len(events) >= self.fail_threshold and key not in self._open_until:
-                self._open_until[key] = now + self.cool_down_seconds
+            self._probe_inflight.pop(key, None)
 
-    def record_success(self, backend: str, error_class: str) -> None:
+    def record_failure(self, backend: str, error_class: str = "rate_limit") -> None:
+        """Record a failure event for backend/error_class within sliding window."""
+        now = time.monotonic()
+        key = self._key(backend, error_class)
+
         with self._lock:
-            self._state.pop((backend, error_class), None)
-            self._open_until.pop((backend, error_class), None)
+            self._register_key(key)
+            # Freeze timer while open; do not extend on repeated failures during cool-down
+            if self._state.get(key) == "open" and now < self._open_until.get(key, 0.0):
+                return
+
+            # If cool-down elapsed while open, transition to half-open and clear stale failures
+            if self._state.get(key) == "open" and now >= self._open_until.get(key, 0.0):
+                self._state[key] = "half-open"
+                self._failures[key] = []
+
+            is_half_open = self._state.get(key) == "half-open"
+
+            events = [t for t in self._failures.get(key, []) if now - t <= self.window_seconds]
+            events.append(now)
+            self._failures[key] = events
+
+            if is_half_open or len(events) >= self.fail_threshold:
+                self._trip_locked(key, now)
+
+    def record_success(self, backend: str, error_class: str = "rate_limit") -> None:
+        """Record a success event, resetting circuit state to closed and clearing history."""
+        key = self._key(backend, error_class)
+        with self._lock:
+            self._register_key(key)
+            self._state[key] = "closed"
+            self._failures[key] = []
+            self._open_until[key] = 0.0
+            self._consecutive_trips[key] = 0
+            self._probe_inflight.pop(key, None)
+
+    def record_latency(self, backend: str, latency_ms: float) -> None:
+        """Record the most recent execution latency for a backend."""
+        with self._lock:
+            self._latencies[backend] = float(latency_ms)
+
+    def get_state(self, backend: str) -> dict[str, Any]:
+        """Return circuit-breaker telemetry for a backend without mutating state.
+
+        An expired OPEN cool-down is reported as ``half-open``. The OPEN →
+        HALF_OPEN transition itself happens on ``status()`` / ``record_failure``.
+        """
+        now = time.monotonic()
+        with self._lock:
+            matching_keys = list(self._keys_by_backend.get(backend, ()))
+            if not matching_keys:
+                matching_keys = [k for k in self._state if k[0] == backend]
+                if not matching_keys:
+                    matching_keys = [k for k in self._failures if k[0] == backend]
+
+            state = "closed"
+            backoff_remaining = 0.0
+            failures = 0
+            has_half_open = False
+
+            for key in matching_keys:
+                stored = self._state.get(key, "closed")
+                open_until = self._open_until.get(key, 0.0)
+                if stored == "open":
+                    remaining = open_until - now
+                    if remaining > 0:
+                        state = "open"
+                        if remaining > backoff_remaining:
+                            backoff_remaining = remaining
+                        active = [
+                            t
+                            for t in self._failures.get(key, [])
+                            if now - t <= self.window_seconds
+                        ]
+                        failures = max(failures, len(active))
+                    else:
+                        has_half_open = True
+                elif stored == "half-open":
+                    has_half_open = True
+                    active = [
+                        t for t in self._failures.get(key, []) if now - t <= self.window_seconds
+                    ]
+                    failures = max(failures, len(active))
+                else:
+                    active = [
+                        t for t in self._failures.get(key, []) if now - t <= self.window_seconds
+                    ]
+                    failures = max(failures, len(active))
+
+            if state != "open" and has_half_open:
+                state = "half-open"
+
+            return {
+                "state": state,
+                "failures": failures,
+                "backoff_remaining": round(max(0.0, backoff_remaining), 2),
+                "last_latency_ms": self._latencies.get(backend),
+            }
 
 
 class Josty:
@@ -1140,6 +1491,8 @@ class Josty:
         )
         self._search_sem: asyncio.Semaphore | None = None
         self._fetch_sem: asyncio.Semaphore | None = None
+        self._search_executor: ThreadPoolExecutor | None = None
+        self._executor_slots: threading.BoundedSemaphore | None = None
         if breaker is not None:
             self.breaker = breaker
         else:
@@ -1159,6 +1512,28 @@ class Josty:
             return self.cache.stats()
         return {"rows": 0, "bytes": 0, "hits": 0}
 
+    def breaker_status(self, backend: str | None = None) -> dict[str, Any]:
+        """Return circuit breaker status for a specific backend or all configured backends."""
+        if backend is not None:
+            return self.breaker.get_state(backend)
+        all_backends: set[str] = set()
+        for group in (*self.backends, *self.news_backends):
+            for name in group.split(","):
+                name = name.strip()
+                if name:
+                    all_backends.add(name)
+        all_backends.add("github-api")
+        return {b: self.breaker.get_state(b) for b in sorted(all_backends)}
+
+    def _breaker_telemetry(self, backend: str) -> dict[str, Any]:
+        """Return standardized circuit breaker telemetry kwargs for a backend."""
+        b = self.breaker.get_state(backend)
+        return {
+            "circuit_state": b["state"],
+            "failures": b["failures"],
+            "backoff_remaining": b["backoff_remaining"],
+        }
+
     def _search_semaphore(self) -> asyncio.Semaphore:
         if self._search_sem is None:
             self._search_sem = asyncio.Semaphore(self.max_search_concurrency)
@@ -1168,6 +1543,17 @@ class Josty:
         if self._fetch_sem is None:
             self._fetch_sem = asyncio.Semaphore(self.max_fetch_concurrency)
         return self._fetch_sem
+
+    def _ensure_search_executor(self) -> tuple[ThreadPoolExecutor, threading.BoundedSemaphore]:
+        """Bounded DDGS worker pool: ghost threads occupy a slot until they return."""
+        if self._search_executor is None or self._executor_slots is None:
+            workers = self.max_search_concurrency
+            self._search_executor = ThreadPoolExecutor(
+                max_workers=workers,
+                thread_name_prefix="josty-search",
+            )
+            self._executor_slots = threading.BoundedSemaphore(workers)
+        return self._search_executor, self._executor_slots
 
     @staticmethod
     def expand(
@@ -1214,16 +1600,63 @@ class Josty:
         available, unavailable_message = _engine_available(category, backend)
         if not available:
             return [], ProviderStatus(
-                backend, query, False, error=unavailable_message, error_kind="skipped"
+                backend,
+                query,
+                False,
+                error=unavailable_message,
+                error_kind="skipped",
+                **self._breaker_telemetry(backend),
             )
         allowed, skip_message = self.breaker.status(backend, "search")
         if not allowed:
             return [], ProviderStatus(
-                backend, query, False, error=skip_message, error_kind="skipped"
+                backend,
+                query,
+                False,
+                error=skip_message,
+                error_kind="skipped",
+                **self._breaker_telemetry(backend),
             )
-        async with self._search_semaphore():
+        try:
+            return await self._ddgs_execute(
+                query,
+                backend,
+                limit,
+                category=category,
+                region=region,
+                safesearch=safesearch,
+                timelimit=timelimit,
+            )
+        finally:
+            self.breaker.release_probe(backend, "search")
 
-            def run() -> tuple[list[SearchResult], ProviderStatus]:
+    async def _ddgs_execute(
+        self,
+        query: str,
+        backend: str,
+        limit: int,
+        *,
+        category: SearchCategory,
+        region: str | None,
+        safesearch: SafeSearch,
+        timelimit: TimeLimit | None,
+    ) -> tuple[list[SearchResult], ProviderStatus]:
+        async with self._search_semaphore():
+            executor, slots = self._ensure_search_executor()
+            if not slots.acquire(blocking=False):
+                return [], ProviderStatus(
+                    backend,
+                    query,
+                    False,
+                    error="skipped: search executor saturated",
+                    error_kind="skipped",
+                    **self._breaker_telemetry(backend),
+                )
+
+            cancelled = threading.Event()
+
+            def run() -> tuple[list[SearchResult], float, Exception | None]:
+                t0 = time.perf_counter()
                 try:
                     # A fresh DDGS client per call is deliberate, not waste:
                     # ddgs engine instances carry a shared cached_property lxml
@@ -1243,7 +1676,10 @@ class Josty:
                     if timelimit:
                         kwargs["timelimit"] = timelimit
                     rows = method(query, **kwargs)
+                    if cancelled.is_set():
+                        return [], round((time.perf_counter() - t0) * 1000, 2), None
                     results = []
+                    rank = 1
                     for row in rows:
                         result_url = row.get("href") or row.get("url") or ""
                         if result_url and not self._is_ad_redirect(result_url):
@@ -1255,33 +1691,85 @@ class Josty:
                                     sources=[backend],
                                     published_at=row.get("date"),
                                     publisher=row.get("source"),
+                                    engine_ranks={backend: rank},
                                 )
                             )
-                    if results:
-                        self.breaker.record_success(backend, "search")
-                    return results, ProviderStatus(
-                        backend,
-                        query,
-                        True,
-                        len(results),
-                        error_kind="empty" if not results else None,
-                    )
+                            rank += 1
+                    latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+                    return results, latency_ms, None
                 except Exception as exc:
-                    err_kind = _classify_search_error(exc)
-                    if err_kind == "empty":
-                        return [], ProviderStatus(
-                            backend, query, True, 0, error_kind="empty"
-                        )
-                    self.breaker.record_failure(backend, "search")
+                    latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+                    return [], latency_ms, exc
+                finally:
+                    slots.release()
+
+            t_start = time.perf_counter()
+            loop = asyncio.get_running_loop()
+            try:
+                results, latency_ms, exc = await asyncio.wait_for(
+                    loop.run_in_executor(executor, run),
+                    timeout=self.timeout + SEARCH_THREAD_TIMEOUT_HEADROOM,
+                )
+            except (asyncio.TimeoutError, TimeoutError):
+                cancelled.set()
+                latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
+                self.breaker.record_latency(backend, latency_ms)
+                self.breaker.record_failure(backend, "search")
+                return [], ProviderStatus(
+                    backend,
+                    query,
+                    False,
+                    0,
+                    error="TimeoutError: search backend timed out",
+                    error_kind="network",
+                    latency_ms=latency_ms,
+                    **self._breaker_telemetry(backend),
+                )
+            except BaseException:
+                cancelled.set()
+                raise
+
+            if exc is not None:
+                self.breaker.record_latency(backend, latency_ms)
+                err_kind = _classify_search_error(exc)
+                if err_kind == "empty":
+                    # Empty-ok branches do not clear rate-limit history: a
+                    # throttled engine answering with zero results must not
+                    # reset its own trip window.
                     return [], ProviderStatus(
                         backend,
                         query,
-                        False,
-                        error=f"{type(exc).__name__}: {exc}",
-                        error_kind=err_kind,
+                        True,
+                        0,
+                        error_kind="empty",
+                        latency_ms=latency_ms,
+                        **self._breaker_telemetry(backend),
                     )
+                self.breaker.record_failure(backend, "search")
+                return [], ProviderStatus(
+                    backend,
+                    query,
+                    False,
+                    error=f"{type(exc).__name__}: {exc}",
+                    error_kind=err_kind,
+                    latency_ms=latency_ms,
+                    **self._breaker_telemetry(backend),
+                )
 
-            return await asyncio.to_thread(run)
+            self.breaker.record_latency(backend, latency_ms)
+            # Empty-ok branches do not clear rate-limit history (see above):
+            # only a variant that actually produced results resets the breaker.
+            if results:
+                self.breaker.record_success(backend, "search")
+            return results, ProviderStatus(
+                backend,
+                query,
+                True,
+                len(results),
+                error_kind="empty" if not results else None,
+                latency_ms=latency_ms,
+                **self._breaker_telemetry(backend),
+            )
 
     async def _search_parts(
         self,
@@ -1358,10 +1846,17 @@ class Josty:
             key = (group_index, engine)
             engine_statuses.setdefault(key, []).append(status)
             engine_items.setdefault(key, []).append(items)
-        statuses = [
-            _aggregate_engine_status(engine_statuses[key], engine_items[key])
-            for key in engine_statuses
-        ]
+        statuses = []
+        for key in engine_statuses:
+            agg = _aggregate_engine_status(engine_statuses[key], engine_items[key])
+            # Stamp breaker fields AFTER the gather: per-variant snapshots ran
+            # concurrently, so only a fresh read reflects the final state.
+            engine_name = key[1]
+            b_state = self.breaker.get_state(engine_name)
+            agg.circuit_state = b_state["state"]
+            agg.failures = b_state["failures"]
+            agg.backoff_remaining = b_state["backoff_remaining"]
+            statuses.append(agg)
         lists = []
         for group_index in range(len(groups)):
             merged = merge_query_variants(
@@ -1545,7 +2040,12 @@ class Josty:
         allowed, skip_message = self.breaker.status("github-api", "search")
         if not allowed:
             return [], ProviderStatus(
-                "github-api", query, False, error=skip_message, error_kind="skipped"
+                "github-api",
+                query,
+                False,
+                error=skip_message,
+                error_kind="skipped",
+                **self._breaker_telemetry("github-api"),
             )
         url = "https://api.github.com/search/repositories"
         headers = {
@@ -1555,6 +2055,7 @@ class Josty:
         }
         if self.github_token:
             headers["Authorization"] = f"Bearer {self.github_token}"
+        t0 = time.perf_counter()
         async with httpx.AsyncClient(
             timeout=self.timeout, headers=headers, trust_env=False
         ) as client:
@@ -1562,19 +2063,34 @@ class Josty:
                 response = await client.get(url, params={"q": query, "per_page": min(limit, 100)})
                 response.raise_for_status()
                 body = response.json()
-                results = [
-                    SearchResult(
-                        title=item["full_name"],
-                        url=item["html_url"],
-                        snippet=item.get("description") or "",
-                        sources=["github-api"],
-                    )
-                    for item in body.get("items", [])
-                    if isinstance(item, dict) and item.get("full_name") and item.get("html_url")
-                ]
+                results = []
+                rank = 1
+                for item in body.get("items", []):
+                    if isinstance(item, dict) and item.get("full_name") and item.get("html_url"):
+                        results.append(
+                            SearchResult(
+                                title=item["full_name"],
+                                url=item["html_url"],
+                                snippet=item.get("description") or "",
+                                sources=["github-api"],
+                                engine_ranks={"github-api": rank},
+                            )
+                        )
+                        rank += 1
+                latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+                self.breaker.record_latency("github-api", latency_ms)
                 self.breaker.record_success("github-api", "search")
-                return results, ProviderStatus("github-api", query, True, len(results))
+                return results, ProviderStatus(
+                    "github-api",
+                    query,
+                    True,
+                    len(results),
+                    latency_ms=latency_ms,
+                    **self._breaker_telemetry("github-api"),
+                )
             except Exception as exc:
+                latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+                self.breaker.record_latency("github-api", latency_ms)
                 self.breaker.record_failure("github-api", "search")
                 return [], ProviderStatus(
                     "github-api",
@@ -1582,18 +2098,51 @@ class Josty:
                     False,
                     error=f"{type(exc).__name__}: {exc}",
                     error_kind=_classify_search_error(exc),
+                    latency_ms=latency_ms,
+                    **self._breaker_telemetry("github-api"),
                 )
 
     async def _probe_host(self, provider: str, host: str) -> HostStatus:
         """Bare HTTPS probe; any HTTP response (even 3xx/4xx) means the host is reachable —
-        a status like 403/429 signals reachable-but-challenged, not blocked."""
+        a status like 403/429 signals reachable-but-challenged, not blocked.
+
+        OPEN circuits are not probed: ``--diagnose`` must not hit a backend that
+        search already has in cool-down. HALF_OPEN/CLOSED still get a GET.
+        Uses ``get_state()`` (read-only) so diagnose does not consume the
+        single HALF_OPEN search probe slot.
+        """
         if not host:
             return HostStatus(
-                provider, host, False, None, "unknown", "no known upstream host"
+                provider,
+                host,
+                False,
+                None,
+                "unknown",
+                "no known upstream host",
+                **self._breaker_telemetry(provider),
+            )
+        snap = self.breaker.get_state(provider)
+        if snap["state"] == "open":
+            remaining = snap["backoff_remaining"]
+            until_iso = (
+                datetime.fromtimestamp(time.time() + remaining, UTC)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
+            return HostStatus(
+                provider,
+                host,
+                False,
+                None,
+                "skipped",
+                f"skipped: engine in cool-down until {until_iso}",
+                latency_ms=None,
+                **self._breaker_telemetry(provider),
             )
         async with self._search_semaphore():
             url = f"https://{host}/"
             headers = BROWSER_FETCH_HEADERS.copy()
+            t0 = time.perf_counter()
             try:
                 async with httpx.AsyncClient(
                     timeout=self.timeout,
@@ -1602,14 +2151,20 @@ class Josty:
                     trust_env=False,
                 ) as client:
                     response = await client.get(url)
+                latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+                self.breaker.record_latency(provider, latency_ms)
                 return HostStatus(
                     provider,
                     host,
                     True,
                     response.status_code,
                     challenged=response.status_code in CHALLENGED_HTTP_STATUSES,
+                    latency_ms=latency_ms,
+                    **self._breaker_telemetry(provider),
                 )
             except Exception as exc:
+                latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+                self.breaker.record_latency(provider, latency_ms)
                 return HostStatus(
                     provider,
                     host,
@@ -1617,6 +2172,8 @@ class Josty:
                     None,
                     _classify_probe_error(exc),
                     f"{type(exc).__name__}: {exc}",
+                    latency_ms=latency_ms,
+                    **self._breaker_telemetry(provider),
                 )
 
     async def diagnose_run(
@@ -1645,7 +2202,15 @@ class Josty:
                 available, unavailable_message = _engine_available(category, name)
                 if not available:
                     skipped.append(
-                        HostStatus(name, "", False, None, "skipped", unavailable_message)
+                        HostStatus(
+                            name,
+                            "",
+                            False,
+                            None,
+                            "skipped",
+                            unavailable_message,
+                            **self._breaker_telemetry(name),
+                        )
                     )
                     continue
                 host = self.BACKEND_HOSTS.get(name, "")
@@ -1712,12 +2277,15 @@ class Josty:
             )
             cached_data = self.cache.get(cache_key)
             if cached_data is not None:
-                run = _search_run_from_dict(cached_data)
-                if fetch and any(result.content is None for result in run.results):
-                    # Cached payload is SERP-only; rehydrate page content on demand.
-                    await self.fetch_content(run.results)
-                run.cached = True
-                return run
+                try:
+                    run = _search_run_from_dict(cached_data)
+                    if fetch and any(result.content is None for result in run.results):
+                        # Cached payload is SERP-only; rehydrate page content on demand.
+                        await self.fetch_content(run.results)
+                    run.cached = True
+                    return run
+                except Exception:
+                    self.cache.delete(cache_key)
 
         web_task = self._search_parts(
             query,
