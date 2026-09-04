@@ -1,22 +1,10 @@
-"""Comprehensive End-to-End Resilience & Fault-Tolerance Test Suite for Josty.
-
-This test suite executes opaque-box tests against the public interfaces defined
-in PROJECT.md § Interface Contracts and ORIGINAL_REQUEST.md:
-  - Tier 1: Feature Coverage (Isolation)
-  - Tier 2: Boundary & Corner Cases (Failure Simulation)
-  - Tier 3: Cross-Feature Combinations (Interactions & Telemetry)
-  - Tier 4: Real-World Scenarios (Workloads, Transient Outages, JSON Invariants)
-
-All tests operate hermetically using isolated cache paths and mocked network
-interactions to guarantee determinism in all execution environments.
-"""
+"""Opaque-box E2E resilience suite for public search, diagnose, cache, and breaker contracts."""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import time
-from typing import Any
 
 import httpx
 import pytest
@@ -30,79 +18,13 @@ from josty.engine import (
     SearchRun,
     _search_run_from_dict,
 )
+from mock_ddgs import MockDDGSEngine, freeze_monotonic, site_hostname_matches
 
 
 @pytest.fixture(autouse=True)
 def isolate_test_cache(tmp_path, monkeypatch):
     """Ensure every test executes with an isolated, clean SQLite cache directory."""
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
-
-
-class MockDDGSEngine:
-    """Configurable mock for ddgs.DDGS supporting per-backend responses and exceptions."""
-
-    def __init__(self, backend_responses: dict[str, Any] | None = None):
-        self.responses: dict[str, Any] = backend_responses or {}
-        self.call_log: list[dict[str, Any]] = []
-
-    def __call__(self, **kwargs):
-        return self
-
-    def text(self, query: str, **kwargs):
-        backend = kwargs.get("backend", "duckduckgo")
-        self.call_log.append(
-            {"method": "text", "query": query, "backend": backend, "kwargs": kwargs}
-        )
-        if backend in self.responses:
-            resp = self.responses[backend]
-            if isinstance(resp, BaseException):
-                raise resp
-            if isinstance(resp, type) and issubclass(resp, BaseException):
-                raise resp(f"Simulated failure for {backend}")
-            if callable(resp):
-                return resp(query, **kwargs)
-            return resp
-        # Default mock response: 2 distinct items for this backend
-        return [
-            {
-                "title": f"Result 1 from {backend}",
-                "href": f"https://example.org/topic-{backend}-1",
-                "body": f"Snippet 1 for {backend}",
-                "date": "2026-09-01T12:00:00Z",
-                "source": backend,
-            },
-            {
-                "title": f"Common Topic from {backend}",
-                "href": "https://example.org/common-consensus-item",
-                "body": f"Consensus snippet from {backend}",
-                "date": "2026-09-01T13:00:00Z",
-                "source": backend,
-            },
-        ]
-
-    def news(self, query: str, **kwargs):
-        backend = kwargs.get("backend", "duckduckgo")
-        self.call_log.append(
-            {"method": "news", "query": query, "backend": backend, "kwargs": kwargs}
-        )
-        if backend in self.responses:
-            resp = self.responses[backend]
-            if isinstance(resp, BaseException):
-                raise resp
-            if isinstance(resp, type) and issubclass(resp, BaseException):
-                raise resp(f"Simulated failure for {backend}")
-            if callable(resp):
-                return resp(query, **kwargs)
-            return resp
-        return [
-            {
-                "title": f"Breaking News from {backend}",
-                "url": f"https://news.example.com/{backend}-headline",
-                "body": f"News body from {backend}",
-                "date": "2026-09-03T10:00:00Z",
-                "source": backend,
-            }
-        ]
 
 
 # ==============================================================================
@@ -230,8 +152,7 @@ class TestTier1FeatureCoverage:
 
         Verifies the Cormack-Clarke RRF mathematical invariant holds across backends.
         """
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "brave": [
                     {
                         "title": "Brave Hit 1",
@@ -260,7 +181,10 @@ class TestTier1FeatureCoverage:
         run = asyncio.run(engine.search_run("python documentation", limit=5))
 
         assert len(run.results) > 0
-        consensus_item = next((r for r in run.results if "https://python.org/doc" in r.url), None)
+        consensus_item = next(
+            (r for r in run.results if r.url.rstrip("/") == "https://python.org/doc"),
+            None,
+        )
         assert consensus_item is not None
 
         # Verify attribution fields
@@ -296,8 +220,7 @@ class TestTier1FeatureCoverage:
         text. (pytest emits warnings to stderr by default; nothing may leak to
         stdout instead.)
         """
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={"brave": RatelimitException("429 Too Many Requests")}
+        mock_ddgs = MockDDGSEngine({"brave": RatelimitException("429 Too Many Requests")}
         )
         monkeypatch.setattr("josty.engine.DDGS", mock_ddgs)
         monkeypatch.setattr("sys.argv", ["josty", "resilience query"])
@@ -317,6 +240,17 @@ class TestTier1FeatureCoverage:
         assert brave["ok"] is False
         assert brave["error_kind"] == "rate_limited"
 
+    def test_news_category_uses_news_method(self, monkeypatch):
+        """News search calls DDGS.news() rather than .text()."""
+        mock_ddgs = MockDDGSEngine()
+        monkeypatch.setattr("josty.engine.DDGS", mock_ddgs)
+        engine = Josty(news_backends=("duckduckgo",), timeout=2.0)
+        run = asyncio.run(engine.search_run("headline", category="news", limit=5))
+        assert run.status == "complete"
+        assert len(run.results) >= 1
+        assert mock_ddgs.call_log
+        assert {entry["method"] for entry in mock_ddgs.call_log} == {"news"}
+
 
 # ==============================================================================
 # Tier 2: Boundary & Corner Cases (Failure Simulation)
@@ -328,8 +262,7 @@ class TestTier2BoundaryAndCornerCases:
 
     def test_failure_simulation_429_rate_limit(self, monkeypatch):
         """Simulating HTTP 429 isolates failing backend; surviving backends fuse cleanly."""
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "brave": RatelimitException("429 Rate limited by upstream server"),
                 "duckduckgo": [
                     {
@@ -375,8 +308,7 @@ class TestTier2BoundaryAndCornerCases:
 
     def test_failure_simulation_403_challenge(self, monkeypatch):
         """Simulating HTTP 403 bot challenge isolates backend without crashing the query."""
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "brave": DDGSException("HTTP 403 Forbidden - Cloudflare challenge required"),
                 "duckduckgo": [
                     {"title": "DDG Result", "href": "https://example.com/ok", "body": "Valid hit"},
@@ -394,11 +326,11 @@ class TestTier2BoundaryAndCornerCases:
 
         brave_status = next(p for p in run.providers if p.provider == "brave")
         assert brave_status.ok is False
+        assert brave_status.error_kind == "blocked"
 
     def test_failure_simulation_timeout_protection(self, monkeypatch):
         """Simulating read/connect timeout completes promptly via concurrency hang protection."""
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "brave": TimeoutException("Socket timed out after 2.0s"),
                 "duckduckgo": [
                     {"title": "Fast Result", "href": "https://fast.org/item", "body": "Fast body"},
@@ -421,8 +353,7 @@ class TestTier2BoundaryAndCornerCases:
 
     def test_failure_simulation_connection_drop(self, monkeypatch):
         """Simulating abrupt network connection drop is caught and gracefully handled."""
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "brave": httpx.ConnectError(
                     "Connection refused by peer", request=httpx.Request("GET", "https://api")
                 ),
@@ -447,8 +378,7 @@ class TestTier2BoundaryAndCornerCases:
 
     def test_all_backends_failing_boundary(self, monkeypatch):
         """Total outage across all search backends returns failed SearchRun without crashing."""
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "brave": RatelimitException("429 rate limit"),
                 "duckduckgo": TimeoutException("DDG timed out"),
             }
@@ -478,8 +408,7 @@ class TestTier2BoundaryAndCornerCases:
 
     def test_single_vs_multi_engine_attribution_boundary(self, monkeypatch):
         """Multi-engine consensus produces higher RRF scores and richer attribution."""
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "brave": [
                     {
                         "title": "Consensus Doc",
@@ -541,8 +470,7 @@ class TestTier3CrossFeatureCombinations:
         assert state["backoff_remaining"] > 0.0
 
         # Run search: brave must be skipped via breaker, duckduckgo must succeed
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "duckduckgo": [
                     {
                         "title": "DDG Exclusive",
@@ -573,17 +501,19 @@ class TestTier3CrossFeatureCombinations:
         assert list(res.rank_contributions.keys()) == ["duckduckgo"]
 
     def test_diagnose_during_open_circuit_breaker(self, monkeypatch):
-        """CLI --diagnose surfaces open circuit breaker state, trip metrics, and backoff timer."""
+        """Diagnose skips OPEN circuits and still reports trip telemetry."""
         breaker = CircuitBreaker(fail_threshold=2, cool_down_seconds=45.0)
-        breaker.record_failure("brave", "probe")
-        breaker.record_failure("brave", "probe")
+        breaker.record_failure("brave", "search")
+        breaker.record_failure("brave", "search")
 
         state = breaker.get_state("brave")
         assert state["state"] == "open"
 
         engine = Josty(backends=("brave", "duckduckgo"), breaker=breaker)
+        probed = []
 
         async def fake_get(self, url, **kwargs):
+            probed.append(url)
             return httpx.Response(200, request=httpx.Request("GET", url))
 
         monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
@@ -592,14 +522,18 @@ class TestTier3CrossFeatureCombinations:
         assert isinstance(diag, DiagnoseRun)
         brave_host = next((p for p in diag.providers if p.provider == "brave"), None)
         assert brave_host is not None
+        assert brave_host.ok is False
+        assert brave_host.error_kind == "skipped"
         assert brave_host.circuit_state == "open"
         assert brave_host.failures is not None and brave_host.failures >= 2
         assert brave_host.backoff_remaining is not None and brave_host.backoff_remaining > 0.0
+        assert not any(
+            site_hostname_matches(url, "search.brave.com") for url in probed
+        )
 
     def test_cache_roundtrip_attribution_preservation(self, monkeypatch):
         """Attribution fields survive SQLite SERP cache roundtrips with 100% fidelity."""
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "brave": [
                     {"title": "Doc 1", "href": "https://cache.org/doc", "body": "Snippet 1"},
                 ],
@@ -676,8 +610,7 @@ class TestTier3CrossFeatureCombinations:
 
     def test_graceful_degradation_under_partial_outage(self, monkeypatch):
         """Simultaneous 429, timeout, and connect error leave healthy backend to deliver results."""
-        mock_ddgs = MockDDGSEngine(
-            backend_responses={
+        mock_ddgs = MockDDGSEngine({
                 "brave": RatelimitException("429 rate limit"),
                 "duckduckgo": TimeoutException("Request timeout"),
                 "mojeek": httpx.ConnectError(
@@ -756,10 +689,11 @@ class TestTier4RealWorldScenarios:
         )
         assert run4.status == "complete"
         for r in run4.results:
-            assert "example.org" in r.url
+            assert site_hostname_matches(r.url, "example.org")
 
     def test_transient_outage_automatic_recovery(self, monkeypatch):
         """Full lifecycle: closed -> open trip -> cool-down expiry -> half-open -> closed."""
+        clock = freeze_monotonic(monkeypatch, 1000.0)
         breaker = CircuitBreaker(fail_threshold=2, cool_down_seconds=0.1)
         engine = Josty(backends=("brave", "duckduckgo"), breaker=breaker)
 
@@ -776,12 +710,12 @@ class TestTier4RealWorldScenarios:
         assert allowed is False
         assert "cool-down" in (msg or "")
 
-        # Step 4: Advance time past cool-down period
-        time.sleep(0.15)
+        # Step 4: Advance monotonic clock past cool-down
+        clock[0] = 1000.3
 
-        # Step 5: Breaker enters half-open trial probe state
+        # Step 5: Breaker reports half-open; status admits one trial probe
         state_after_sleep = breaker.get_state("brave")
-        assert state_after_sleep["state"] in ("half-open", "closed")
+        assert state_after_sleep["state"] == "half-open"
         allowed_trial, _ = breaker.status("brave", "search")
         assert allowed_trial is True
 

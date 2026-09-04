@@ -1,70 +1,20 @@
-"""Empirical Adversarial Stress Test Suite by challenger_1.
-
-Objectives:
-1. Floods of 429 rate limit errors across multiple engines simultaneously.
-2. Sudden upstream timeouts and socket hangs; verify asyncio.wait_for bounds execution time
-   and never blocks the process.
-3. Half-open trial probe state transitions under flapping backends (failing -> recovering).
-4. Verify that surviving engines always produce clean fused search results without exceptions.
-"""
+"""Adversarial resilience tests: 429 floods, timeouts, ghost threads, HALF_OPEN flapping."""
 
 from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
 
 import pytest
 from ddgs.exceptions import RatelimitException, TimeoutException
 from josty.engine import CircuitBreaker, Josty
+from mock_ddgs import MockDDGSEngine, freeze_monotonic
 
 
 @pytest.fixture(autouse=True)
 def isolate_test_cache(tmp_path, monkeypatch):
     """Ensure every test executes with an isolated, clean SQLite cache directory."""
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
-
-
-class MockDDGSEngine:
-    """Adversarial mock for ddgs.DDGS supporting programmable per-backend behavior."""
-
-    def __init__(self, backend_handlers: dict[str, Any] | None = None):
-        self.handlers: dict[str, Any] = backend_handlers or {}
-        self.call_log: list[dict[str, Any]] = []
-
-    def __call__(self, **kwargs):
-        return self
-
-    def text(self, query: str, **kwargs):
-        backend = kwargs.get("backend", "duckduckgo")
-        self.call_log.append(
-            {"method": "text", "query": query, "backend": backend, "kwargs": kwargs}
-        )
-        if backend in self.handlers:
-            handler = self.handlers[backend]
-            if isinstance(handler, BaseException):
-                raise handler
-            if isinstance(handler, type) and issubclass(handler, BaseException):
-                raise handler(f"Simulated failure for {backend}")
-            if callable(handler):
-                return handler(query, **kwargs)
-            return handler
-        return [
-            {
-                "title": f"Item 1 from {backend}",
-                "href": f"https://example.org/{backend}-item-1",
-                "body": f"Snippet 1 from {backend}",
-                "date": "2026-09-01T12:00:00Z",
-                "source": backend,
-            },
-            {
-                "title": f"Item 2 from {backend}",
-                "href": f"https://example.org/{backend}-item-2",
-                "body": f"Snippet 2 from {backend}",
-                "date": "2026-09-01T13:00:00Z",
-                "source": backend,
-            },
-        ]
 
 
 class TestScenario1RateLimitFloods:
@@ -255,13 +205,14 @@ class TestScenario2TimeoutsAndHangs:
         assert provider_map["brave"].ok is True
 
     def test_coroutine_execution_bounded_by_wait_for(self, monkeypatch):
-        """In an event loop, asyncio.wait_for bounds the coroutine execution to timeout + 2.0s."""
+        """asyncio.wait_for bounds search to timeout + headroom, not the hang duration."""
+        monkeypatch.setattr("josty.engine.SEARCH_THREAD_TIMEOUT_HEADROOM", 0.05)
+
         def hanging_backend(query, **kwargs):
-            time.sleep(2.5)
+            time.sleep(0.3)
             return []
 
         breaker = CircuitBreaker(fail_threshold=2, cool_down_seconds=1.0)
-        # timeout = 0.05 -> wait_for bound = 2.05s
         engine = Josty(backends=("duckduckgo", "brave"), breaker=breaker, timeout=0.05)
 
         mock_ddgs = MockDDGSEngine({
@@ -283,12 +234,9 @@ class TestScenario2TimeoutsAndHangs:
             elapsed = time.perf_counter() - t0
             return run, elapsed
 
-        # Run inside loop
         run, elapsed = asyncio.run(run_coroutine())
 
-        # Coroutine took ~2.05s, bounded from hanging 2.5s+
-        assert elapsed >= 2.0
-        assert elapsed < 3.0, f"Coroutine took {elapsed:.2f}s, expected < 3.0s"
+        assert elapsed < 0.25, f"Coroutine took {elapsed:.2f}s, expected < 0.25s"
         assert run.status == "degraded"
         assert len(run.results) == 1
 
@@ -299,77 +247,49 @@ class TestScenario2TimeoutsAndHangs:
         assert "TimeoutError" in (ddg_status.error or "")
 
     def test_bug_ghost_thread_success_overwrites_circuit_breaker(self, monkeypatch):
-        """EMPIRICAL BUG DISCOVERY 1:
-        When a backend call times out via wait_for, the circuit breaker records a failure
-        and trips to OPEN. However, the abandoned worker thread continues executing.
-        When it eventually finishes, line 1417 runs:
-            self.breaker.record_success(backend, "search")
-        This silently wipes out the OPEN circuit breaker trip and resets failures to 0!
-        """
+        """Ghost threads must not call record_success after wait_for has timed out."""
+        monkeypatch.setattr("josty.engine.SEARCH_THREAD_TIMEOUT_HEADROOM", 0.05)
+        finished = []
+
         def slow_success(query, **kwargs):
-            time.sleep(2.4)
+            time.sleep(0.25)
+            finished.append(True)
             return [{"title": "Slow Hit", "href": "https://example.org/slow", "body": "Slow body"}]
 
         cb = CircuitBreaker(fail_threshold=1, cool_down_seconds=10.0)
-        # timeout = 0.01 -> wait_for = 2.01s (triggers before 2.4s)
-        engine = Josty(backends=("brave",), breaker=cb, timeout=0.01)
+        engine = Josty(backends=("brave",), breaker=cb, timeout=0.05)
 
         mock_ddgs = MockDDGSEngine({"brave": slow_success})
         monkeypatch.setattr("josty.engine.DDGS", mock_ddgs)
 
         async def verify_ghost_overwrite():
-            # 1. Run search: times out at 2.01s
             run = await engine.search_run("ghost test", limit=1)
             assert run.status == "failed"
-
-            # 2. Immediately after search_run, breaker tripped to OPEN!
             state_immediate = cb.get_state("brave")
             assert state_immediate["state"] == "open"
             assert state_immediate["failures"] == 1
             assert state_immediate["backoff_remaining"] > 5.0
-
-            # 3. Wait for the background worker thread to finish (sleeps 2.4s total, 0.4s left)
-            await asyncio.sleep(0.5)
-
-            # 4. Inspect breaker state: the ghost thread finished and called record_success!
-            state_after_thread = cb.get_state("brave")
-
-            # EMPIRICAL PROOF: The circuit breaker trip was overwritten back to closed!
-            return state_immediate, state_after_thread
+            await asyncio.sleep(0.3)
+            return state_immediate, cb.get_state("brave")
 
         immediate, after = asyncio.run(verify_ghost_overwrite())
-
-        # Remediated behavior: Breaker stays OPEN; ghost thread does NOT overwrite state.
+        assert finished == [True]
         assert immediate["state"] == "open"
         assert after["state"] == "open"
         assert after["failures"] == 1
         assert after["backoff_remaining"] > 0.0
 
-    @pytest.mark.xfail(
-        reason=(
-            "Known limitation, not desired behavior: asyncio.run() joins "
-            "default-executor threads on exit, so a truly hung upstream socket "
-            "can block process exit past the search timeout. The search itself "
-            "returns at the wait_for boundary; only interpreter shutdown waits. "
-            "Accepted trade-off of the to_thread execution model."
-        ),
-        strict=True,
-    )
-    def test_bug_process_blocked_on_executor_shutdown(self, monkeypatch):
-        """KNOWN LIMITATION, inverted so a regression in the *search-timeout*
-        half trips strict=True:
-
-        When an un-interruptible socket hang occurs inside asyncio.to_thread,
-        `asyncio.run()` blocks on process exit until the hanging thread terminates
-        because Python's loop.shutdown_default_executor() joins all default pool threads.
-        If this test XPASSes, abandoned threads no longer delay exit — a genuine
-        improvement worth verifying on its own.
+    def test_search_returns_at_wait_for_boundary_with_dedicated_executor(self, monkeypatch):
+        """Dedicated search executor is not joined by asyncio.run(), so search
+        returns at the wait_for boundary instead of waiting for the ghost hang.
         """
+        monkeypatch.setattr("josty.engine.SEARCH_THREAD_TIMEOUT_HEADROOM", 0.05)
+
         def hanging_thread(query, **kwargs):
-            time.sleep(2.4)
+            time.sleep(0.3)
             return []
 
-        engine = Josty(backends=("brave",), timeout=0.01) # wait_for = 2.01s
+        engine = Josty(backends=("brave",), timeout=0.05)
         mock_ddgs = MockDDGSEngine({"brave": hanging_thread})
         monkeypatch.setattr("josty.engine.DDGS", mock_ddgs)
 
@@ -377,73 +297,49 @@ class TestScenario2TimeoutsAndHangs:
         run = asyncio.run(engine.search_run("process block test", limit=1))
         elapsed = time.perf_counter() - t0
 
-        # The search itself must have timed out at the wait_for boundary.
         assert run.status == "failed"
-
-        # The inverted known-limitation check: exit was NOT blocked ~2.4s.
-        assert elapsed < 2.35, (
-            f"Process was NOT blocked by the hanging thread ({elapsed:.2f}s) — "
-            "the executor-shutdown join no longer delays exit."
-        )
+        assert elapsed < 0.25, f"search_run blocked on ghost thread ({elapsed:.2f}s)"
 
 
 class TestScenario3HalfOpenFlappingBackends:
     """Scenario 3: Half-open trial probe state transitions under flapping backends."""
 
-    def test_half_open_success_recovers_to_closed(self):
+    def test_half_open_success_recovers_to_closed(self, monkeypatch):
         """In half-open state, a successful trial probe resets circuit to CLOSED."""
+        clock = freeze_monotonic(monkeypatch, 1000.0)
         cb = CircuitBreaker(fail_threshold=3, cool_down_seconds=0.1)
 
-        # Trip to OPEN with 3 failures
         for _ in range(3):
             cb.record_failure("flapping_engine", "search")
         assert cb.get_state("flapping_engine")["state"] == "open"
 
-        # Wait past cool-down period
-        time.sleep(0.12)
+        clock[0] = 1000.2
         assert cb.get_state("flapping_engine")["state"] == "half-open"
 
-        # Successful trial probe
         cb.record_success("flapping_engine", "search")
 
-        # State should be CLOSED, failures reset to 0, backoff reset
         state = cb.get_state("flapping_engine")
         assert state["state"] == "closed"
         assert state["failures"] == 0
         assert state["backoff_remaining"] == 0.0
 
-    def test_bug_half_open_trial_probe_failure_fails_to_trip(self):
-        """EMPIRICAL BUG DISCOVERY 3:
-        Per CircuitBreaker docstring:
-        'HALF_OPEN: Allows trial probe(s). Success resets circuit to CLOSED and clears
-        failure history and consecutive trips. Failure trips back to OPEN.'
-
-        Bug discovery: In record_failure (engine.py:1113), the trip check only checks:
-            if len(events) >= self.fail_threshold:
-        When entering half-open, _failures was reset to [].
-        When a trial probe fails, len(events) is 1.
-        Since 1 < fail_threshold (e.g. 1 < 3), the circuit DOES NOT TRIP to OPEN!
-        It stays in 'half-open' and allows subsequent requests through!
-        """
+    def test_half_open_trial_probe_failure_reopens(self, monkeypatch):
+        """A failed HALF_OPEN trial probe trips back to OPEN immediately."""
+        clock = freeze_monotonic(monkeypatch, 1000.0)
         cb = CircuitBreaker(fail_threshold=3, cool_down_seconds=0.08)
 
-        # 1. Trip circuit to OPEN
         for _ in range(3):
             cb.record_failure("engine_x", "search")
         assert cb.get_state("engine_x")["state"] == "open"
 
-        # 2. Cool-down expires -> transitions to half-open
-        time.sleep(0.1)
+        clock[0] = 1000.2
         assert cb.get_state("engine_x")["state"] == "half-open"
 
-        # 3. Trial probe FAILS
         cb.record_failure("engine_x", "search")
 
-        # 4. Check state immediately after failed trial probe:
         state_after_failed_probe = cb.get_state("engine_x")["state"]
         allowed, skip_msg = cb.status("engine_x", "search")
 
-        # Remediated invariant: Immediately trips to open and blocks calls
         assert state_after_failed_probe == "open"
         assert allowed is False
         assert skip_msg is not None
