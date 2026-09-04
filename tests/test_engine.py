@@ -70,7 +70,9 @@ def test_rrf_fuses_independent_lists_and_preserves_provenance():
     assert len(results) == 1
     assert results[0].snippet == "longer snippet"
     assert results[0].sources == ["one", "two"]
-    assert results[0].score == round(2 / 61, 6)
+    # Per-engine attribution contract: score derives from the rounded
+    # per-engine contributions, not from unrounded list-position terms.
+    assert results[0].score == round(2 * round(1 / 61, 6), 6)
     assert first[0].score == 0.0  # fusion does not mutate caller-owned results
 
 
@@ -596,9 +598,13 @@ def test_unavailable_engine_is_skipped_visibly_without_calling_ddgs(monkeypatch)
 
 
 def test_merge_query_variants_best_rank_merge_without_frequency_vote():
-    # Josty owns group-internal ranking: a URL's position is its best rank
-    # across engine lists, and appearing in both engines does NOT promote it
-    # (no ddgs-style frequency voting). This test pins that policy.
+    # Josty owns group-internal ordering: a URL's position is its best rank
+    # across engine lists (no ddgs-style frequency-inflated ordering). RRF
+    # voting is per ENGINE, not per list position: a URL found by both
+    # engines of a group carries both engines' votes, per the per-engine
+    # attribution contract (PROJECT.md "Transparent RRF Attribution
+    # Contract"). This supersedes the earlier one-vote-per-group policy that
+    # could not attribute contributions verifiably.
     from josty.engine import SearchResult, merge_query_variants, rrf
 
     def item(url, source):
@@ -620,8 +626,12 @@ def test_merge_query_variants_best_rank_merge_without_frequency_vote():
     ]
     fused = rrf([merged])
     scores = {entry.url: entry.score for entry in fused}
-    # One vote at rank 3 — not two rank-2 votes.
-    assert scores["https://shared.example/x"] == round(1 / 63, 6)
+    # The shared URL carries both engines' votes at their discovery rank 2
+    # each: 2 * round(1/62, 6) — one vote per engine, from engine_ranks.
+    assert scores["https://shared.example/x"] == round(2 * round(1 / 62, 6), 6)
+    shared = next(e for e in fused if e.url == "https://shared.example/x")
+    assert shared.engine_ranks == {"a": 2, "b": 2}
+    assert shared.rank_contributions == {"a": round(1 / 62, 6), "b": round(1 / 62, 6)}
 
 
 def test_news_metadata_and_filters_are_preserved(monkeypatch):
@@ -713,8 +723,11 @@ def test_github_is_opt_in_and_fused_once(monkeypatch):
     combined = asyncio.run(engine.research_run("q", include_github=True))
     assert combined.results[0].url == "https://example.com/a"
     assert combined.results[0].sources == ["one", "two"]
-    assert combined.results[0].score == round(2 / 61, 6)
-    assert combined.results[1].score == round(1.2 / 61, 6)
+    # Per-engine attribution contract: each engine contributes
+    # round(1/(k+rank), 6) and the score derives from those rounded terms
+    # (see PROJECT.md "Transparent RRF Attribution Contract").
+    assert combined.results[0].score == round(2 * round(1 / 61, 6), 6)
+    assert combined.results[1].score == round(1.2 * round(1 / 61, 6), 6)
 
 
 def test_diagnose_probes_each_backend_group_host_with_bare_get(monkeypatch):

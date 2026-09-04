@@ -128,10 +128,12 @@ def main() -> None:
         command.error("--results-only cannot be combined with --diagnose")
     try:
         payload = asyncio.run(run(args))
+        # allow_nan=False keeps stdout strictly RFC-8259 JSON; a non-finite
+        # value raises ValueError here and degrades to the stderr error path.
+        print(json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False))
     except (ValueError, KeyboardInterrupt) as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         raise SystemExit(2) from exc
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

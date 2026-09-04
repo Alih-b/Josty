@@ -370,15 +370,16 @@ class TestRRF:
         assert out[0].score == 0.016393
 
     def test_profile_multiplies_score(self):
-        # Same URL across two lists -> score adds, profile multiplies each vote
-        a = [result("https://pypi.org/x")]
-        b = [result("https://pypi.org/x")]
+        # Same URL found by two engines -> each engine votes once and the
+        # profile weight multiplies the sum of the rounded contributions.
+        a = [result("https://pypi.org/x", source="engine-a")]
+        b = [result("https://pypi.org/x", source="engine-b")]
         general = rrf([a, b], profile="general")  # pypi.org weight 1.2
-        # Two votes of weight 1.2 at rank 1: 2 * 1.2 / 61
-        assert general[0].score == round(2 * 1.2 / 61, 6)
+        # Two engine votes at rank 1: 1.2 * (2 * round(1/61, 6))
+        assert general[0].score == round(1.2 * 2 * round(1 / 61, 6), 6)
         # dev: weight 1.3
         dev = rrf([a, b], profile="dev")
-        assert dev[0].score == round(2 * 1.3 / 61, 6)
+        assert dev[0].score == round(1.3 * 2 * round(1 / 61, 6), 6)
         assert dev[0].score > general[0].score
 
     def test_spam_domain_demoted(self):
@@ -824,6 +825,37 @@ class TestCache:
         # set() should also fail silently
         cache.set("k", {"x": 1})
 
+    def test_invalid_json_row_is_evicted_on_read(self, tmp_path):
+        # A truncated write is the most likely corruption mode: the row's JSON
+        # is unparseable. get() must DELETE the row (not just skip it), so the
+        # bad entry does not become a permanent miss until TTL expiry.
+        cache = SearchCache(tmp_path / "c.db", default_ttl=60.0)
+        conn = sqlite3.connect(str(cache.db_path))
+        conn.execute(
+            "INSERT INTO search_cache"
+            " (key, created_at, expires_at, payload, hit_count, last_accessed)"
+            " VALUES ('bad-json', 1.0, 1e12, '{not json', 0, 1.0)"
+        )
+        conn.commit()
+        conn.close()
+
+        assert cache.get("bad-json") is None
+        check = sqlite3.connect(str(cache.db_path))
+        rows = check.execute(
+            "SELECT COUNT(*) FROM search_cache WHERE key = 'bad-json'"
+        ).fetchone()[0]
+        check.close()
+        assert rows == 0
+
+    def test_non_dict_payload_raises_for_engine_eviction(self, tmp_path):
+        # Valid JSON with the wrong shape (e.g. a list) must raise in
+        # _search_run_from_dict so research_run's handler evicts the entry and
+        # refetches, instead of serving a corrupt payload forever.
+        from josty.engine import _search_run_from_dict
+
+        with pytest.raises(ValueError):
+            _search_run_from_dict([])
+
     def test_db_uses_wal(self, tmp_path):
         cache = SearchCache(tmp_path / "c.db", default_ttl=60.0)
         cache.set(SearchCache.hash_key("k"), {"x": 1})
@@ -958,8 +990,9 @@ class TestCircuitBreakerAdvanced:
         # Cool down expires
         t[0] = 1010.0
         assert breaker.status("bing", "search")[0] is True
-        # The 2 stale failures get cleared on first status() call, so a single
-        # new failure should NOT re-open immediately.
+        # Trial probe succeeds, transitioning to CLOSED and clearing failure history
+        breaker.record_success("bing", "search")
+        # Stale failures were cleared; single new failure in CLOSED does not re-open
         breaker.record_failure("bing", "search")
         assert breaker.status("bing", "search")[0] is True
 
@@ -995,6 +1028,40 @@ class TestCircuitBreakerAdvanced:
         for thread in threads:
             thread.join()
         assert errors == []
+
+    def test_exponential_backoff_doubling_and_cap(self, monkeypatch):
+        # Each consecutive trip doubles the cool-down; the exponent caps at 6
+        # (cool_down * 2**6) so a flapping backend cannot back off unboundedly.
+        breaker = CircuitBreaker(fail_threshold=1, window_seconds=60, cool_down_seconds=10)
+        t = [1000.0]
+        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+
+        # Trip 1: cool-down = 10s (2**0 x)
+        breaker.record_failure("bing", "search")
+        assert breaker.status("bing", "search")[0] is False
+
+        # Trip 2 after cool-down elapses: 20s (2**1 x)
+        t[0] = 1010.0
+        breaker.record_failure("bing", "search")
+        state = breaker.get_state("bing")
+        assert state["state"] == "open"
+        assert 19.0 <= state["backoff_remaining"] <= 20.0
+
+        # Trip 3: 40s (2**2 x)
+        t[0] = 1030.0
+        breaker.record_failure("bing", "search")
+        state = breaker.get_state("bing")
+        assert 39.0 <= state["backoff_remaining"] <= 40.0
+
+        # Drive well past the cap: backoff stops doubling at 2**6 x = 640s.
+        for _ in range(8):
+            t[0] += breaker.get_state("bing")["backoff_remaining"] + 1.0
+            breaker.record_failure("bing", "search")
+        state = breaker.get_state("bing")
+        assert state["state"] == "open"
+        assert 639.0 <= state["backoff_remaining"] <= 640.0
+
+    def test_record_success_on_unknown_is_noop(self):
         breaker = CircuitBreaker()
         # Should not raise
         breaker.record_success("never-failed", "search")
