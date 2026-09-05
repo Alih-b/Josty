@@ -207,9 +207,10 @@ class TestScenario2TimeoutsAndHangs:
     def test_coroutine_execution_bounded_by_wait_for(self, monkeypatch):
         """asyncio.wait_for bounds search to timeout + headroom, not the hang duration."""
         monkeypatch.setattr("josty.engine.SEARCH_THREAD_TIMEOUT_HEADROOM", 0.05)
+        hang_seconds = 1.5
 
         def hanging_backend(query, **kwargs):
-            time.sleep(0.3)
+            time.sleep(hang_seconds)
             return []
 
         breaker = CircuitBreaker(fail_threshold=2, cool_down_seconds=1.0)
@@ -236,7 +237,9 @@ class TestScenario2TimeoutsAndHangs:
 
         run, elapsed = asyncio.run(run_coroutine())
 
-        assert elapsed < 0.25, f"Coroutine took {elapsed:.2f}s, expected < 0.25s"
+        # wait_for budget is 0.10s; CI scheduling can inflate that. The hang is
+        # 1.5s so a bound of 0.75s still proves we did not wait for the thread.
+        assert elapsed < 0.75, f"Coroutine took {elapsed:.2f}s, expected < 0.75s"
         assert run.status == "degraded"
         assert len(run.results) == 1
 
@@ -285,8 +288,10 @@ class TestScenario2TimeoutsAndHangs:
         """
         monkeypatch.setattr("josty.engine.SEARCH_THREAD_TIMEOUT_HEADROOM", 0.05)
 
+        hang_seconds = 1.5
+
         def hanging_thread(query, **kwargs):
-            time.sleep(0.3)
+            time.sleep(hang_seconds)
             return []
 
         engine = Josty(backends=("brave",), timeout=0.05)
@@ -298,7 +303,7 @@ class TestScenario2TimeoutsAndHangs:
         elapsed = time.perf_counter() - t0
 
         assert run.status == "failed"
-        assert elapsed < 0.25, f"search_run blocked on ghost thread ({elapsed:.2f}s)"
+        assert elapsed < 0.75, f"search_run blocked on ghost thread ({elapsed:.2f}s)"
 
 
 class TestScenario3HalfOpenFlappingBackends:
