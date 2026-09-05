@@ -67,8 +67,8 @@ uvx josty --cache-stats
 - `providers[]` reports one entry per search engine (e.g. `brave`, `duckduckgo`), each with its
   own `result_count`, `error_kind`, and breaker state. A throttled or emptying engine is visible
   even when the fused output looks healthy; prefer engines with non-zero counts when weighing
-  evidence. Envelope `provider_count`, `nonempty_provider_count`, and `coverage` (non-empty /
-  total, 0–1) make single-engine runs visible: `status=complete` with `coverage=0.167` is
+  evidence. Envelope `provider_count`, `nonempty_provider_count`, and `coverage` (successful
+  non-empty branches / total, 0–1) make single-engine runs visible: `status=complete` with `coverage=0.167` is
   Brave-only (or otherwise one-of-N), not a fused multi-engine confirmation.
   `error_kind: "empty"` means the engine was reached and returned zero URLs
   (`result_count=0`). `error_kind: "skipped"` means no call was made. `error_kind: "blocked"`

@@ -564,8 +564,8 @@ class SearchRun:
     providers: list[ProviderStatus] = field(default_factory=list)
     cached: bool = False
     run_at: str | None = None  # ISO8601 UTC moment the search was executed
-    query_variant_count: int = 0
-    request_count: int = 0
+    query_variant_count: int | None = None
+    request_count: int | None = None
     fetch_requested: bool = False
     fetch_attempted: int = 0
     fetch_ok: int = 0
@@ -577,7 +577,11 @@ class SearchRun:
 
     @property
     def nonempty_provider_count(self) -> int:
-        return sum(1 for provider in self.providers if provider.result_count > 0)
+        return sum(
+            1
+            for provider in self.providers
+            if provider.ok and provider.result_count > 0
+        )
 
     @property
     def coverage(self) -> float | None:
@@ -1266,6 +1270,14 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         except (TypeError, ValueError):
             return default
 
+    def _as_opt_int(value: Any) -> int | None:
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
     fetch_raw = payload.get("fetch")
     if not isinstance(fetch_raw, dict):
         fetch_raw = {}
@@ -1275,8 +1287,8 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         providers=providers,
         cached=bool(payload.get("cached", False)),
         run_at=payload.get("run_at"),
-        query_variant_count=_as_int(payload.get("query_variant_count")),
-        request_count=_as_int(payload.get("request_count")),
+        query_variant_count=_as_opt_int(payload.get("query_variant_count")),
+        request_count=_as_opt_int(payload.get("request_count")),
         fetch_requested=bool(fetch_raw.get("requested", False)),
         fetch_attempted=_as_int(fetch_raw.get("attempted")),
         fetch_ok=_as_int(fetch_raw.get("ok")),
@@ -2406,7 +2418,8 @@ class Josty:
                 try:
                     run = _search_run_from_dict(cached_data)
                     run.query_variant_count = variant_count
-                    run.request_count = scheduled_requests
+                    # Cache hit: no upstream search is scheduled on this call.
+                    run.request_count = 0
                     if fetch and any(result.content is None for result in run.results):
                         # Cached payload is SERP-only; rehydrate page content on demand.
                         await self.fetch_content(run.results)

@@ -63,7 +63,8 @@ The default output envelope is:
 - `degraded`: at least one search branch failed, while another branch completed or results remain available; or `--fetch` was requested and every attempted extraction failed (`fetch.status=failed`).
 - `failed`: no results and every attempted branch failed.
 - `cached`: `true` only when the envelope was loaded from the local SQLite cache. `fetch` is not part of the SERP cache key: search then `--fetch` reuses the cached SERP and only downloads pages.
-- `query_variant_count` / `request_count`: how many query strings were expanded, and how many upstream search calls that scheduled (engines × variants, plus GitHub when opted in).
+- `query_variant_count` / `request_count`: how many query strings were expanded, and how many upstream search calls that scheduled (engines × variants, plus GitHub when opted in). On cache hits nothing is scheduled, so `request_count` is 0. Payloads predating these fields report `null` (unknown), not 0.
+- `nonempty_provider_count` / `coverage`: how many branches both succeeded (`ok`) and returned results, over total branches. A failed branch never counts, even with partial results.
 - `--diagnose` envelopes set `phase: "transport"` and `probe: "https_host"`. That status is homepage HTTPS reachability, not search health.
 - Empty-ok branches set `error_kind` to `"empty"` only when `result_count` is 0. Skipped
   branches set `error_kind` to `"skipped"` only when no call was made: a breaker cool-down

@@ -95,11 +95,11 @@ josty "RRF rank fusion algorithm" --limit 3 --fetch
   "query_variant_count": 1,
   "request_count": 3,
   "fetch": {
-    "requested": false,
-    "attempted": 0,
-    "ok": 0,
+    "requested": true,
+    "attempted": 3,
+    "ok": 3,
     "failed": 0,
-    "status": "skipped"
+    "status": "complete"
   },
   "providers": [
     { "provider": "brave", "query": "Python 3.13 features", "ok": true, "result_count": 5, "error": null, "error_kind": null },

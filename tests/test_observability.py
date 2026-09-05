@@ -205,6 +205,9 @@ def test_search_then_fetch_reuses_serp_cache(tmp_path, monkeypatch):
     assert payload["fetch"]["failed"] == 0
     assert payload["fetch"]["status"] == "complete"
     assert payload["status"] == "complete"
+    # Cache hit schedules no upstream search calls.
+    assert payload["request_count"] == 0
+    assert payload["query_variant_count"] == 1
 
 
 def test_cached_payload_does_not_store_fetch_phase(tmp_path, monkeypatch):
@@ -305,7 +308,16 @@ def test_legacy_payload_without_new_fields_still_loads():
         }
     )
     payload = restored.dict()
-    assert payload["query_variant_count"] == 0
-    assert payload["request_count"] == 0
+    assert payload["query_variant_count"] is None
+    assert payload["request_count"] is None
     assert payload["nonempty_provider_count"] == 1
     assert payload["fetch"]["status"] == "skipped"
+
+
+def test_failed_branch_does_not_count_toward_coverage():
+    failed = ProviderStatus("brave", "q", False, 3)
+    run = SearchRun("q", [_result("https://example.com/a")], [failed])
+    payload = run.dict()
+    assert payload["status"] == "degraded"
+    assert payload["nonempty_provider_count"] == 0
+    assert payload["coverage"] == 0.0
