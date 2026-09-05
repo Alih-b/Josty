@@ -3,6 +3,24 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Search envelope coverage and fanout telemetry (schema 1.0 additive):
+  `provider_count`, `nonempty_provider_count`, `coverage`, `query_variant_count`,
+  and `request_count`. `status=complete` with a single contributing engine is now
+  visible instead of looking like a fused multi-engine confirmation.
+- Fetch-phase counters on the envelope `fetch` object (`requested`, `attempted`,
+  `ok`, `failed`, `status`). A total extraction miss degrades the run.
+- `--diagnose` envelopes set `phase: "transport"`, `probe: "https_host"`, and a
+  note that homepage HTTPS reachability is not search-backend health.
+
+### Fixed
+
+- SERP cache identity no longer includes `fetch`. Search then `--fetch` reuses the
+  cached SERP and only downloads pages, instead of repeating the provider fanout.
+
 ## [0.5.1] - 2026-09-05
 
 ### Added

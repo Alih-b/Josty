@@ -88,6 +88,10 @@ class TestSchemaContract:
         assert d["count"] == 1
         assert d["partial"] is False
         assert d["cached"] is False
+        assert d["provider_count"] == 1
+        assert d["nonempty_provider_count"] == 1
+        assert d["coverage"] == 1.0
+        assert d["fetch"]["status"] == "skipped"
 
     def test_diagnose_dict_includes_schema_version(self):
         d = DiagnoseRun(providers=[]).dict()
@@ -95,6 +99,9 @@ class TestSchemaContract:
         assert d["status"] == "failed"
         assert d["reachable"] == 0
         assert d["count"] == 0
+        assert d["phase"] == "transport"
+        assert d["probe"] == "https_host"
+        assert "not search-backend health" in d["note"]
 
     def test_partial_flag_matches_status(self):
         ok = ProviderStatus("b", "q", True, 1)

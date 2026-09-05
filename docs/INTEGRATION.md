@@ -42,15 +42,29 @@ The default output envelope is:
   "count": 10,
   "partial": false,
   "cached": false,
+  "provider_count": 6,
+  "nonempty_provider_count": 2,
+  "coverage": 0.333,
+  "query_variant_count": 1,
+  "request_count": 6,
+  "fetch": {
+    "requested": false,
+    "attempted": 0,
+    "ok": 0,
+    "failed": 0,
+    "status": "skipped"
+  },
   "providers": [],
   "results": []
 }
 ```
 
-- `complete`: results are available and no branch failed, or every successful branch returned zero.
-- `degraded`: at least one branch failed, while another branch completed or results remain available.
+- `complete`: results are available and no search branch failed, or every successful branch returned zero. This is not multi-engine coverage: read `nonempty_provider_count` / `coverage`.
+- `degraded`: at least one search branch failed, while another branch completed or results remain available; or `--fetch` was requested and every attempted extraction failed (`fetch.status=failed`).
 - `failed`: no results and every attempted branch failed.
-- `cached`: `true` only when the envelope was loaded from the local SQLite cache.
+- `cached`: `true` only when the envelope was loaded from the local SQLite cache. `fetch` is not part of the SERP cache key: search then `--fetch` reuses the cached SERP and only downloads pages.
+- `query_variant_count` / `request_count`: how many query strings were expanded, and how many upstream search calls that scheduled (engines × variants, plus GitHub when opted in).
+- `--diagnose` envelopes set `phase: "transport"` and `probe: "https_host"`. That status is homepage HTTPS reachability, not search health.
 - Empty-ok branches set `error_kind` to `"empty"` only when `result_count` is 0. Skipped
   branches set `error_kind` to `"skipped"` only when no call was made: a breaker cool-down
   (not evidence the engine is down), an engine unknown or disabled in the installed ddgs,

@@ -48,7 +48,7 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument(
         "--diagnose",
         action="store_true",
-        help="probe backend host reachability instead of searching",
+        help="probe HTTPS homepage reachability (transport only; not search health)",
     )
     command.add_argument(
         "--no-cache", action="store_true", help="bypass local disk cache"
