@@ -56,7 +56,7 @@ SEARCH_THREAD_TIMEOUT_HEADROOM = 2.0
 
 # Single version source: the static literal doubles as the pre-install fallback and
 # hatchling's build-time version; installed distributions override via importlib.metadata.
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 with suppress(PackageNotFoundError):
     __version__ = version("josty")
 USER_AGENT = f"josty/{__version__} (+https://github.com/Alih-b/Josty)"
