@@ -89,6 +89,18 @@ josty "RRF rank fusion algorithm" --limit 3 --fetch
   "partial": false,
   "cached": false,
   "run_at": "2026-09-02T12:00:00+00:00",
+  "provider_count": 3,
+  "nonempty_provider_count": 3,
+  "coverage": 1.0,
+  "query_variant_count": 1,
+  "request_count": 3,
+  "fetch": {
+    "requested": true,
+    "attempted": 3,
+    "ok": 3,
+    "failed": 0,
+    "status": "complete"
+  },
   "providers": [
     { "provider": "brave", "query": "Python 3.13 features", "ok": true, "result_count": 5, "error": null, "error_kind": null },
     { "provider": "duckduckgo", "query": "Python 3.13 features", "ok": true, "result_count": 5, "error": null, "error_kind": null },

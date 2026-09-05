@@ -67,11 +67,27 @@ uvx josty --cache-stats
 - `providers[]` reports one entry per search engine (e.g. `brave`, `duckduckgo`), each with its
   own `result_count`, `error_kind`, and breaker state. A throttled or emptying engine is visible
   even when the fused output looks healthy; prefer engines with non-zero counts when weighing
-  evidence. `error_kind: "empty"` means the engine was reached and returned zero URLs
+  evidence. Envelope `provider_count`, `nonempty_provider_count`, and `coverage` (successful
+  non-empty branches / total, 0–1) make single-engine runs visible: `status=complete` with `coverage=0.167` is
+  Brave-only (or otherwise one-of-N), not a fused multi-engine confirmation.
+  `error_kind: "empty"` means the engine was reached and returned zero URLs
   (`result_count=0`). `error_kind: "skipped"` means no call was made. `error_kind: "blocked"`
   means HTTP 401/403 or an auth/forbidden challenge — not throttling. `error_kind: "rate_limited"`
   is reserved for 429 / rate-limit tokens. A hit (`result_count>0`) never carries `empty` or
   `skipped` from a sibling query variant.
+- `query_variant_count` is how many query strings `--mode` / `--site` expanded to.
+  `request_count` is the scheduled upstream search fanout (engines × variants, plus one when
+  `--github` is set). `--mode oss` with two `--site` filters is 8 variants × 6 engines = 48
+  calls unless `--max-query-variants` caps it. Prefer the cap in loops.
+- `--fetch` is a separate phase on the envelope `fetch` object (`requested`, `attempted`,
+  `ok`, `failed`, `status`). A total extraction miss (`ok=0` with `attempted>0`) sets
+  `fetch.status=failed` and degrades the run; do not treat that as a clean search. Partial
+  extraction success stays on the search status and is visible on `fetch.ok` / `fetch.failed`.
+- `--diagnose` is **transport-only**: the envelope sets `phase: "transport"` and
+  `probe: "https_host"`. It GETs each engine's public homepage. That is not search-backend
+  health. Search can succeed while diagnose reports `failed` or a 429 `challenged` host.
+  `--diagnose` does not probe a host whose search breaker is OPEN; it reports
+  `error_kind: "skipped"` with cool-down telemetry instead.
 - Each `(engine, error class)` pair has an in-process circuit breaker: 3 failures within 60 s
   opens the breaker for 30 s (exponential backoff on consecutive trips, capped at `2^6`).
   HALF_OPEN admits one trial probe; other concurrent callers skip until that probe completes.
@@ -85,8 +101,6 @@ uvx josty --cache-stats
   neither trips nor clears the breaker. Consecutive trip counts decay after idle time past
   the last backoff plus the failure window, so a backend idle for hours does not resume at
   an inflated backoff. The breaker is per-process.
-- `--diagnose` does not probe a host whose search breaker is OPEN; it reports
-  `error_kind: "skipped"` with cool-down telemetry instead.
 - No automatic retry: hidden amplification is treated as a worse failure mode than
   surfacing a `degraded` or `failed` status.
 
@@ -96,13 +110,24 @@ GitHub API limits.
 ## Research rules
 
 - Use focused queries and run independent searches concurrently only when useful.
-- Check `status`, `partial`, `cached`, and `providers`; provider failure is not evidence of absence.
-- `status=complete` with empty or off-topic results is not evidence of absence. An `ok` provider with `result_count=0` and `error_kind="empty"` is a successful empty branch, not a backend outage.
+- Check `status`, `partial`, `cached`, `coverage`, `nonempty_provider_count`, `request_count`,
+  `fetch`, and `providers`; provider failure is not evidence of absence.
+- `status=complete` means no search-branch failure, not multi-engine coverage. An `ok`
+  provider with `result_count=0` and `error_kind="empty"` is a successful empty branch, not a
+  backend outage. Read `nonempty_provider_count` / `coverage` before treating the fused list
+  as independently confirmed.
 - Josty does not rewrite queries or retry backends when results are empty. If the query is over-constrained, issue a new search yourself.
 - `--category news` can return token-collision junk (e.g. "3.14" matching "District 14"). Require the subject token in title or snippet before citing a news hit. This is a citation rule, not an engine filter.
-- `--diagnose` `ok=true` means the host answered HTTP, including 403/429. Read `http_status` and `challenged`; they are not search-quality signals. An OPEN circuit is not probed: `error_kind` is `"skipped"`.
-- `cached: true` means the envelope was served from the local SQLite cache. Treat it as a prior live result, not a fresh probe. Check the envelope `run_at` (ISO8601 UTC) to judge age; timelimit=d results expire from cache after 30 minutes, news after 1 hour, timelimit=w after 2 hours.
-- `--fetch` 403 or a download-limit error is per-URL; try the next result.
+- `--diagnose` is a homepage HTTPS probe (`phase: "transport"`). `ok=true` means the host
+  answered HTTP, including 403/429. Read `http_status` and `challenged`; they are not
+  search-quality signals. Diagnose `failed` does not mean search is down. An OPEN circuit is
+  not probed: `error_kind` is `"skipped"`.
+- `cached: true` means the envelope was served from the local SQLite cache. Search then
+  `--fetch` reuses the SERP cache and only downloads pages. Treat a cached hit as a prior
+  live result, not a fresh probe. Check the envelope `run_at` (ISO8601 UTC) to judge age;
+  timelimit=d results expire from cache after 30 minutes, news after 1 hour, timelimit=w after 2 hours.
+- `--fetch` 403 or a download-limit error is per-URL; try the next result. If
+  `fetch.status=failed`, no page was extracted — do not cite snippets as fetched content.
 - Verify important claims against primary sources before citing them.
 - Treat Reddit, X, blogs, and forums as discovery or opinion evidence.
 - Distinguish observed facts from inference and note unresolved conflicts.

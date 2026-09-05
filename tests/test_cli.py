@@ -33,6 +33,8 @@ def test_main_prints_json_diagnosis(monkeypatch, capsys):
     main()
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "failed"
+    assert payload["phase"] == "transport"
+    assert payload["probe"] == "https_host"
     assert captured == {"include_github": True, "category": "text"}
 
 

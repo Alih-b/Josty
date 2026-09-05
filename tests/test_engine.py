@@ -756,6 +756,9 @@ def test_diagnose_probes_each_backend_group_host_with_bare_get(monkeypatch):
     assert all(entry["ok"] and entry["http_status"] == 200 for entry in by_host.values())
     assert payload["status"] == "complete"
     assert payload["schema_version"] == "1.0"
+    assert payload["phase"] == "transport"
+    assert payload["probe"] == "https_host"
+    assert "not search-backend health" in payload["note"]
 
 
 def test_diagnose_reports_http_status_for_challenged_hosts(monkeypatch):

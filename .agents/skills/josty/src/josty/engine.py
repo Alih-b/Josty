@@ -43,6 +43,10 @@ CACHE_MAX_ROWS = 5000
 CACHE_PRUNE_BATCH = 500
 CACHE_MAX_BYTES = 50_000_000
 CHALLENGED_HTTP_STATUSES = frozenset({401, 403, 429})
+DIAGNOSE_NOTE = (
+    "HTTPS homepage reachability only; not search-backend health. "
+    "Search can succeed while this reports failed or degraded."
+)
 _ALLOWED_FETCH_CONTENT_TYPES = frozenset(
     {"text/html", "application/xhtml+xml", "text/plain"}
 )
@@ -52,7 +56,7 @@ SEARCH_THREAD_TIMEOUT_HEADROOM = 2.0
 
 # Single version source: the static literal doubles as the pre-install fallback and
 # hatchling's build-time version; installed distributions override via importlib.metadata.
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 with suppress(PackageNotFoundError):
     __version__ = version("josty")
 USER_AGENT = f"josty/{__version__} (+https://github.com/Alih-b/Josty)"
@@ -543,9 +547,12 @@ class DiagnoseRun:
     def dict(self) -> dict[str, Any]:
         return {
             "schema_version": SCHEMA_VERSION,
+            "phase": "transport",
+            "probe": "https_host",
             "status": self.status,
             "reachable": self.reachable,
             "count": len(self.providers),
+            "note": DIAGNOSE_NOTE,
             "providers": [provider.dict() for provider in self.providers],
         }
 
@@ -557,16 +564,58 @@ class SearchRun:
     providers: list[ProviderStatus] = field(default_factory=list)
     cached: bool = False
     run_at: str | None = None  # ISO8601 UTC moment the search was executed
+    query_variant_count: int | None = None
+    request_count: int | None = None
+    fetch_requested: bool = False
+    fetch_attempted: int = 0
+    fetch_ok: int = 0
+    fetch_failed: int = 0
+
+    @property
+    def provider_count(self) -> int:
+        return len(self.providers)
+
+    @property
+    def nonempty_provider_count(self) -> int:
+        return sum(
+            1
+            for provider in self.providers
+            if provider.ok and provider.result_count > 0
+        )
+
+    @property
+    def coverage(self) -> float | None:
+        n = len(self.providers)
+        if n == 0:
+            return None
+        return round(self.nonempty_provider_count / n, 3)
+
+    @property
+    def fetch_status(self) -> str:
+        if not self.fetch_requested or self.fetch_attempted == 0:
+            return "skipped"
+        if self.fetch_ok == 0:
+            return "failed"
+        if self.fetch_failed > 0:
+            return "degraded"
+        return "complete"
 
     @property
     def partial(self) -> bool:
         # A provider is a failed branch when its call failed outright, or when it
         # answered but an aggregated query variant failed (ok=true with a failure
         # error_kind). "empty" is a successful empty branch, not a failure.
-        return any(
+        search_partial = any(
             not provider.ok or provider.error_kind not in (None, "empty")
             for provider in self.providers
         )
+        # Fetch is a separate phase: a total extraction miss must not look like
+        # a clean search. Partial fetch success stays on the search status and
+        # is visible on fetch.{ok,failed,status}.
+        fetch_total_miss = (
+            self.fetch_requested and self.fetch_attempted > 0 and self.fetch_ok == 0
+        )
+        return search_partial or fetch_total_miss
 
     @property
     def status(self) -> str:
@@ -584,6 +633,18 @@ class SearchRun:
             "count": len(self.results),
             "partial": self.partial,
             "cached": self.cached,
+            "provider_count": self.provider_count,
+            "nonempty_provider_count": self.nonempty_provider_count,
+            "coverage": self.coverage,
+            "query_variant_count": self.query_variant_count,
+            "request_count": self.request_count,
+            "fetch": {
+                "requested": self.fetch_requested,
+                "attempted": self.fetch_attempted,
+                "ok": self.fetch_ok,
+                "failed": self.fetch_failed,
+                "status": self.fetch_status,
+            },
             "providers": [provider.dict() for provider in self.providers],
             "results": [result.dict() for result in self.results],
         }
@@ -1049,15 +1110,37 @@ def _ttl_for(category: str, timelimit: str | None, default: float) -> float:
     return default
 
 
+def _stamp_fetch_stats(run: SearchRun, *, requested: bool) -> None:
+    """Record fetch-phase counters on ``run`` after optional ``fetch_content``."""
+    run.fetch_requested = requested
+    if not requested:
+        run.fetch_attempted = 0
+        run.fetch_ok = 0
+        run.fetch_failed = 0
+        return
+    run.fetch_attempted = len(run.results)
+    run.fetch_ok = sum(1 for item in run.results if (item.content or "").strip())
+    run.fetch_failed = run.fetch_attempted - run.fetch_ok
+
+
 def _strip_fetch_fields(payload: dict[str, Any]) -> dict[str, Any]:
     """Blank per-result fetch fields so cached payloads stay small (SERPs, not page text).
 
     Mutates ``payload`` in place; callers pass a freshly built ``run.dict()``.
-    Keys stay present as ``null`` so the schema contract is stable.
+    Keys stay present as ``null`` so the schema contract is stable. Fetch-phase
+    counters are reset to skipped: the cache identity is SERP-only, and a later
+    ``fetch=True`` hit rehydrates pages without repeating provider fanout.
     """
     for result in payload.get("results", []):
         for field_name in _FETCH_ONLY_FIELDS:
             result[field_name] = None
+    payload["fetch"] = {
+        "requested": False,
+        "attempted": 0,
+        "ok": 0,
+        "failed": 0,
+        "status": "skipped",
+    }
     return payload
 
 
@@ -1180,12 +1263,36 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
                 backoff_remaining=bo,
             )
         )
+
+    def _as_int(value: Any, default: int = 0) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _as_opt_int(value: Any) -> int | None:
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    fetch_raw = payload.get("fetch")
+    if not isinstance(fetch_raw, dict):
+        fetch_raw = {}
     return SearchRun(
         query=str(payload.get("query", "")),
         results=results,
         providers=providers,
         cached=bool(payload.get("cached", False)),
         run_at=payload.get("run_at"),
+        query_variant_count=_as_opt_int(payload.get("query_variant_count")),
+        request_count=_as_opt_int(payload.get("request_count")),
+        fetch_requested=bool(fetch_raw.get("requested", False)),
+        fetch_attempted=_as_int(fetch_raw.get("attempted")),
+        fetch_ok=_as_int(fetch_raw.get("ok")),
+        fetch_failed=_as_int(fetch_raw.get("failed")),
     )
 
 
@@ -1534,6 +1641,42 @@ class Josty:
             "backoff_remaining": b["backoff_remaining"],
         }
 
+    def _engine_specs(self, category: SearchCategory) -> list[tuple[int, str]]:
+        """Unique engines in first-seen group order (duplicates across groups dropped)."""
+        groups = self.news_backends if category == "news" else self.backends
+        specs: list[tuple[int, str]] = []
+        seen: set[str] = set()
+        for group_index, group in enumerate(groups):
+            for name in group.split(","):
+                name = name.strip()
+                if not name or name in seen:
+                    continue
+                seen.add(name)
+                specs.append((group_index, name))
+        return specs
+
+    def _engine_names(self, category: SearchCategory) -> list[str]:
+        return [name for _, name in self._engine_specs(category)]
+
+    def _fanout_telemetry(
+        self,
+        query: str,
+        *,
+        sites: list[str],
+        mode: SearchMode,
+        category: SearchCategory,
+        include_github: bool,
+        max_query_variants: int | None,
+    ) -> tuple[int, int]:
+        """Return ``(query_variant_count, scheduled_request_count)`` for this call."""
+        variants = self.expand(
+            query, sites, mode, max_query_variants=max_query_variants
+        )
+        request_count = len(self._engine_names(category)) * len(variants)
+        if include_github:
+            request_count += 1
+        return len(variants), request_count
+
     def _search_semaphore(self) -> asyncio.Semaphore:
         if self._search_sem is None:
             self._search_sem = asyncio.Semaphore(self.max_search_concurrency)
@@ -1805,17 +1948,9 @@ class Josty:
             max_query_variants=effective_max_variants,
         )
         groups = self.news_backends if category == "news" else self.backends
-        engine_specs = []
-        seen_engines: set[str] = set()
-        for group_index, group in enumerate(groups):
-            for name in group.split(","):
-                name = name.strip()
-                # An engine listed in multiple groups is queried once, in its
-                # first group: one call and one status per engine, contract-wide.
-                if not name or name in seen_engines:
-                    continue
-                seen_engines.add(name)
-                engine_specs.append((group_index, name))
+        # An engine listed in multiple groups is queried once, in its first
+        # group: one call and one status per engine, contract-wide.
+        engine_specs = self._engine_specs(category)
         batches = await asyncio.gather(
             *(
                 self._ddgs(
@@ -2184,49 +2319,44 @@ class Josty:
     ) -> DiagnoseRun:
         """Probe each configured backend's upstream host without running ddgs.
 
-        Reports bare HTTPS reachability per provider so callers can distinguish
-        network-unreachable hosts from reachable-but-challenged ones. Probes only
-        the backends the current category would use, plus api.github.com when
-        ``include_github`` is set — mirroring ``research_run``.
+        Reports bare HTTPS homepage reachability (``phase: transport``) so callers
+        can distinguish network-unreachable hosts from reachable-but-challenged
+        ones. This is not search-backend health: ddgs can succeed while a
+        homepage GET fails. Probes only the backends the current category would
+        use, plus api.github.com when ``include_github`` is set — mirroring
+        ``research_run``.
         """
-        groups = self.news_backends if category == "news" else self.backends
         targets: list[tuple[str, str]] = []
         skipped: list[HostStatus] = []
-        seen_providers: set[str] = set()
-        for group in groups:
-            for name in group.split(","):
-                name = name.strip()
-                if not name or name in seen_providers:
-                    continue
-                seen_providers.add(name)
-                available, unavailable_message = _engine_available(category, name)
-                if not available:
-                    skipped.append(
-                        HostStatus(
-                            name,
-                            "",
-                            False,
-                            None,
-                            "skipped",
-                            unavailable_message,
-                            **self._breaker_telemetry(name),
-                        )
+        for name in self._engine_names(category):
+            available, unavailable_message = _engine_available(category, name)
+            if not available:
+                skipped.append(
+                    HostStatus(
+                        name,
+                        "",
+                        False,
+                        None,
+                        "skipped",
+                        unavailable_message,
+                        **self._breaker_telemetry(name),
                     )
-                    continue
-                host = self.BACKEND_HOSTS.get(name, "")
-                if not host:
-                    skipped.append(
-                        HostStatus(
-                            name,
-                            "",
-                            False,
-                            None,
-                            "skipped",
-                            f"skipped: no known upstream host for '{name}'",
-                        )
+                )
+                continue
+            host = self.BACKEND_HOSTS.get(name, "")
+            if not host:
+                skipped.append(
+                    HostStatus(
+                        name,
+                        "",
+                        False,
+                        None,
+                        "skipped",
+                        f"skipped: no known upstream host for '{name}'",
                     )
-                    continue
-                targets.append((name, host))
+                )
+                continue
+            targets.append((name, host))
         if include_github:
             targets.append(("github-api", self.BACKEND_HOSTS["github-api"]))
         statuses = await asyncio.gather(*(self._probe_host(name, host) for name, host in targets))
@@ -2258,14 +2388,22 @@ class Josty:
             raise ValueError("max_query_variants must be positive")
         cache_key = None
         normalized_sites = normalize_sites(sites)
+        variant_count, scheduled_requests = self._fanout_telemetry(
+            query,
+            sites=normalized_sites,
+            mode=mode,
+            category=category,
+            include_github=include_github,
+            max_query_variants=effective_max_variants,
+        )
         if self.enable_cache and self.cache:
             effective_backends = tuple(self.news_backends if category == "news" else self.backends)
+            # SERP identity: fetch is a separate phase and must not bust the cache.
             cache_key = self.cache.hash_key(
                 query,
                 sites=normalized_sites,
                 mode=mode,
                 limit=limit,
-                fetch=fetch,
                 include_github=include_github,
                 category=category,
                 region=region,
@@ -2279,9 +2417,13 @@ class Josty:
             if cached_data is not None:
                 try:
                     run = _search_run_from_dict(cached_data)
+                    run.query_variant_count = variant_count
+                    # Cache hit: no upstream search is scheduled on this call.
+                    run.request_count = 0
                     if fetch and any(result.content is None for result in run.results):
                         # Cached payload is SERP-only; rehydrate page content on demand.
                         await self.fetch_content(run.results)
+                    _stamp_fetch_stats(run, requested=fetch)
                     run.cached = True
                     return run
                 except Exception:
@@ -2317,7 +2459,10 @@ class Josty:
             results=results,
             providers=providers,
             run_at=datetime.now(UTC).isoformat(),
+            query_variant_count=variant_count,
+            request_count=scheduled_requests,
         )
+        _stamp_fetch_stats(run, requested=fetch)
         if (
             cache_key
             and self.enable_cache

@@ -12,7 +12,7 @@ Every finding gets exactly one class, plus a **confidence** and a **layer**.
 | Class | Means | Live-run example |
 |---|---|---|
 | `contract_bug` | Josty promised X in the schema, CLI, or docs and did Y | site leak; non-JSON stdout; search `count` ≠ `len(results)` |
-| `intended_misleading` | Code and tests match, but an agent will treat the signal as the wrong kind of success or failure | `--diagnose` HTTP 429 → `ok=true` without reading `challenged`/`http_status`; empty backends → `status=complete` without reading `error_kind` |
+| `intended_misleading` | Code and tests match, but an agent will treat the signal as the wrong kind of success or failure | `--diagnose` HTTP 429 → `ok=true` without reading `challenged`/`http_status`/`phase=transport`; empty backends → `status=complete` without reading `error_kind` / `nonempty_provider_count` |
 | `upstream_quality` | ddgs or the host returned junk; Josty forwarded it faithfully | `ddgs.news("Python 3.14")` → Bay News 9 “District 14” |
 | `product_gap` | Faithful, but not useful enough for real agent work | academic profile loses to Wikipedia/AWS; no lexical relevance gate on news |
 
@@ -61,7 +61,7 @@ never `contract_bug`.
 | `fetch_rrf` | fetch | Learn.microsoft content + Medium `403` as `fetch_error` | (pass) | `reproduced` |
 | `diagnose_reachability` | diagnose | Brave HTTP 429 still `ok=true` | documents contract; `challenged=true` | `reproduced` |
 | `linux_kernel_year` | fetch | Wikipedia extract contains 1991 | (pass) | `reproduced` |
-| `empty_provider_complete` | status | all `ok`, one `result_count=0` → `complete` | documents contract; `error_kind=empty` | `reproduced` |
+| `empty_provider_complete` | status | all `ok`, one `result_count=0` → `complete` | documents contract; `error_kind=empty` plus `nonempty_provider_count` / `coverage` | `reproduced` |
 
 ## Pathways backlog
 
