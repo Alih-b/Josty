@@ -3,6 +3,26 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - 2026-09-20
+
+### Fixed
+
+- `tests/scenario_eval.py` and `tests/benchmark.py` no longer build `sys.path`
+  from the pre-refactor `.agents/skills/josty/src`. They load the source tree at
+  `src/`, so the scenarios and the frozen-corpus replay can no longer silently
+  score whichever `josty` happened to be installed.
+
+### Removed
+
+- Seven unused `datetime.UTC` compatibility shims and the unreferenced
+  `AUTHORITATIVE_DOMAINS` alias. No public API, CLI, or schema change.
+
+### Changed
+
+- CI runs the declared Python 3.10 floor alongside 3.11–3.13.
+- The development `ruff` floor is now 0.16.8, the version CI resolves, so a
+  local `ruff check .` agrees with CI instead of passing on 0.16.5.
+
 ## [0.6.0] - 2026-09-19
 
 ### Added
