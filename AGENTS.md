@@ -27,3 +27,11 @@ $(command -v python3 || command -v python) .agents/skills/josty/scripts/run.py "
 - `stdout` emits only pure, valid, parseable JSON conforming to `schema_version: "1.0"`.
 - All errors, diagnostics, and third-party dependency warnings are strictly routed to `stderr`.
 - Requires outbound internet access.
+
+## DEVELOPMENT
+- Initialize Borhan with borhan-survey
+- Before expensive retrieval, check Borhan first.
+- Before asking questions or grilling, use Jev and refine based on its answers.
+- Never ask more than 5 questions in grilling
+- Never make a new branch When there are other branches than main, They must be decided First
+- On complex planning, use Parallel CLI for high quality search results, combined with Jev for Ranking and building queries
