@@ -109,8 +109,8 @@ class TestSchemaContract:
         assert SearchRun("q", [result("https://a.test")], [ok]).status == "complete"
         assert SearchRun("q", [result("https://a.test")], [ok, failed]).status == "degraded"
         assert SearchRun("q", [], [failed, failed]).status == "failed"
-        # Empty results but all providers OK -> still 'complete' (not 'failed')
-        assert SearchRun("q", [], [ok]).status == "complete"
+        # Empty results with no branch failure have their own non-success signal.
+        assert SearchRun("q", [], [ok]).status == "empty"
 
 
 # ======================================================================================
@@ -926,7 +926,7 @@ class TestCache:
 
     def test_empty_ddgs_results_count_as_success(self, monkeypatch):
         """When ddgs raises 'no results found' it is classified as 'empty'.
-        Empty is a successful empty branch (ok=true, status=complete) but does
+        Empty is a successful empty branch (ok=true, run status=empty) but does
         not record_success on the breaker — it neither trips nor clears it."""
         from ddgs.exceptions import DDGSException
         class EmptyDDGS:
@@ -941,7 +941,7 @@ class TestCache:
         assert run.providers[0].error is None
         assert run.providers[0].error_kind == "empty"
         assert run.results == []
-        assert run.status == "complete"
+        assert run.status == "empty"
 
     def test_empty_row_list_sets_error_kind_empty(self, monkeypatch):
         class EmptyDDGS:

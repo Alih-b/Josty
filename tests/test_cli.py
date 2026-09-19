@@ -130,7 +130,7 @@ def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch
     assert raw_stdout.startswith("{") or raw_stdout.startswith("[")
     parsed = json.loads(raw_stdout)
     assert isinstance(parsed, dict)
-    assert parsed["status"] == "complete"
+    assert parsed["status"] == "empty"
     assert parsed["query"] == "test"
 
 

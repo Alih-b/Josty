@@ -3,6 +3,14 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Successful searches with no final results now report `status: "empty"` instead
+  of `"complete"` (#58). Schema remains `1.0`; failure precedence, fetch and
+  diagnose statuses, and CLI exit codes are unchanged.
+
 ## [0.5.2] - 2026-09-05
 
 ### Added

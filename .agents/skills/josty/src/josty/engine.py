@@ -623,6 +623,8 @@ class SearchRun:
             return "failed"
         if self.partial:
             return "degraded"
+        if not self.results:
+            return "empty"
         return "complete"
 
     def dict(self) -> dict[str, Any]:
