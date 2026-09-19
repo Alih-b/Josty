@@ -27,6 +27,11 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   envelope with no results and no branch failures now reads as `empty`.
   An empty `SearchRun` with no provider entries also reports `empty`, with
   `provider_count=0`, `coverage=null`, and `partial=false`.
+- The Python package moved out of the agent skill directory to a repo-root
+  `src/josty/` layout, and the single 2,506-line `engine.py` was split into
+  focused modules (`status`, `models`, `errors`, `ranking`, `cache`, `breaker`,
+  `backends`, `fetch`) with `engine.py` keeping the `Josty` facade. The public
+  `josty` API and the CLI are unchanged; this is a maintainer-facing change.
 
 ### Fixed
 

@@ -13,14 +13,10 @@ import json
 import sqlite3
 
 import pytest
-from josty.engine import (
-    Josty,
-    ProviderStatus,
-    SearchResult,
-    SearchRun,
-    _search_run_from_dict,
-    _strip_fetch_fields,
-)
+
+from josty.cache import _search_run_from_dict, _strip_fetch_fields
+from josty.engine import Josty
+from josty.models import ProviderStatus, SearchResult, SearchRun
 
 
 def _result(url: str, source: str = "brave") -> SearchResult:

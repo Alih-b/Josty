@@ -1,7 +1,7 @@
 # Release checklist
 
 1. Update `CHANGELOG.md` and bump the single-source `__version__` literal in
-   `.agents/skills/josty/src/josty/engine.py` (hatchling reads it via
+   `src/josty/_version.py` (hatchling reads it via
    `[tool.hatch.version]`; `pyproject.toml` and `__init__.py` re-export it and must
    not hold a second copy).
 2. Confirm repository ownership, author metadata, and `[project.urls]` in `pyproject.toml`.

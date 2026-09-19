@@ -3,8 +3,9 @@
 import json
 
 import pytest
+
 from josty.cli import main, parser
-from josty.engine import DiagnoseRun
+from josty.models import DiagnoseRun
 
 
 def test_query_defaults_are_explicit():
@@ -105,7 +106,7 @@ def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch
     """Assert stdout contains valid JSON and nothing else, even when stderr has warnings."""
     import sys
 
-    from josty.engine import SearchRun
+    from josty.models import SearchRun
 
     async def fake_research(self, *args, **kwargs):
         # Simulate stderr output like rustls native root cert warnings or third-party loggers
@@ -135,7 +136,7 @@ def test_cli_stdout_is_strictly_valid_json_even_with_stderr_warnings(monkeypatch
 
 
 def test_cli_sanitizes_nan_instead_of_exiting(monkeypatch, capsys):
-    from josty.engine import SearchResult, SearchRun
+    from josty.models import SearchResult, SearchRun
 
     async def fake_research(self, *args, **kwargs):
         return SearchRun(
@@ -176,7 +177,7 @@ def test_parser_handles_max_content_chars_flag():
 
 
 def test_version_flag_prints_single_source_version(capsys):
-    from josty.engine import __version__
+    from josty._version import __version__
 
     with pytest.raises(SystemExit) as exc:
         parser().parse_args(["--version"])
@@ -185,7 +186,7 @@ def test_version_flag_prints_single_source_version(capsys):
 
 
 def test_version_flag_ends_only_flags_run(monkeypatch, capsys):
-    from josty.engine import __version__
+    from josty._version import __version__
 
     monkeypatch.setattr("sys.argv", ["josty", "--version"])
     with pytest.raises(SystemExit) as exc:
@@ -195,7 +196,7 @@ def test_version_flag_ends_only_flags_run(monkeypatch, capsys):
 
 
 def _failed_run(query: str):
-    from josty.engine import ProviderStatus, SearchRun
+    from josty.models import ProviderStatus, SearchRun
 
     return SearchRun(
         query=query,
@@ -219,7 +220,7 @@ def test_search_failed_status_exits_one(monkeypatch, capsys):
 
 
 def test_search_degraded_status_exits_zero(monkeypatch, capsys):
-    from josty.engine import ProviderStatus, SearchResult, SearchRun
+    from josty.models import ProviderStatus, SearchResult, SearchRun
 
     async def fake_research(self, *args, **kwargs):
         return SearchRun(
@@ -250,7 +251,7 @@ def test_results_only_failed_search_exits_zero(monkeypatch, capsys):
 
 
 def test_diagnose_failed_status_exits_zero(monkeypatch, capsys):
-    from josty.engine import DiagnoseRun
+    from josty.models import DiagnoseRun
 
     async def fake_diagnose(self, include_github=False, category="text"):
         return DiagnoseRun()

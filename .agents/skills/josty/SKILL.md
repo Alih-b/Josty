@@ -32,9 +32,10 @@ command -v pipx >/dev/null 2>&1 && pipx install josty || \
 $(command -v python3 || command -v python) -m pip install --user josty
 ```
 
-> Why no bundled fallback? A belt skill is a directory of flat files; it cannot carry a multi-file Python
-> package (relative imports break when the tree is flattened). The engine lives once, on PyPI, and every
-> distribution path — belt, uvx, pip, the source repo — points at that same installed CLI.
+> Why no bundled fallback? The engine is a multi-file Python package, and a skill directory
+> is a set of flat files that relative imports do not survive. The engine lives once, on PyPI
+> (source under `src/josty/`), and every distribution path — uvx, pip, the source repo —
+> points at that same installed CLI.
 
 ## Options
 

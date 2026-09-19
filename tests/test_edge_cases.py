@@ -23,24 +23,15 @@ from urllib.parse import urlparse
 
 import httpx
 import pytest
+
+from josty.breaker import CircuitBreaker
+from josty.cache import SearchCache
 from josty.cli import main as cli_main
-from josty.engine import (
-    SCHEMA_VERSION,
-    CircuitBreaker,
-    DiagnoseRun,
-    Josty,
-    ProviderStatus,
-    SearchCache,
-    SearchResult,
-    SearchRun,
-    _classify_probe_error,
-    _classify_search_error,
-    canonical,
-    domain_weight,
-    merge_query_variants,
-    normalize_sites,
-    rrf,
-)
+from josty.engine import Josty
+from josty.errors import _classify_probe_error, _classify_search_error
+from josty.models import DiagnoseRun, ProviderStatus, SearchResult, SearchRun
+from josty.ranking import canonical, domain_weight, merge_query_variants, normalize_sites, rrf
+from josty.status import SCHEMA_VERSION
 
 # --------------------------------------------------------------------------------------
 # Fixtures
@@ -863,7 +854,7 @@ class TestCache:
         # Valid JSON with the wrong shape (e.g. a list) must raise in
         # _search_run_from_dict so research_run's handler evicts the entry and
         # refetches, instead of serving a corrupt payload forever.
-        from josty.engine import _search_run_from_dict
+        from josty.cache import _search_run_from_dict
 
         with pytest.raises(ValueError):
             _search_run_from_dict([])
@@ -1602,14 +1593,14 @@ class TestMergeResult:
     def test_merge_combines_sources(self):
         a = SearchResult("t", "https://example.com/x", sources=["a"])
         b = SearchResult("t2", "https://example.com/x", sources=["b"])
-        from josty.engine import _merge_result
+        from josty.ranking import _merge_result
         _merge_result(a, b)
         assert a.sources == ["a", "b"]
 
     def test_merge_keeps_longer_snippet(self):
         a = SearchResult("t", "https://example.com/x", snippet="short")
         b = SearchResult("t2", "https://example.com/x", snippet="longer snippet text")
-        from josty.engine import _merge_result
+        from josty.ranking import _merge_result
         _merge_result(a, b)
         assert a.snippet == "longer snippet text"
         assert a.title == "t2"
@@ -1617,7 +1608,7 @@ class TestMergeResult:
     def test_merge_keeps_first_published_at(self):
         a = SearchResult("t", "https://example.com/x", published_at="2025-01-01")
         b = SearchResult("t2", "https://example.com/x", published_at="2026-01-01")
-        from josty.engine import _merge_result
+        from josty.ranking import _merge_result
         _merge_result(a, b)
         # First non-None wins
         assert a.published_at == "2025-01-01"
@@ -1642,7 +1633,7 @@ class TestRoundTrip:
             ],
             providers=[ProviderStatus("bing,brave", "test", True, 1)],
         )
-        from josty.engine import _search_run_from_dict
+        from josty.cache import _search_run_from_dict
         restored = _search_run_from_dict(original.dict())
         assert restored.query == original.query
         assert len(restored.results) == 1
@@ -1660,7 +1651,7 @@ class TestRoundTrip:
             providers=[ProviderStatus("bing", "test", True, 1)],
             cached=True,
         )
-        from josty.engine import _search_run_from_dict
+        from josty.cache import _search_run_from_dict
         restored = _search_run_from_dict(original.dict())
         assert restored.cached is True
 

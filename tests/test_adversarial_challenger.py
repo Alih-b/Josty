@@ -7,8 +7,10 @@ import time
 
 import pytest
 from ddgs.exceptions import RatelimitException, TimeoutException
-from josty.engine import CircuitBreaker, Josty
 from mock_ddgs import MockDDGSEngine, freeze_monotonic
+
+from josty.breaker import CircuitBreaker
+from josty.engine import Josty
 
 
 @pytest.fixture(autouse=True)

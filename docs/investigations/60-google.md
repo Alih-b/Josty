@@ -38,7 +38,7 @@ only Google. `_get_engines` is a private diagnostic hook, not a supported API.
 
 The relevant installed sources are `ddgs/engines/google.py` (`disabled = True`)
 and `ddgs/ddgs.py` (`_get_engines` falls back to `auto` when no instances match).
-Josty's corresponding registration is in `.agents/skills/josty/src/josty/engine.py`.
+Josty's corresponding registration is in `src/josty/backends.py`.
 
 Version scope: this fallback is specific to ddgs 9.15.0. `pyproject.toml` allows
 `ddgs>=9.15.0,<10`, and on an installation with ddgs 9.16.0 the same snippet prints

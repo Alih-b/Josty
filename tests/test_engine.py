@@ -8,24 +8,15 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from josty.engine import (
-    CircuitBreaker,
-    Josty,
-    ProviderStatus,
-    SearchCache,
-    SearchResult,
-    SearchRun,
-    _aggregate_engine_status,
-    _content_type_allowed,
-    _engine_available,
-    _search_run_from_dict,
-    _ttl_for,
-    canonical,
-    domain_weight,
-    merge_query_variants,
-    normalize_sites,
-    rrf,
-)
+
+from josty.backends import _engine_available
+from josty.breaker import CircuitBreaker
+from josty.cache import SearchCache, _search_run_from_dict, _ttl_for
+from josty.engine import Josty
+from josty.errors import _aggregate_engine_status
+from josty.fetch import _content_type_allowed
+from josty.models import ProviderStatus, SearchResult, SearchRun
+from josty.ranking import canonical, domain_weight, merge_query_variants, normalize_sites, rrf
 
 
 @pytest.fixture(autouse=True)
@@ -607,7 +598,8 @@ def test_merge_query_variants_best_rank_merge_without_frequency_vote():
     # attribution contract (PROJECT.md "Transparent RRF Attribution
     # Contract"). This supersedes the earlier one-vote-per-group policy that
     # could not attribute contributions verifiably.
-    from josty.engine import SearchResult, merge_query_variants, rrf
+    from josty.models import SearchResult
+    from josty.ranking import merge_query_variants, rrf
 
     def item(url, source):
         return SearchResult(source, url, "query", sources=[source])
@@ -1373,7 +1365,7 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
 
 
 def test_fetch_content_browser_headers_and_truncation(monkeypatch):
-    from josty.engine import BROWSER_FETCH_HEADERS
+    from josty.fetch import BROWSER_FETCH_HEADERS
 
     captured_headers = {}
 
@@ -1424,7 +1416,7 @@ def test_library_default_max_content_chars_matches_cli(tmp_path):
 
 
 def test_domain_weights_expanded_authoritative_sets():
-    from josty.engine import domain_weight
+    from josty.ranking import domain_weight
 
     # Dev profile boosts AI & modern dev domains
     assert domain_weight("https://huggingface.co/models", profile="dev") == 1.3

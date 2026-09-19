@@ -5,7 +5,9 @@ import math
 import os
 import sys
 
-from .engine import Josty, SearchStatus, __version__
+from ._version import __version__
+from .engine import Josty
+from .status import SearchStatus
 
 
 def parser() -> argparse.ArgumentParser:

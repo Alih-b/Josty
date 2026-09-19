@@ -45,16 +45,17 @@ dev = [
 josty = "josty.cli:main"
 
 [tool.hatch.version]
-path = ".agents/skills/josty/src/josty/engine.py"
+path = "src/josty/_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = [".agents/skills/josty/src/josty"]
-sources = [".agents/skills/josty/src"]
+packages = ["src/josty"]
+sources = ["src"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  ".agents/skills/josty",
+  "src",
   "tests",
+  "scripts",
   "docs",
   "README.md",
   "CHANGELOG.md",
@@ -77,7 +78,7 @@ exclude = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".agents/skills/josty/src", "tests"]
+pythonpath = ["src", "tests"]
 
 [tool.ruff]
 line-length = 100

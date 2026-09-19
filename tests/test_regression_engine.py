@@ -1,5 +1,7 @@
 from ddgs.exceptions import DDGSException
-from josty.engine import CircuitBreaker, _classify_search_error
+
+from josty.breaker import CircuitBreaker
+from josty.errors import _classify_search_error
 
 
 def test_classify_empty_error():
