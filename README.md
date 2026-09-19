@@ -120,6 +120,11 @@ josty "RRF rank fusion algorithm" --limit 3 --fetch
 }
 ```
 
+`status` is one of `complete`, `empty`, `degraded`, or `failed`. `empty` means no
+results remain and no branch failed (`count=0`); treat it as "no usable result", not
+success. `degraded` and `failed` take precedence over `empty`. See
+[`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full status and envelope semantics.
+
 ---
 
 ## Python API & Integrations
@@ -134,7 +139,7 @@ async def main():
     engine = Josty(profile="dev")
     run = await engine.research_run("Linux kernel initial release year", limit=3)
     
-    if run.status != "failed":
+    if run.status in ("complete", "degraded"):
         for result in run.results:
             print(f"[{result.title}]({result.url})\n{result.snippet}\n")
 
