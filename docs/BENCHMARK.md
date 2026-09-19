@@ -123,6 +123,35 @@ an agent will misread. Those live-agent scenarios live in
 - **No LLM judge in frozen corpus.** The frozen corpus uses the deterministic
   string grader; an LLM judge mode is available optionally for live runs.
 
+## Field-test negative results (2026-09-19)
+
+A five-tester field test (241 observations) tested hypotheses about Josty and
+**refuted two**. Recorded here so they are not re-litigated.
+
+**H2 — REFUTED: "concurrent fanout yields fewer non-empty engines than sequential
+ddgs."** Josty concurrent fanout produced 0.625 mean non-empty engines vs 0.375
+for sequential raw `ddgs` (paired diff +0.25; fewer on 1/8, more on 3/8, tied
+4/8; sign test p ~ 0.625). Mechanically inconclusive: only Yahoo answered, and
+4/6 engines were blocked or empty in **both** arms. Do not attribute empty runs
+to parallel fanout on this evidence.
+
+**H3 — REFUTED: "Parallel surfaces more primary sources; Josty skews toward SEO
+aggregators."** Parallel advanced `primary_hit@10` = 1.000 vs Josty 0.833, but
+the pre-registered conjunction failed: Josty's `aggregator_share` (0.048) was
+**lower** than Parallel advanced (0.058). Conditional on non-empty Josty runs
+(n=10), Josty `primary_hit@10` = 1.000, tying Parallel. The gap is a
+reliability/coverage difference, not a ranking difference.
+
+**Standing corrections.** Do not claim Josty beats a paid search API on ranking.
+The honest differentiators are keyless/free operation, footprint, auditability,
+honest failure reporting, and full-page extraction. Keep the concurrent fanout —
+it showed no throttling penalty.
+
+**Caveat.** Only Yahoo answered and `duckduckgo` failed with
+`[SSL: WRONG_VERSION_NUMBER]` (TLS interception). These conclusions are
+directional, not mechanistic; re-run on a clean network before publishing any
+fanout or reliability claim.
+
 ## Query-Variant Fanout & `--max-query-variants`
 
 ### Fanout Mechanism & Rate-Limiting Risk
