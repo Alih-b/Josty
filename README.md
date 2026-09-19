@@ -10,7 +10,11 @@
 
 <div align="center">
 
-![Josty Logo](https://raw.githubusercontent.com/Alih-b/Josty/main/docs/assets/logo.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Alih-b/Josty/main/docs/assets/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Alih-b/Josty/main/docs/assets/logo-light.svg">
+  <img alt="Josty Logo" src="https://raw.githubusercontent.com/Alih-b/Josty/main/docs/assets/logo.svg" width="320" height="76">
+</picture>
 
 <p>
   <strong>Zero-config, keyless metasearch and bounded content extraction.</strong>
