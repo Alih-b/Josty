@@ -80,7 +80,7 @@ def site_hostname_matches(url: str, site: str) -> bool:
 
 
 def freeze_monotonic(monkeypatch, start: float = 1000.0) -> list[float]:
-    """Patch ``josty.engine.time.monotonic`` to a mutable clock list."""
+    """Patch ``josty.breaker.time.monotonic`` to a mutable clock list."""
     clock = [start]
-    monkeypatch.setattr("josty.engine.time.monotonic", lambda: clock[0])
+    monkeypatch.setattr("josty.breaker.time.monotonic", lambda: clock[0])
     return clock

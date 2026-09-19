@@ -21,7 +21,7 @@ tests/
 
 `MockDDGSEngine` implements `.text()`, `.news()`, and `.images()`. Per-backend
 values may be a result list, an exception, or a callable. Circuit-breaker tests
-advance `josty.engine.time.monotonic` instead of sleeping. Hang tests patch
+advance `josty.breaker.time.monotonic` instead of sleeping. Hang tests patch
 `SEARCH_THREAD_TIMEOUT_HEADROOM` so `asyncio.wait_for` bounds are short.
 
 ## Invariants the suites pin

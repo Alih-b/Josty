@@ -1480,11 +1480,11 @@ def test_circuit_breaker_is_per_backend_and_per_error_class():
 
 def test_circuit_breaker_recovers_after_cool_down(monkeypatch):
     breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
-    monkeypatch.setattr("josty.engine.time.monotonic", lambda: 1000.0)
+    monkeypatch.setattr("josty.breaker.time.monotonic", lambda: 1000.0)
     breaker.record_failure("bing", "search")
     breaker.record_failure("bing", "search")
     assert breaker.status("bing", "search")[0] is False
-    monkeypatch.setattr("josty.engine.time.monotonic", lambda: 2000.0)
+    monkeypatch.setattr("josty.breaker.time.monotonic", lambda: 2000.0)
     allowed, message = breaker.status("bing", "search")
     assert allowed is True
     assert message is None
@@ -1493,8 +1493,8 @@ def test_circuit_breaker_recovers_after_cool_down(monkeypatch):
 def test_circuit_breaker_does_not_extend_cool_down_on_repeated_failures(monkeypatch):
     breaker = CircuitBreaker(fail_threshold=3, window_seconds=60, cool_down_seconds=30)
     # Freeze wall clock too so the iso timestamp doesn't drift
-    monkeypatch.setattr("josty.engine.time.time", lambda: 1_700_000_000.0)
-    monkeypatch.setattr("josty.engine.time.monotonic", lambda: 1000.0)
+    monkeypatch.setattr("josty.breaker.time.time", lambda: 1_700_000_000.0)
+    monkeypatch.setattr("josty.breaker.time.monotonic", lambda: 1000.0)
     for _ in range(3):
         breaker.record_failure("bing", "search")
     _, first_msg = breaker.status("bing", "search")

@@ -955,7 +955,7 @@ class TestCircuitBreakerAdvanced:
     def test_failures_outside_window_dont_count(self, monkeypatch):
         breaker = CircuitBreaker(fail_threshold=2, window_seconds=10, cool_down_seconds=5)
         t = [1000.0]
-        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+        monkeypatch.setattr("josty.breaker.time.monotonic", lambda: t[0])
         breaker.record_failure("bing", "search")
         # Move time past the window
         t[0] = 1011.0
@@ -986,7 +986,7 @@ class TestCircuitBreakerAdvanced:
         # After cool-down, the failure window should reset.
         breaker = CircuitBreaker(fail_threshold=2, window_seconds=10, cool_down_seconds=5)
         t = [1000.0]
-        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+        monkeypatch.setattr("josty.breaker.time.monotonic", lambda: t[0])
         breaker.record_failure("bing", "search")
         breaker.record_failure("bing", "search")
         assert breaker.status("bing", "search")[0] is False  # opened
@@ -1037,7 +1037,7 @@ class TestCircuitBreakerAdvanced:
         # (cool_down * 2**6) so a flapping backend cannot back off unboundedly.
         breaker = CircuitBreaker(fail_threshold=1, window_seconds=60, cool_down_seconds=10)
         t = [1000.0]
-        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+        monkeypatch.setattr("josty.breaker.time.monotonic", lambda: t[0])
 
         # Trip 1: cool-down = 10s (2**0 x)
         breaker.record_failure("bing", "search")
@@ -1067,7 +1067,7 @@ class TestCircuitBreakerAdvanced:
     def test_get_state_does_not_mutate_open_to_half_open(self, monkeypatch):
         breaker = CircuitBreaker(fail_threshold=1, window_seconds=60, cool_down_seconds=10)
         t = [1000.0]
-        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+        monkeypatch.setattr("josty.breaker.time.monotonic", lambda: t[0])
         breaker.record_failure("bing", "search")
         assert breaker._state[("bing", "search")] == "open"
         t[0] = 1020.0
@@ -1080,7 +1080,7 @@ class TestCircuitBreakerAdvanced:
     def test_half_open_admits_one_probe(self, monkeypatch):
         breaker = CircuitBreaker(fail_threshold=1, window_seconds=60, cool_down_seconds=10)
         t = [1000.0]
-        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+        monkeypatch.setattr("josty.breaker.time.monotonic", lambda: t[0])
         breaker.record_failure("bing", "search")
         t[0] = 1020.0
         allowed, message = breaker.status("bing", "search")
@@ -1097,7 +1097,7 @@ class TestCircuitBreakerAdvanced:
     def test_consecutive_trips_decay_after_idle(self, monkeypatch):
         breaker = CircuitBreaker(fail_threshold=1, window_seconds=10, cool_down_seconds=10)
         t = [1000.0]
-        monkeypatch.setattr("josty.engine.time.monotonic", lambda: t[0])
+        monkeypatch.setattr("josty.breaker.time.monotonic", lambda: t[0])
         remaining = 0.0
         for _ in range(5):
             breaker.record_failure("bing", "search")
