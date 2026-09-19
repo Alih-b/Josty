@@ -401,7 +401,7 @@ class TestTier2BoundaryAndCornerCases:
             # Either raises ValueError or returns clean empty run without crashing
             try:
                 run = asyncio.run(engine.search_run(empty_q, limit=5))
-                assert run.status in ("complete", "failed")
+                assert run.status in ("empty", "degraded", "failed")
                 assert len(run.results) == 0
             except ValueError:
                 pass  # Graceful input rejection is compliant

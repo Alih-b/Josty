@@ -28,6 +28,7 @@ EXPECTED_VERDICTS = {
     "diagnose_reachability": ("pass", None),
     "linux_kernel_year": ("pass", None),
     "empty_provider_complete": ("pass", None),
+    "all_empty_search": ("pass", None),
     "stale_news_day_old_cache": ("fail", "intended_misleading"),
 }
 
@@ -59,6 +60,12 @@ def test_known_outcomes_match_frozen_corpus(results):
         row = by_id[case_id]
         assert row.verdict == verdict, f"{case_id}: {row.issues}"
         assert row.taxonomy_class == klass
+
+
+def test_frozen_replay_is_wall_clock_independent(results):
+    stale = next(row for row in results if row.id == "stale_news_day_old_cache")
+    # run_at is exactly 24h before the frozen captured_at, so the age never drifts.
+    assert stale.issues == ["stale cached result: age 86400s > 1800s"]
 
 
 def test_report_lists_taxonomy_and_pathway(results):

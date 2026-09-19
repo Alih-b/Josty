@@ -41,3 +41,13 @@ pytest -q
 ruff check .
 python tests/scenario_eval.py
 ```
+
+## Live diagnostics (not CI)
+
+`scripts/diagnose_google.py` is the opt-in live A/B harness for issue #60. It needs
+network access, runs its four arms in fresh subprocesses, and writes JSONL to
+stdout. CI never runs it.
+
+```bash
+python scripts/diagnose_google.py --repeats 5 > google-probe.jsonl
+```

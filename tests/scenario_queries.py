@@ -166,6 +166,20 @@ SCENARIOS: list[dict[str, Any]] = [
         "notes": "Pins intended status: all ok, one result_count=0 → complete.",
     },
     {
+        "id": "all_empty_search",
+        "layer": "status",
+        "query": "synthetic all-empty fixture",
+        "flags": {},
+        "live": False,
+        "min_results": 0,
+        "expect_status": "empty",
+        "require_empty_ok_provider": True,
+        "label_if_fail": "contract_bug",
+        "pathway": "All branches empty without failure yields status=empty (#58).",
+        "notes": "Pins the new requested contract. The pre-change complete-on-empty "
+        "behavior was intended_misleading; this fixture does not reclassify it.",
+    },
+    {
         "id": "stale_news_day_old_cache",
         "layer": "news",
         "query": "synthetic stale cached news fixture",

@@ -112,7 +112,16 @@ GitHub API limits.
 - Use focused queries and run independent searches concurrently only when useful.
 - Check `status`, `partial`, `cached`, `coverage`, `nonempty_provider_count`, `request_count`,
   `fetch`, and `providers`; provider failure is not evidence of absence.
-- `status=complete` means no search-branch failure, not multi-engine coverage. An `ok`
+- `status=complete` means results are available and no search branch failed.
+  `status=empty` means no results remain and no branch failed (`count=0`, `partial=false`);
+  treat it as no usable search result, including when site filtering removed every hit.
+  Zero-result runs with branch failures keep `degraded` or `failed`. Read this JSON status;
+  CLI exit codes are unchanged. Fetch and diagnose statuses are separate.
+  With no provider entries, `empty` still means no usable results; `provider_count=0`
+  and `coverage=null` provide no evidence that an engine was contacted.
+  Schema `1.0` now admits this additional status value; strict validators must accept it.
+  Legacy cached `complete` envelopes with no results and no failures read as `empty`.
+  A complete search does not establish multi-engine coverage. An `ok`
   provider with `result_count=0` and `error_kind="empty"` is a successful empty branch, not a
   backend outage. Read `nonempty_provider_count` / `coverage` before treating the fused list
   as independently confirmed.

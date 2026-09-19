@@ -233,7 +233,7 @@ def test_search_run_status():
     assert SearchRun("q", [result("https://example.com")], [ok, failed]).status == "degraded"
     assert SearchRun("q", [], [failed]).status == "failed"
     assert SearchRun("q", [], [ok, failed]).status == "degraded"
-    assert SearchRun("q", [], [ok]).status == "complete"
+    assert SearchRun("q", [], [ok]).status == "empty"
     assert SearchRun("q", [], [ok]).dict()["schema_version"] == "1.0"
     assert SearchRun("q", [], [ok]).dict()["cached"] is False
 
@@ -551,7 +551,7 @@ def test_aggregated_all_empty_stays_empty():
     assert agg.error is None
     run = SearchRun("q", results=[], providers=[agg])
     assert run.partial is False
-    assert run.status == "complete"
+    assert run.status == "empty"
 
 
 def test_duplicate_engine_across_groups_is_queried_once(monkeypatch):
@@ -1549,7 +1549,7 @@ def test_empty_only_sequence_does_not_open_breaker(monkeypatch):
     for _ in range(4):
         run = asyncio.run(engine.search_run("anything", limit=5))
         assert run.providers[0].error_kind == "empty"
-        assert run.status == "complete"
+        assert run.status == "empty"
     assert breaker.status("duckduckgo", "search")[0] is True
 
 

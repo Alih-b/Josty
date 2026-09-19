@@ -38,6 +38,17 @@ ErrorKind = Literal["network", "rate_limited", "blocked", "empty", "parse", "unk
 ProfileType = Literal["general", "dev", "academic"]
 
 SCHEMA_VERSION = "1.0"
+
+
+class SearchStatus:
+    """Run-level search status values; the wire schema stays 1.0."""
+
+    COMPLETE = "complete"
+    DEGRADED = "degraded"
+    EMPTY = "empty"
+    FAILED = "failed"
+
+
 MAX_SITES = 5
 CACHE_MAX_ROWS = 5000
 CACHE_PRUNE_BATCH = 500
@@ -618,12 +629,19 @@ class SearchRun:
         return search_partial or fetch_total_miss
 
     @property
+    def usable(self) -> bool:
+        """True when the run carries results a caller can use."""
+        return bool(self.results)
+
+    @property
     def status(self) -> str:
         if not self.results and self.providers and all(not item.ok for item in self.providers):
-            return "failed"
+            return SearchStatus.FAILED
         if self.partial:
-            return "degraded"
-        return "complete"
+            return SearchStatus.DEGRADED
+        if not self.results:
+            return SearchStatus.EMPTY
+        return SearchStatus.COMPLETE
 
     def dict(self) -> dict[str, Any]:
         payload = {
@@ -2467,7 +2485,7 @@ class Josty:
             cache_key
             and self.enable_cache
             and self.cache
-            and run.status != "failed"
+            and run.status != SearchStatus.FAILED
             and len(run.results) > 0
         ):
             payload = _strip_fetch_fields(run.dict())

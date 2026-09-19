@@ -33,6 +33,16 @@ DEFAULT_LIVE_OUT = HERE / "scenario_out" / "live"
 CONTENT_KEEP_CHARS = 400
 
 
+def _parse_iso(value: Any) -> datetime | None:
+    """Parse an ISO timestamp, tolerating a trailing Z; None when missing or junk."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
 def host_of(url: str) -> str:
     hostname = (urlsplit(url or "").hostname or "").lower()
     if hostname.startswith("www."):
@@ -81,12 +91,14 @@ class CaseResult:
         return asdict(self)
 
 
-def evaluate_payload(spec: dict[str, Any], payload: dict[str, Any]) -> CaseResult:
+def evaluate_payload(
+    spec: dict[str, Any], payload: dict[str, Any], *, now: datetime | None = None
+) -> CaseResult:
     issues: list[str] = []
     if spec.get("diagnose") or spec["flags"].get("diagnose"):
         issues.extend(_evaluate_diagnose(spec, payload))
     else:
-        issues.extend(_evaluate_search(spec, payload))
+        issues.extend(_evaluate_search(spec, payload, now=now))
     failed = bool(issues)
     return CaseResult(
         id=spec["id"],
@@ -121,7 +133,9 @@ def _evaluate_diagnose(spec: dict[str, Any], payload: dict[str, Any]) -> list[st
     return issues
 
 
-def _evaluate_search(spec: dict[str, Any], payload: dict[str, Any]) -> list[str]:
+def _evaluate_search(
+    spec: dict[str, Any], payload: dict[str, Any], *, now: datetime | None = None
+) -> list[str]:
     issues: list[str] = []
     if payload.get("schema_version") != "1.0":
         issues.append(f"schema_version={payload.get('schema_version')!r}")
@@ -195,11 +209,10 @@ def _evaluate_search(spec: dict[str, Any], payload: dict[str, Any]) -> list[str]
         issues.append("missing run_at (agents cannot judge cached age)")
     max_age_s = spec.get("max_age_s")
     if max_age_s and payload.get("run_at") and payload.get("cached"):
-        try:
-            run_at = datetime.fromisoformat(str(payload["run_at"]).replace("Z", "+00:00"))
-            age = (datetime.now(timezone.utc) - run_at).total_seconds()
-        except ValueError:
-            age = None
+        run_at = _parse_iso(payload["run_at"])
+        age = None
+        if run_at is not None:
+            age = ((now or datetime.now(timezone.utc)) - run_at).total_seconds()
         if age is not None and age > max_age_s:
             issues.append(f"stale cached result: age {int(age)}s > {max_age_s}s")
     return issues
@@ -215,6 +228,11 @@ def load_corpus(path: Path) -> dict[str, dict[str, Any]]:
             row = json.loads(line)
             rows[row["id"]] = row
     return rows
+
+
+def _captured_at(row: dict[str, Any]) -> datetime | None:
+    """Anchor replayed cache ages to capture time so reports are reproducible."""
+    return _parse_iso(row.get("captured_at"))
 
 
 def evaluate_corpus(corpus: dict[str, dict[str, Any]]) -> list[CaseResult]:
@@ -236,7 +254,7 @@ def evaluate_corpus(corpus: dict[str, dict[str, Any]]) -> list[CaseResult]:
                 )
             )
             continue
-        results.append(evaluate_payload(spec, row["payload"]))
+        results.append(evaluate_payload(spec, row["payload"], now=_captured_at(row)))
     return results
 
 

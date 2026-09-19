@@ -12,6 +12,7 @@ import asyncio
 import json
 import sqlite3
 
+import pytest
 from josty.engine import (
     Josty,
     ProviderStatus,
@@ -42,11 +43,64 @@ def test_coverage_fields_distinguish_brave_only_complete():
     ]
     run = SearchRun("q", [_result("https://example.com/a")], [brave, *empty])
     payload = run.dict()
+    assert run.usable is True
     assert payload["status"] == "complete"
     assert payload["provider_count"] == 6
     assert payload["nonempty_provider_count"] == 1
     assert payload["coverage"] == 0.167
     assert payload["fetch"]["status"] == "skipped"
+
+
+@pytest.mark.parametrize("fetch", [False, True])
+@pytest.mark.parametrize("category", ["text", "news"])
+def test_all_empty_search_has_distinct_status(monkeypatch, fetch, category):
+    class EmptyDDGS(FakeDDGS):
+        def text(self, *args, **kwargs):
+            return []
+
+        news = text
+
+    monkeypatch.setattr("josty.engine.DDGS", EmptyDDGS)
+    run = asyncio.run(
+        Josty(enable_cache=False).search_run("q", fetch=fetch, category=category)
+    )
+    payload = run.dict()
+    assert payload["schema_version"] == "1.0"
+    assert payload["status"] == "empty"
+    assert payload["count"] == 0
+    assert payload["partial"] is False
+    assert payload["coverage"] == 0
+    assert all(p["ok"] and p["error_kind"] == "empty" for p in payload["providers"])
+    assert payload["fetch"]["requested"] is fetch
+
+
+def test_site_filter_removing_all_results_reports_empty(monkeypatch):
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    run = asyncio.run(
+        Josty(backends=("brave",), enable_cache=False).search_run("q", sites=["other.org"])
+    )
+    assert run.providers[0].result_count == 1
+    assert run.dict()["status"] == "empty"
+    assert run.dict()["count"] == 0
+
+
+def test_legacy_complete_empty_cache_payload_recomputes_status():
+    payload = SearchRun("q", [], [ProviderStatus("brave", "q", True, 0)]).dict()
+    payload["status"] = "complete"
+    assert _search_run_from_dict(payload).dict()["status"] == "empty"
+
+
+def test_empty_run_without_provider_telemetry_reports_no_usable_results():
+    run = SearchRun("q")
+    payload = run.dict()
+    assert run.usable is False
+    assert payload["status"] == "empty"
+    assert payload["count"] == 0
+    assert payload["results"] == []
+    assert payload["providers"] == []
+    assert payload["provider_count"] == 0
+    assert payload["coverage"] is None
+    assert payload["partial"] is False
 
 
 def test_fetch_total_miss_degrades_run_and_exposes_counters():

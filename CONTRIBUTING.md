@@ -9,7 +9,7 @@
 
 ## How to label a live miss
 
-Walk the decision tree in [docs/ISSUE_TAXONOMY.md](docs/ISSUE_TAXONOMY.md) and pick exactly one class (`contract_bug`, `intended_misleading`, `upstream_quality`, `product_gap`). Then add a spec to `tests/scenario_queries.py` and a frozen envelope to `tests/scenario_corpus.jsonl`. Do not change `engine.py` in the same change unless the class is `contract_bug`.
+Walk the decision tree in [docs/ISSUE_TAXONOMY.md](docs/ISSUE_TAXONOMY.md), pick exactly one class, and follow that document's `engine.py` guard-rail. Then add a spec to `tests/scenario_queries.py` and a frozen envelope to `tests/scenario_corpus.jsonl`.
 
 Optional live recapture (not CI):
 
