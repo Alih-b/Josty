@@ -26,6 +26,15 @@ uv.lock
 .agents/*
 !.agents/skills/
 !.agents/skills/**
+# The skill negation above would otherwise re-include build junk.
+.agents/skills/**/__pycache__/
+.agents/skills/**/*.py[cod]
+
+scratch/
+graphify-out/
+.codex/
+.ragex/
+.yoke/
 
 .agents/skills/wayfinder/
 .agents/skills/retro/
