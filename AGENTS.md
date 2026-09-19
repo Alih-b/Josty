@@ -28,10 +28,15 @@ $(command -v python3 || command -v python) .agents/skills/josty/scripts/run.py "
 - All errors, diagnostics, and third-party dependency warnings are strictly routed to `stderr`.
 - Requires outbound internet access.
 
-## DEVELOPMENT
-- Initialize Borhan with borhan-survey
-- Before expensive retrieval, check Borhan first.
-- Before asking questions or grilling, use Jev and refine based on its answers.
-- Never ask more than 5 questions in grilling
-- Never make a new branch When there are other branches than main, They must be decided First
-- On complex planning, use Parallel CLI for high quality search results, combined with Jev for Ranking and building queries
+## Maintainer Agent Workflow
+
+These notes describe the maintainer's local agent environment; they are not
+required for normal library use.
+
+- Consult project memory (Borhan) before broad or expensive retrieval; use
+  `borhan-survey` when project memory needs to be initialized.
+- Refine planning and search questions with Jev before escalation.
+- Keep clarification rounds to a maximum of five questions.
+- Resolve outstanding branch decisions before creating a new branch.
+- For complex planning, combine Parallel CLI search with Jev ranking and
+  query building.
