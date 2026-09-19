@@ -4,15 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import replace
-from datetime import timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
-
-
 
 from .models import SearchResult
 from .status import MAX_SITES, ProfileType
@@ -45,9 +37,6 @@ AUTHORITATIVE_DOMAINS_GENERAL = {
     "w3.org",
     "ietf.org",
 }
-
-# Retained for backwards compatibility
-AUTHORITATIVE_DOMAINS = AUTHORITATIVE_DOMAINS_GENERAL
 
 AUTHORITATIVE_DOMAINS_DEV = {
     "github.com",

@@ -9,16 +9,8 @@ import os
 import sqlite3
 import time
 from contextlib import suppress
-from datetime import timezone
 from pathlib import Path
 from typing import Any
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
-
-
 
 from .models import ProviderStatus, SearchResult, SearchRun
 

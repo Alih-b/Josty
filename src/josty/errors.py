@@ -5,12 +5,6 @@ from __future__ import annotations
 import re
 import socket
 import ssl
-from datetime import timezone
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
 
 import httpx
 from ddgs.exceptions import DDGSException, RatelimitException, TimeoutException

@@ -3,15 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import timezone
 from typing import Any, Literal
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
-
-
 
 from .status import DIAGNOSE_NOTE, SCHEMA_VERSION, ErrorKind, SearchStatus
 

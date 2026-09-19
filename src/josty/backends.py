@@ -2,15 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import timezone
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
-
-
-
 from .status import SearchCategory
 
 try:

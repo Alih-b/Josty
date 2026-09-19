@@ -7,13 +7,7 @@ import ipaddress
 import re
 import socket
 import threading
-from datetime import timezone
 from urllib.parse import urljoin, urlsplit
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
 
 import httpx
 

@@ -2,15 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timezone
 from typing import Literal
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
-
-
 
 from ._version import __version__
 
