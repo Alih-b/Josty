@@ -1,6 +1,6 @@
 """Opt-in live comparison for #60; stdout is JSONL, no files are overwritten.
 
-Run with the project installed: python tests/diagnose_google.py > google.jsonl
+Run with the project installed: python scripts/diagnose_google.py > google.jsonl
 Each arm gets a fresh process so importing Josty cannot contaminate raw ddgs.
 Private ddgs hooks are diagnostic instrumentation, not production dependencies.
 """

@@ -176,6 +176,8 @@ SCENARIOS: list[dict[str, Any]] = [
         "require_empty_ok_provider": True,
         "label_if_fail": "contract_bug",
         "pathway": "All branches empty without failure yields status=empty (#58).",
+        "notes": "Pins the new requested contract. The pre-change complete-on-empty "
+        "behavior was intended_misleading; this fixture does not reclassify it.",
     },
     {
         "id": "stale_news_day_old_cache",

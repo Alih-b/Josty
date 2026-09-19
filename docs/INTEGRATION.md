@@ -68,6 +68,22 @@ The default output envelope is:
 branch failure keeps its failure signal. Fetch and transport-diagnose statuses
 are unchanged. CLI exit codes are unchanged; inspect the JSON search status.
 
+An empty `SearchRun` with no provider entries also reports `empty`, with
+`provider_count=0`, `coverage=null`, and `partial=false`: no results or branch
+failures were recorded. It does not establish that any engine was contacted.
+Run-level `status="empty"` describes the final result list; provider-level
+`error_kind="empty"` describes one engine's response. Site filtering can make
+the run empty even when providers returned results.
+
+Issue #58 deliberately changes the previous documented `complete`-on-empty
+contract. The old behavior is classified as `intended_misleading` under the
+existing taxonomy; this is an explicitly requested contract revision, not a
+claim that the old implementation violated its own contract. Schema `1.0` is
+retained as requested in #58, but strict status validators must add `empty`
+before upgrading. Cached envelopes are reinterpreted under the current status
+rules: a stored `complete` with no results and no failures reads as `empty`.
+Field names stay the same; the status value and its meaning change.
+
 - `cached`: `true` only when the envelope was loaded from the local SQLite cache. `fetch` is not part of the SERP cache key: search then `--fetch` reuses the cached SERP and only downloads pages.
 - `query_variant_count` / `request_count`: how many query strings were expanded, and how many upstream search calls that scheduled (engines × variants, plus GitHub when opted in). On cache hits nothing is scheduled, so `request_count` is 0. Payloads predating these fields report `null` (unknown), not 0.
 - `nonempty_provider_count` / `coverage`: how many branches both succeeded (`ok`) and returned results, over total branches. A failed branch never counts, even with partial results.
@@ -89,7 +105,7 @@ For raw-ddgs comparisons, verify which engines were actually selected. In ddgs
 9.15.0, `backend="google"` falls back to `auto` before Josty is imported; Josty
 re-registers the shipped Google engine. A raw result is therefore not necessarily
 a Google result. See the [#60 investigation](investigations/60-google.md) and
-`tests/diagnose_google.py` for an isolated, instrumented comparison.
+`scripts/diagnose_google.py` for an isolated, instrumented comparison.
 
 ## Python
 

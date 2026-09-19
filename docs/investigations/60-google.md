@@ -1,5 +1,8 @@
 # Issue #60: raw ddgs and Josty selected different engines
 
+Status: partial investigation. Issue #60 remains open pending the broader
+query-set, network, and TLS checks listed below.
+
 The original raw-ddgs success does not establish that Google returned results.
 With installed **ddgs 9.15.0**, Google ships with `disabled = True` and is absent
 from `ddgs.engines.ENGINES["text"]`. Asking for `backend="google"` before importing
@@ -39,7 +42,8 @@ Josty's corresponding registration is in `.agents/skills/josty/src/josty/engine.
 
 ## Live comparison
 
-`tests/diagnose_google.py` runs four arms in randomized order, each in a fresh
+`scripts/diagnose_google.py` is an opt-in live diagnostic, not a unit test. It
+runs four arms in randomized order, each in a fresh
 process to isolate the import-time registration:
 
 1. Pristine raw ddgs, requesting `google`.
@@ -54,9 +58,9 @@ bodies or credentials are recorded. Child failures remain visible as
 `harness_error`; they must not be counted as empty search results.
 
 ```bash
-python tests/diagnose_google.py --repeats 5 > google-probe.jsonl
+python scripts/diagnose_google.py --repeats 5 > google-probe.jsonl
 # Supply additional query strings to repeat the comparison on a larger set:
-python tests/diagnose_google.py --repeats 5 \
+python scripts/diagnose_google.py --repeats 5 \
   "Python 3.13 release notes whatsnew" "PostgreSQL 17 release notes" > google-probe.jsonl
 ```
 
@@ -94,3 +98,15 @@ Changes to production concurrency, client reuse, or retries are not justified
 by the original comparison. The diagnostic preserves the evidence needed to
 distinguish an actual Google discrepancy from an upstream fallback on future
 ddgs versions and networks.
+
+## Remaining work for #60
+
+- Repeat the matched-engine comparison on the original twelve-query set, at
+  least five repeats per query with randomized arm order.
+- Repeat on a network where at least two engines return results, recording
+  transport conditions separately from engine selection.
+- Investigate the observed `SSL: WRONG_VERSION_NUMBER` errors. The current
+  capture records those errors but does not establish their cause.
+- Reassess Google extraction and concurrency using those results before closing
+  the issue. The selection finding invalidates the old comparison; it does not
+  prove the absence of a Josty-side issue in every environment.

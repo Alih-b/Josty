@@ -89,6 +89,17 @@ def test_legacy_complete_empty_cache_payload_recomputes_status():
     assert _search_run_from_dict(payload).dict()["status"] == "empty"
 
 
+def test_empty_run_without_provider_telemetry_reports_no_usable_results():
+    payload = SearchRun("q").dict()
+    assert payload["status"] == "empty"
+    assert payload["count"] == 0
+    assert payload["results"] == []
+    assert payload["providers"] == []
+    assert payload["provider_count"] == 0
+    assert payload["coverage"] is None
+    assert payload["partial"] is False
+
+
 def test_fetch_total_miss_degrades_run_and_exposes_counters():
     ok = ProviderStatus("brave", "q", True, 3)
     run = SearchRun(

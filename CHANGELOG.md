@@ -5,11 +5,18 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
-### Fixed
+### Changed
 
 - Successful searches with no final results now report `status: "empty"` instead
   of `"complete"` (#58). Schema remains `1.0`; failure precedence, fetch and
   diagnose statuses, and CLI exit codes are unchanged.
+- This intentionally changes the previous documented status contract. Strict
+  consumers that validate status values must accept `empty` before upgrading;
+  an unchanged schema version does not guarantee compatibility for those consumers.
+- Status is recomputed when cached envelopes are read: a legacy `complete`
+  envelope with no results and no branch failures now reads as `empty`.
+  An empty `SearchRun` with no provider entries also reports `empty`, with
+  `provider_count=0`, `coverage=null`, and `partial=false`.
 
 ## [0.5.2] - 2026-09-05
 

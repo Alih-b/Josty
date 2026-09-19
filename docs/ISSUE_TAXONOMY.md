@@ -12,7 +12,7 @@ Every finding gets exactly one class, plus a **confidence** and a **layer**.
 | Class | Means | Live-run example |
 |---|---|---|
 | `contract_bug` | Josty promised X in the schema, CLI, or docs and did Y | site leak; non-JSON stdout; search `count` ≠ `len(results)` |
-| `intended_misleading` | Code and tests match, but an agent will treat the signal as the wrong kind of success or failure | `--diagnose` HTTP 429 → `ok=true` without reading `challenged`/`http_status`/`phase=transport`; one contributing engine → `status=complete` without reading `nonempty_provider_count` |
+| `intended_misleading` | Code and tests match, but an agent will treat the signal as the wrong kind of success or failure | `--diagnose` HTTP 429 → `ok=true` without reading `challenged`/`http_status`/`phase=transport`; empty backends → `status=complete` without reading `error_kind` / `nonempty_provider_count` |
 | `upstream_quality` | ddgs or the host returned junk; Josty forwarded it faithfully | `ddgs.news("Python 3.14")` → Bay News 9 “District 14” |
 | `product_gap` | Faithful, but not useful enough for real agent work | academic profile loses to Wikipedia/AWS; no lexical relevance gate on news |
 
@@ -39,8 +39,7 @@ That path is `ok=true`, `result_count=0`, `error_kind="empty"` in `_ddgs`.
 **Layer** — `cli` / `status` / `rank` / `fetch` / `news` / `diagnose`.
 
 A live flake (`once` or all providers empty) is `upstream_quality` + `flaky`,
-unless its envelope violates the contract. Reporting `complete` with no final
-results is a `contract_bug`: no-failure zero-result searches must report `empty` (#58).
+never `contract_bug`.
 
 ## How to label a live miss
 
