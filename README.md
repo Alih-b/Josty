@@ -139,7 +139,7 @@ async def main():
     engine = Josty(profile="dev")
     run = await engine.research_run("Linux kernel initial release year", limit=3)
     
-    if run.status in ("complete", "degraded"):
+    if run.usable:
         for result in run.results:
             print(f"[{result.title}]({result.url})\n{result.snippet}\n")
 

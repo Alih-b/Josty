@@ -1,0 +1,5 @@
+# Search status "empty" for zero-result runs
+
+Zero-result Josty runs reported `status: "complete"` whenever every search branch succeeded, so an agent branching on `status` alone read "no results" as success. Issue #58 asked for a distinct value, so `SearchRun.status` now reports `empty` when no results remain and no branch failed, with `failed` and `degraded` keeping precedence. The schema literal stays `1.0`, but the accepted status set widens: strict status validators must add `empty` before upgrading, and cached `complete` envelopes with no results and no failures are reinterpreted as `empty`.
+
+Considered options: issue #58's fallback, a top-level `usable: bool` envelope field, was rejected because it duplicates `count > 0` and leaves the misleading `complete` value in place; reusing `degraded` was rejected because it means a branch failed, which is a different condition. The taxonomy guard-rail in `docs/ISSUE_TAXONOMY.md` now admits a deliberate contract change recorded in an ADR, and this is the first change to use that route.

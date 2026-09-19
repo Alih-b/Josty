@@ -46,7 +46,7 @@ never `contract_bug`.
 1. Capture the JSON envelope (`josty ...` or `JOSTY_LIVE_EVAL=1 python tests/scenario_eval.py --live`). Live recapture writes under `tests/scenario_out/live/` and does not overwrite the checked-in corpus or `replay/` report.
 2. Walk the decision tree. Pick one class.
 3. Add a spec to `tests/scenario_queries.py` and a row to `tests/scenario_corpus.jsonl`.
-4. Run `python tests/scenario_eval.py` and `pytest -q`. Do not change `engine.py` in the same change unless the class is `contract_bug`.
+4. Run `python tests/scenario_eval.py` and `pytest -q`. Do not change `engine.py` in the same change unless the finding is a `contract_bug`, or it is a deliberate contract change recorded in an ADR under `docs/adr/`.
 
 ## Seeded live findings (2026-08-29)
 

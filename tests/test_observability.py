@@ -43,6 +43,7 @@ def test_coverage_fields_distinguish_brave_only_complete():
     ]
     run = SearchRun("q", [_result("https://example.com/a")], [brave, *empty])
     payload = run.dict()
+    assert run.usable is True
     assert payload["status"] == "complete"
     assert payload["provider_count"] == 6
     assert payload["nonempty_provider_count"] == 1
@@ -90,7 +91,9 @@ def test_legacy_complete_empty_cache_payload_recomputes_status():
 
 
 def test_empty_run_without_provider_telemetry_reports_no_usable_results():
-    payload = SearchRun("q").dict()
+    run = SearchRun("q")
+    payload = run.dict()
+    assert run.usable is False
     assert payload["status"] == "empty"
     assert payload["count"] == 0
     assert payload["results"] == []

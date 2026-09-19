@@ -40,6 +40,13 @@ The relevant installed sources are `ddgs/engines/google.py` (`disabled = True`)
 and `ddgs/ddgs.py` (`_get_engines` falls back to `auto` when no instances match).
 Josty's corresponding registration is in `.agents/skills/josty/src/josty/engine.py`.
 
+Version scope: this fallback is specific to ddgs 9.15.0. `pyproject.toml` allows
+`ddgs>=9.15.0,<10`, and on an installation with ddgs 9.16.0 the same snippet prints
+`google enabled: True` and `raw selection: ['google']`, because 9.16.0 no longer ships
+Google disabled. Re-run the snippet on the version under test before reusing this
+finding; the selection confound explains the 9.15.0 captures in
+`60-google-probe.jsonl` only.
+
 ## Live comparison
 
 `scripts/diagnose_google.py` is an opt-in live diagnostic, not a unit test. It

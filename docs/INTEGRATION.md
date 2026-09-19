@@ -60,7 +60,7 @@ The default output envelope is:
 ```
 
 - `complete`: results are available and no search branch failed. This is not multi-engine coverage: read `nonempty_provider_count` / `coverage`.
-- `empty`: no results remain and no branch failed (`count=0`, `partial=false`), including when site filtering removes every result. This is a non-success signal for callers that need URLs, not proof that no information exists. This additional search status retains schema `1.0`; callers must accept it alongside `complete`, `degraded`, and `failed`.
+- `empty`: no results remain and no branch failed (`count=0`, `partial=false`), including when site filtering removes every result. This is a non-success signal for callers that need URLs, not proof that no information exists. This additional search status keeps the schema `1.0` literal, but it widens the accepted status set: strict status validators must add `empty` before upgrading.
 - `degraded`: at least one search branch failed, while another branch completed or results remain available; or `--fetch` was requested and every attempted extraction failed (`fetch.status=failed`).
 - `failed`: no results and every attempted branch failed.
 
