@@ -259,7 +259,7 @@ Shipped in **v0.4.0**: `error_kind=empty`, diagnose `challenged`, no hidden quer
 and a bounded cache. Shipped in **v0.5.0**: per-engine `providers[]` observability (one
 status per engine) and an engine-availability gate. Query relaxation, news engine filters,
 and hard host floors are out of scope. See
-**[ROADMAP.md](https://github.com/Alih-b/Josty/blob/main/ROADMAP.md)**.
+**[docs/archive/ROADMAP.md](https://github.com/Alih-b/Josty/blob/main/docs/archive/ROADMAP.md)**.
 
 ---
 

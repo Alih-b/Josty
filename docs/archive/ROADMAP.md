@@ -1,8 +1,12 @@
-# Josty Project Roadmap
+# Josty Project Roadmap (archived)
+
+> **Archived — this was the v0.4.0 release plan.** Every item below shipped, and five
+> releases have landed since. Release history is in [CHANGELOG.md](../../CHANGELOG.md);
+> the current architecture and contracts are in [PROJECT.md](../../PROJECT.md).
 
 **Josty** is a zero-config, keyless metasearch engine and bounded content extraction tool designed specifically for AI agent runtimes and developer workflows.
 
-This document is the release plan for `v0.4.0`. Features are ordered by **signal first**: surface what ddgs actually returned, bound local state, and drop hidden retries that make the wrapper noisier than raw ddgs.
+This was the release plan for `v0.4.0`. Features are ordered by **signal first**: surface what ddgs actually returned, bound local state, and drop hidden retries that make the wrapper noisier than raw ddgs.
 
 ---
 

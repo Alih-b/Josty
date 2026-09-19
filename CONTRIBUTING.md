@@ -7,6 +7,12 @@
 5. Run `pytest -q`, `ruff check .`, and `python -m build` before submitting a change.
 6. Run `python tests/scenario_eval.py` after changing search, rank, news, fetch, or diagnose behavior.
 
+## Local cleanup
+
+`./scripts/clean.sh` removes local build and test junk (`.venv`, `dist`, caches,
+`__pycache__`, `scratch/`). `--deep` also prunes the uv cache and repacks git.
+It never touches tracked files or `.borhan/`.
+
 ## How to label a live miss
 
 Walk the decision tree in [docs/ISSUE_TAXONOMY.md](docs/ISSUE_TAXONOMY.md), pick exactly one class, and follow that document's `engine.py` guard-rail. Then add a spec to `tests/scenario_queries.py` and a frozen envelope to `tests/scenario_corpus.jsonl`.

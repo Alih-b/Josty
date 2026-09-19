@@ -69,7 +69,7 @@ The scenario report’s `pathway` column is the improvement backlog. Do not
 implement these in the same change as a new eval case unless the class is
 `contract_bug`.
 
-**Ship order matches [ROADMAP.md](../ROADMAP.md) (no extra ddgs calls):**
+**Ship order matches the archived [v0.4.0 roadmap](../archive/ROADMAP.md) (no extra ddgs calls):**
 
 | Rank | Finding | Pathway | Roadmap ID |
 |---|---|---|---|
