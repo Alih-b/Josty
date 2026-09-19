@@ -62,6 +62,12 @@ def test_known_outcomes_match_frozen_corpus(results):
         assert row.taxonomy_class == klass
 
 
+def test_frozen_replay_is_wall_clock_independent(results):
+    stale = next(row for row in results if row.id == "stale_news_day_old_cache")
+    # run_at is exactly 24h before the frozen captured_at, so the age never drifts.
+    assert stale.issues == ["stale cached result: age 86400s > 1800s"]
+
+
 def test_report_lists_taxonomy_and_pathway(results):
     report = render_report(results)
     assert "`news_token_collision`" in report
