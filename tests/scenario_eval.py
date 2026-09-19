@@ -20,7 +20,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
-SRC = HERE.parent / ".agents" / "skills" / "josty" / "src"
+SRC = HERE.parent / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
