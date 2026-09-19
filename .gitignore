@@ -36,6 +36,11 @@ graphify-out/
 .ragex/
 .yoke/
 
+# Agent run artifacts and the project-local Borhan memory store.
+.borhan/
+ORIGINAL_REQUEST.md
+report-source.md
+
 .agents/skills/wayfinder/
 .agents/skills/retro/
 docs/wayfinder/
