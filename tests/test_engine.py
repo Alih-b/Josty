@@ -1415,6 +1415,14 @@ def test_max_content_chars_validation():
         Josty(max_download_bytes=0)
 
 
+def test_library_default_max_content_chars_matches_cli(tmp_path):
+    from josty.cli import parser
+
+    assert Josty.DEFAULT_MAX_CONTENT_CHARS == 8000
+    assert Josty(cache_db=tmp_path / "c.db").max_content_chars == 8000
+    assert parser().parse_args(["query"]).max_content_chars == 8000
+
+
 def test_domain_weights_expanded_authoritative_sets():
     from josty.engine import domain_weight
 

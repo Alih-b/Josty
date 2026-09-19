@@ -67,7 +67,7 @@ SEARCH_THREAD_TIMEOUT_HEADROOM = 2.0
 
 # Single version source: the static literal doubles as the pre-install fallback and
 # hatchling's build-time version; installed distributions override via importlib.metadata.
-__version__ = "0.5.2"
+__version__ = "0.6.0"
 with suppress(PackageNotFoundError):
     __version__ = version("josty")
 USER_AGENT = f"josty/{__version__} (+https://github.com/Alih-b/Josty)"
@@ -603,8 +603,12 @@ class SearchRun:
 
     @property
     def fetch_status(self) -> str:
-        if not self.fetch_requested or self.fetch_attempted == 0:
+        if not self.fetch_requested:
             return "skipped"
+        # Requested but the SERP produced nothing to fetch: the phase neither ran
+        # nor failed, so it is "noop", not "skipped" (which means not requested).
+        if self.fetch_attempted == 0:
+            return "noop"
         if self.fetch_ok == 0:
             return "failed"
         if self.fetch_failed > 0:
@@ -1558,6 +1562,9 @@ class Josty:
 
     DEFAULT_SEARCH_CONCURRENCY = 6
     DEFAULT_FETCH_CONCURRENCY = 4
+    # Shared by the CLI flag default and the library constructor so both entry
+    # points cap extracted Markdown at the same per-page size (#59).
+    DEFAULT_MAX_CONTENT_CHARS = 8000
     DEFAULT_BREAKER_FAIL_THRESHOLD = 3
     DEFAULT_BREAKER_WINDOW_SECONDS = 60
     DEFAULT_BREAKER_COOL_DOWN_SECONDS = 30
@@ -1570,7 +1577,7 @@ class Josty:
         max_search_concurrency: int = 6,
         max_fetch_concurrency: int = 4,
         max_download_bytes: int = 2_000_000,
-        max_content_chars: int | None = 50_000,
+        max_content_chars: int | None = DEFAULT_MAX_CONTENT_CHARS,
         max_query_variants: int | None = None,
         github_token: str | None = None,
         backends: tuple[str, ...] | None = None,

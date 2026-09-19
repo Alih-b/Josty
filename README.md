@@ -125,6 +125,16 @@ results remain and no branch failed (`count=0`); treat it as "no usable result",
 success. `degraded` and `failed` take precedence over `empty`. See
 [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full status and envelope semantics.
 
+Exit code follows the search envelope, and the JSON envelope is always on `stdout`:
+
+| Search `status` | Exit code |
+|---|---|
+| `complete`, `degraded`, `empty` | `0` |
+| `failed` | `1` |
+| usage or validation error | `2` |
+
+`--diagnose` and `--results-only` keep exit `0`.
+
 ---
 
 ## Python API & Integrations
@@ -232,7 +242,7 @@ graph TD
 | **Max Query Variants** | unlimited (`--max-query-variants`) | Caps mode/site query expansion — set this for `--mode oss` with multiple `--site` filters to bound upstream fanout |
 | **Search Concurrency** | `6` (`--search-concurrency`) | Default bounded semaphore for search backends |
 | **Fetch Concurrency** | `4` (`--fetch-concurrency`) | Default bounded semaphore for page content fetching |
-| **Max Content Size** | `8,000 chars` (`--max-content-chars`) | Extracted Markdown character ceiling per page (0 for unlimited) |
+| **Max Content Size** | `8,000 chars` (`--max-content-chars`, `Josty(...)` default) | Extracted Markdown character ceiling per page (0 for unlimited) |
 | **Download Byte Limit** | `2,000,000 bytes` (2MB) | Hard ceiling on raw HTTP downloads before parsing |
 | **RRF Parameter** | $k=60$ | Cormack et al. (2009) reciprocal rank smoothing factor |
 | **SSRF Safeguards** | Verified | Blocks private subnets, loopback, RFC 1918, and `169.254.169.254` metadata |

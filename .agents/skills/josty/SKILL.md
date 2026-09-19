@@ -83,6 +83,9 @@ uvx josty --cache-stats
   `ok`, `failed`, `status`). A total extraction miss (`ok=0` with `attempted>0`) sets
   `fetch.status=failed` and degrades the run; do not treat that as a clean search. Partial
   extraction success stays on the search status and is visible on `fetch.ok` / `fetch.failed`.
+  `fetch.status=noop` means `--fetch` was requested but the SERP had no results to fetch;
+  `skipped` means fetch was not requested. Extracted text is capped by `max_content_chars`
+  (8,000 by default in both the CLI and the `Josty(...)` library; `0` disables the cap).
 - `--diagnose` is **transport-only**: the envelope sets `phase: "transport"` and
   `probe: "https_host"`. It GETs each engine's public homepage. That is not search-backend
   health. Search can succeed while diagnose reports `failed` or a 429 `challenged` host.
@@ -116,7 +119,8 @@ GitHub API limits.
   `status=empty` means no results remain and no branch failed (`count=0`, `partial=false`);
   treat it as no usable search result, including when site filtering removed every hit.
   Zero-result runs with branch failures keep `degraded` or `failed`. Read this JSON status;
-  CLI exit codes are unchanged. Fetch and diagnose statuses are separate.
+  the CLI also exits `1` only for `status=failed`, and `0` for `complete`/`degraded`/`empty`.
+  Fetch and diagnose statuses are separate, and `--diagnose` keeps exit `0`.
   With no provider entries, `empty` still means no usable results; `provider_count=0`
   and `coverage=null` provide no evidence that an engine was contacted.
   Schema `1.0` now admits this additional status value; strict validators must accept it.

@@ -3,13 +3,23 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.6.0] - 2026-09-19
+
+### Added
+
+- CLI exit codes now follow the search envelope: `status="failed"` exits `1`, so
+  a total outage is visible to exit-code checkers. `complete`, `degraded`, and
+  `empty` stay `0` (read `partial` / `coverage` in-band), and usage or validation
+  errors stay `2`. JSON is printed to `stdout` first in every search case (#42).
+- `fetch.status="noop"` when `--fetch` was requested but the SERP produced no
+  results to fetch. `skipped` now means only "fetch was not requested". Additive
+  enum value; schema stays `1.0` (#56).
 
 ### Changed
 
-- Successful searches with no final results now report `status: "empty"` instead
+- Successful searches with no final results now report `status="empty"` instead
   of `"complete"` (#58). Schema remains `1.0`; failure precedence, fetch and
-  diagnose statuses, and CLI exit codes are unchanged.
+  diagnose statuses are unchanged.
 - This intentionally changes the previous documented status contract. Strict
   consumers that validate status values must accept `empty` before upgrading;
   an unchanged schema version does not guarantee compatibility for those consumers.
@@ -17,6 +27,12 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   envelope with no results and no branch failures now reads as `empty`.
   An empty `SearchRun` with no provider entries also reports `empty`, with
   `provider_count=0`, `coverage=null`, and `partial=false`.
+
+### Fixed
+
+- The `Josty(...)` library default for `max_content_chars` is now `8000`, matching
+  the CLI, instead of `50000`. Python API callers no longer silently receive up to
+  six times more page text per result than the command line (#59).
 
 ## [0.5.2] - 2026-09-05
 
@@ -35,6 +51,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 - SERP cache identity no longer includes `fetch`. Search then `--fetch` reuses the
   cached SERP and only downloads pages, instead of repeating the provider fanout.
+  Expect a one-time cold SERP cache after upgrading (key shape changed).
 
 ## [0.5.1] - 2026-09-05
 

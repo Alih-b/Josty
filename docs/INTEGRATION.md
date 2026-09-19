@@ -66,7 +66,24 @@ The default output envelope is:
 
 `failed` and `degraded` take precedence over `empty`: a zero-result run with any
 branch failure keeps its failure signal. Fetch and transport-diagnose statuses
-are unchanged. CLI exit codes are unchanged; inspect the JSON search status.
+are unchanged.
+
+CLI exit codes follow the search envelope (#42), and the JSON envelope always
+stays on `stdout`:
+
+| Search `status` | Exit code |
+|---|---|
+| `complete`, `degraded`, `empty` | `0` |
+| `failed` | `1` |
+| usage or validation error | `2` |
+
+`--diagnose` and `--results-only` keep exit `0`; diagnose reports transport
+reachability with its own `status` and does not set the search exit code.
+
+`fetch.status` is `skipped` when `--fetch` was not requested, `noop` when it was
+requested but the SERP had no results to fetch, `failed` when every attempted
+extraction failed, `degraded` when only some succeeded, and `complete` when all
+attempted succeeded.
 
 An empty `SearchRun` with no provider entries also reports `empty`, with
 `provider_count=0`, `coverage=null`, and `partial=false`: no results or branch
@@ -123,6 +140,9 @@ run = asyncio.run(
 )
 print(run.dict())
 ```
+
+The constructor bounds extracted Markdown with `max_content_chars` (default
+`8000`, matching the CLI; `0` disables the cap).
 
 Supported controls:
 

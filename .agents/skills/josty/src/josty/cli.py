@@ -5,7 +5,7 @@ import math
 import os
 import sys
 
-from .engine import Josty, __version__
+from .engine import Josty, SearchStatus, __version__
 
 
 def parser() -> argparse.ArgumentParser:
@@ -80,7 +80,7 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument(
         "--max-content-chars",
         type=int,
-        default=8000,
+        default=Josty.DEFAULT_MAX_CONTENT_CHARS,
         help="cap extracted markdown length per page (default: %(default)d, 0 for unlimited)",
     )
     return command
@@ -157,6 +157,16 @@ def main() -> None:
                 allow_nan=False,
             )
         )
+        # Exit-code contract (#42): only a search envelope that failed outright
+        # exits 1. complete/degraded/empty searches exit 0 so callers read the
+        # in-band status; JSON stays on stdout in every search case. Diagnose is
+        # a transport probe with its own status and keeps exit 0.
+        if (
+            not args.diagnose
+            and isinstance(payload, dict)
+            and payload.get("status") == SearchStatus.FAILED
+        ):
+            raise SystemExit(1)
     except (ValueError, KeyboardInterrupt) as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         raise SystemExit(2) from exc

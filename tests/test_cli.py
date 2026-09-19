@@ -192,3 +192,71 @@ def test_version_flag_ends_only_flags_run(monkeypatch, capsys):
         main()
     assert exc.value.code == 0
     assert f"josty {__version__}" in capsys.readouterr().out
+
+
+def _failed_run(query: str):
+    from josty.engine import ProviderStatus, SearchRun
+
+    return SearchRun(
+        query=query,
+        results=[],
+        providers=[ProviderStatus("brave", query, False, 0)],
+    )
+
+
+def test_search_failed_status_exits_one(monkeypatch, capsys):
+    async def fake_research(self, *args, **kwargs):
+        return _failed_run("outage")
+
+    monkeypatch.setattr("josty.engine.Josty.research_run", fake_research)
+    monkeypatch.setattr("sys.argv", ["josty", "outage"])
+    with pytest.raises(SystemExit) as exit_info:
+        main()
+    assert exit_info.value.code == 1
+    # JSON is still on stdout before the non-zero exit.
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "failed"
+
+
+def test_search_degraded_status_exits_zero(monkeypatch, capsys):
+    from josty.engine import ProviderStatus, SearchResult, SearchRun
+
+    async def fake_research(self, *args, **kwargs):
+        return SearchRun(
+            query="partial",
+            results=[SearchResult("t", "https://example.com/x")],
+            providers=[
+                ProviderStatus("brave", "partial", True, 1),
+                ProviderStatus("yahoo", "partial", False, 0),
+            ],
+        )
+
+    monkeypatch.setattr("josty.engine.Josty.research_run", fake_research)
+    monkeypatch.setattr("sys.argv", ["josty", "partial"])
+    main()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "degraded"
+
+
+def test_results_only_failed_search_exits_zero(monkeypatch, capsys):
+    async def fake_research(self, *args, **kwargs):
+        return _failed_run("outage")
+
+    monkeypatch.setattr("josty.engine.Josty.research_run", fake_research)
+    monkeypatch.setattr("sys.argv", ["josty", "outage", "--results-only"])
+    main()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == []
+
+
+def test_diagnose_failed_status_exits_zero(monkeypatch, capsys):
+    from josty.engine import DiagnoseRun
+
+    async def fake_diagnose(self, include_github=False, category="text"):
+        return DiagnoseRun()
+
+    monkeypatch.setattr("josty.engine.Josty.diagnose_run", fake_diagnose)
+    monkeypatch.setattr("sys.argv", ["josty", "--diagnose"])
+    main()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "failed"

@@ -375,3 +375,21 @@ def test_failed_branch_does_not_count_toward_coverage():
     assert payload["status"] == "degraded"
     assert payload["nonempty_provider_count"] == 0
     assert payload["coverage"] == 0.0
+
+
+def test_fetch_status_noop_when_requested_with_nothing_to_fetch():
+    run = SearchRun(
+        "q",
+        [],
+        [ProviderStatus("brave", "q", True, 0)],
+        fetch_requested=True,
+        fetch_attempted=0,
+    )
+    assert run.fetch_status == "noop"
+    assert run.dict()["fetch"]["status"] == "noop"
+
+
+def test_fetch_status_skipped_only_when_not_requested():
+    run = SearchRun("q", [], [ProviderStatus("brave", "q", True, 0)])
+    assert run.fetch_requested is False
+    assert run.fetch_status == "skipped"
