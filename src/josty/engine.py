@@ -115,7 +115,7 @@ class Josty:
             max_search_concurrency = max_concurrency
         if max_download_bytes < 1 or (max_content_chars is not None and max_content_chars < 0):
             raise ValueError("content limits must be positive")
-        if profile not in ("general", "dev", "academic"):
+        if profile not in ("general", "dev"):
             raise ValueError(f"unsupported profile: {profile}")
         self.timeout = timeout
         self.max_search_concurrency = max_search_concurrency
@@ -148,6 +148,9 @@ class Josty:
                 window_seconds=breaker_window_seconds,
                 cool_down_seconds=breaker_cool_down_seconds,
             )
+        if self.cache and not self.cache.disabled:
+            self.breaker.load_state(self.cache.load_breaker_states())
+            self.breaker.persist_fn = self.cache.save_breaker_state
 
     def clear_cache(self) -> None:
         if self.cache:
@@ -834,7 +837,7 @@ class Josty:
         max_query_variants: int | None = None,
     ) -> SearchRun:
         effective_profile = profile if profile is not None else self.profile
-        if effective_profile not in ("general", "dev", "academic"):
+        if effective_profile not in ("general", "dev"):
             raise ValueError(f"unsupported profile: {effective_profile}")
         effective_max_variants = (
             max_query_variants if max_query_variants is not None else self.max_query_variants

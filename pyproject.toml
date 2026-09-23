@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "josty"
 dynamic = ["version"]
-description = "Small, auditable, keyless metasearch for AI-agent research"
+description = "Keyless search tool and bounded text extraction for agents and scripts"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -31,7 +31,7 @@ dependencies = [
 Homepage = "https://github.com/Alih-b/Josty"
 Repository = "https://github.com/Alih-b/Josty"
 Issues = "https://github.com/Alih-b/Josty/issues"
-Changelog = "https://github.com/Alih-b/Josty/blob/main/CHANGELOG.md"
+Releases = "https://github.com/Alih-b/Josty/releases"
 Security = "https://github.com/Alih-b/Josty/security/policy"
 
 [project.optional-dependencies]
@@ -56,10 +56,7 @@ include = [
   "src",
   "tests",
   "scripts",
-  "docs",
   "README.md",
-  "CHANGELOG.md",
-  "CONTRIBUTING.md",
   "SECURITY.md",
   "LICENSE",
   "pyproject.toml",

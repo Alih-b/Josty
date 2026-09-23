@@ -84,6 +84,19 @@ class SearchCache:
                 );
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS circuit_breaker_state (
+                    backend TEXT NOT NULL,
+                    error_class TEXT NOT NULL,
+                    state TEXT NOT NULL,
+                    open_until REAL NOT NULL,
+                    consecutive_trips INTEGER NOT NULL,
+                    last_trip_at REAL NOT NULL,
+                    PRIMARY KEY (backend, error_class)
+                );
+                """
+            )
             columns = {
                 row[1] for row in conn.execute("PRAGMA table_info(search_cache)").fetchall()
             }
@@ -230,6 +243,7 @@ class SearchCache:
             return
         with suppress(Exception), self._get_conn() as conn:
             conn.execute("DELETE FROM search_cache;")
+            conn.execute("DELETE FROM circuit_breaker_state;")
 
     def delete(self, key: str) -> None:
         """Evict a specific cache entry (e.g. on corruption or invalidation)."""
@@ -237,6 +251,67 @@ class SearchCache:
             return
         with suppress(Exception), self._get_conn() as conn:
             conn.execute("DELETE FROM search_cache WHERE key = ?", (key,))
+
+    def save_breaker_state(
+        self,
+        backend: str,
+        error_class: str,
+        state: str,
+        open_until: float,
+        consecutive_trips: int,
+        last_trip_at: float,
+    ) -> None:
+        """Persist circuit breaker transition to SQLite."""
+        if self.disabled:
+            return
+        with suppress(Exception), self._get_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO circuit_breaker_state (
+                    backend, error_class, state, open_until, consecutive_trips, last_trip_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(backend, error_class) DO UPDATE SET
+                    state = excluded.state,
+                    open_until = excluded.open_until,
+                    consecutive_trips = excluded.consecutive_trips,
+                    last_trip_at = excluded.last_trip_at;
+                """,
+                (
+                    backend,
+                    error_class,
+                    state,
+                    float(open_until),
+                    int(consecutive_trips),
+                    float(last_trip_at),
+                ),
+            )
+
+    def load_breaker_states(self) -> list[dict[str, Any]]:
+        """Load persisted circuit breaker states from SQLite."""
+        if self.disabled:
+            return []
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT backend, error_class, state, open_until, consecutive_trips, "
+                    "last_trip_at FROM circuit_breaker_state;"
+                )
+                rows = cursor.fetchall()
+                return [
+                    {
+                        "backend": row[0],
+                        "error_class": row[1],
+                        "state": row[2],
+                        "open_until": row[3],
+                        "consecutive_trips": row[4],
+                        "last_trip_at": row[5],
+                    }
+                    for row in rows
+                ]
+        except Exception:
+            return []
 
 
 _FETCH_ONLY_FIELDS = ("content", "extraction_method", "fetched_url", "fetched_at", "fetch_error")

@@ -95,8 +95,8 @@ def test_parser_handles_profile_flag():
     args_dev = parser().parse_args(["query", "--profile", "dev"])
     assert args_dev.profile == "dev"
 
-    args_academic = parser().parse_args(["query", "--profile", "academic"])
-    assert args_academic.profile == "academic"
+    with pytest.raises(SystemExit):
+        parser().parse_args(["query", "--profile", "academic"])
 
     with pytest.raises(SystemExit):
         parser().parse_args(["query", "--profile", "invalid"])
@@ -261,3 +261,77 @@ def test_diagnose_failed_status_exits_zero(monkeypatch, capsys):
     main()
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "failed"
+
+
+def test_fetch_subcommand_positional_urls(monkeypatch, capsys):
+    async def fake_fetch_content(self, results):
+        for item in results:
+            item.content = f"content of {item.url}"
+            item.extraction_method = "trafilatura"
+
+    monkeypatch.setattr("josty.cli.Josty.fetch_content", fake_fetch_content)
+    main(["fetch", "https://example.com/a", "https://example.com/b"])
+    payload = json.loads(capsys.readouterr().out)
+    assert len(payload) == 2
+    assert payload[0]["url"] == "https://example.com/a"
+    assert payload[0]["content"] == "content of https://example.com/a"
+    assert payload[1]["url"] == "https://example.com/b"
+
+
+def test_fetch_subcommand_stdin_search_run(monkeypatch, capsys):
+    import io
+
+    async def fake_fetch_content(self, results):
+        for item in results:
+            item.content = f"fetched: {item.title}"
+            item.extraction_method = "trafilatura"
+
+    search_run_json = json.dumps(
+        {
+            "schema_version": "1.0",
+            "query": "test",
+            "status": "complete",
+            "results": [
+                {"title": "Page 1", "url": "https://example.com/1", "snippet": "..."},
+                {"title": "Page 2", "url": "https://example.com/2", "snippet": "..."},
+            ],
+        }
+    )
+    monkeypatch.setattr("sys.stdin", io.StringIO(search_run_json))
+    monkeypatch.setattr("josty.cli.Josty.fetch_content", fake_fetch_content)
+    main(["fetch", "--stdin"])
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["schema_version"] == "1.0"
+    assert payload["fetch_requested"] is True
+    assert payload["fetch_ok"] == 2
+    assert payload["results"][0]["content"] == "fetched: Page 1"
+
+
+def test_fetch_subcommand_stdin_plain_urls(monkeypatch, capsys):
+    import io
+
+    async def fake_fetch_content(self, results):
+        for item in results:
+            item.content = f"markdown of {item.url}"
+
+    monkeypatch.setattr(
+        "sys.stdin", io.StringIO("https://example.com/x\nhttps://example.com/y\n")
+    )
+    monkeypatch.setattr("josty.cli.Josty.fetch_content", fake_fetch_content)
+    main(["fetch", "--stdin"])
+    payload = json.loads(capsys.readouterr().out)
+    assert len(payload) == 2
+    assert payload[0]["url"] == "https://example.com/x"
+    assert payload[0]["content"] == "markdown of https://example.com/x"
+
+
+def test_search_subcommand_prefix(monkeypatch, capsys):
+    from josty.models import SearchRun
+
+    async def fake_research(self, *args, **kwargs):
+        return SearchRun(query="test_subcommand")
+
+    monkeypatch.setattr("josty.cli.Josty.research_run", fake_research)
+    main(["search", "test_subcommand"])
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["query"] == "test_subcommand"

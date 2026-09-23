@@ -11,7 +11,7 @@ SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]
 ErrorKind = Literal["network", "rate_limited", "blocked", "empty", "parse", "unknown", "skipped"]
-ProfileType = Literal["general", "dev", "academic"]
+ProfileType = Literal["general", "dev"]
 
 SCHEMA_VERSION = "1.0"
 

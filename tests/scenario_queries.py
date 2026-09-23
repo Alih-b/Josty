@@ -2,7 +2,7 @@
 
 These are not TREC graded queries. Each case asserts host, token, status,
 or fetch constraints against a frozen (or optionally live) JSON envelope.
-When a constraint fails, emit ``label_if_fail`` from docs/ISSUE_TAXONOMY.md.
+When a constraint fails, emit ``label_if_fail`` (taxonomy class for the failure).
 
 Do not reuse ``benchmark_grade.string_grade`` here: a news hit on ``"14"``
 would false-pass token-collision cases.
@@ -15,32 +15,6 @@ is reported as a near-miss only when a required answer token is also missing.
 from __future__ import annotations
 
 from typing import Any
-
-# Subset of engine.AUTHORITATIVE_DOMAINS_ACADEMIC used as an eval required-host
-# check for the academic-profile scenario. Keep in sync when that set changes.
-ACADEMIC_HOSTS: tuple[str, ...] = (
-    "arxiv.org",
-    "biorxiv.org",
-    "medrxiv.org",
-    "ncbi.nlm.nih.gov",
-    "nih.gov",
-    "ieee.org",
-    "ieeexplore.ieee.org",
-    "acm.org",
-    "dl.acm.org",
-    "nature.com",
-    "science.org",
-    "springer.com",
-    "sciencedirect.com",
-    "semanticscholar.org",
-    "openalex.org",
-    "paperswithcode.com",
-    "openreview.net",
-    "aclweb.org",
-    "neurips.cc",
-    "icml.cc",
-    "iclr.cc",
-)
 
 SCENARIOS: list[dict[str, Any]] = [
     {
@@ -67,18 +41,6 @@ SCENARIOS: list[dict[str, Any]] = [
         "label_if_fail": "upstream_quality",
         "pathway": "Skill: require subject tokens before citing. Not an engine filter.",
         "notes": "Live capture returned Python 3.15 only.",
-    },
-    {
-        "id": "academic_profile_rag",
-        "layer": "rank",
-        "query": "retrieval augmented generation",
-        "flags": {"profile": "academic", "limit": 5},
-        "min_results": 1,
-        "expect_status": "complete",
-        "must_hosts": ACADEMIC_HOSTS,
-        "label_if_fail": "product_gap",
-        "pathway": "Soft academic weights only; no hard host floor.",
-        "notes": "Live capture ranked Wikipedia / AWS / IBM / NVIDIA / Google Cloud.",
     },
     {
         "id": "dev_profile_fastapi",
