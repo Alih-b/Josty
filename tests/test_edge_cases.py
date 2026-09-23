@@ -308,14 +308,9 @@ class TestDomainWeight:
         assert domain_weight("https://pinterest.com/x") == 0.6
         assert domain_weight("https://geeksforgeeks.org/x") == 0.6
 
-    def test_spam_penalty_dev_academic_more_severe(self):
+    def test_spam_penalty_dev_more_severe(self):
         assert domain_weight("https://pinterest.com/x", profile="dev") == 0.5
-        assert domain_weight("https://geeksforgeeks.org/x", profile="academic") == 0.5
-
-    def test_academic_boost(self):
-        assert domain_weight("https://arxiv.org/abs/1", profile="academic") == 1.4
-        # In general profile arxiv is not boosted
-        assert domain_weight("https://arxiv.org/abs/1") == 1.0
+        assert domain_weight("https://geeksforgeeks.org/x", profile="dev") == 0.5
 
 
 # ======================================================================================

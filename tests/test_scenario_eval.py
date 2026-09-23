@@ -20,7 +20,6 @@ from scenario_queries import SCENARIOS, scenario_by_id
 EXPECTED_VERDICTS = {
     "news_token_collision": ("fail", "upstream_quality"),
     "news_near_miss": ("fail", "upstream_quality"),
-    "academic_profile_rag": ("fail", "product_gap"),
     "dev_profile_fastapi": ("pass", None),
     "site_filter_httpx": ("pass", None),
     "exact_free_threading": ("pass", None),
@@ -164,8 +163,8 @@ def test_diagnose_4xx_must_remain_ok():
 def test_missing_corpus_row_is_contract_bug():
     results = evaluate_corpus({})
     by_id = {row.id: row for row in results}
-    assert by_id["academic_profile_rag"].taxonomy_class == "contract_bug"
-    assert by_id["academic_profile_rag"].issues == ["missing corpus row"]
+    assert by_id["dev_profile_fastapi"].taxonomy_class == "contract_bug"
+    assert by_id["dev_profile_fastapi"].issues == ["missing corpus row"]
 
 
 def test_live_output_dir_never_uses_replay(tmp_path: Path):

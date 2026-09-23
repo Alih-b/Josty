@@ -268,7 +268,7 @@ def render_report(results: list[CaseResult], *, source: str = "frozen") -> str:
     lines = [
         "# Josty scenario eval",
         "",
-        origin + "Failures emit a taxonomy class from `docs/ISSUE_TAXONOMY.md`.",
+        origin + "Failures emit a failure taxonomy class.",
         "",
         f"**{sum(row.verdict == 'pass' for row in results)}/{len(results)} constraints passed.**",
         "",

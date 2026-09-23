@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from contextlib import suppress
 from datetime import datetime, timezone
 from typing import Any
 
@@ -31,7 +32,7 @@ class CircuitBreaker:
 
     ``error_class`` exists for contract compatibility: ``"rate_limit"`` and
     ``"search"`` are aliases sharing one failure namespace, and the default
-    follows the PROJECT.md contract (``"rate_limit"``).
+    follows the default breaker contract (``"rate_limit"``).
     """
 
     def __init__(
@@ -55,6 +56,30 @@ class CircuitBreaker:
         self._keys_by_backend: dict[str, set[tuple[str, str]]] = {}
         self._latencies: dict[str, float] = {}
         self._lock = threading.Lock()
+        self.persist_fn: Any = None
+
+    def load_state(self, states: list[dict[str, Any]]) -> None:
+        """Hydrate breaker state from persisted storage."""
+        now_mono = time.monotonic()
+        now_wall = time.time()
+        with self._lock:
+            for item in states:
+                backend = item.get("backend")
+                error_class = item.get("error_class", "search")
+                if not backend:
+                    continue
+                key = self._key(backend, error_class)
+                self._register_key(key)
+                open_until_epoch = float(item.get("open_until", 0.0))
+                remaining = open_until_epoch - now_wall
+                trips = int(item.get("consecutive_trips", 0))
+                if item.get("state") == "open" and remaining > 0:
+                    self._state[key] = "open"
+                    self._open_until[key] = now_mono + remaining
+                    self._consecutive_trips[key] = trips
+                    self._last_trip_at[key] = now_mono
+                elif trips > 0:
+                    self._consecutive_trips[key] = trips
 
     @staticmethod
     def _key(backend: str, error_class: str) -> tuple[str, str]:
@@ -103,6 +128,12 @@ class CircuitBreaker:
         self._state[key] = "open"
         self._probe_inflight.pop(key, None)
         self._register_key(key)
+        if self.persist_fn:
+            with suppress(Exception):
+                open_until_epoch = time.time() + backoff
+                self.persist_fn(
+                    key[0], key[1], "open", open_until_epoch, trips, time.time()
+                )
 
     def status(self, backend: str, error_class: str = "rate_limit") -> tuple[bool, str | None]:
         """Return ``(allowed, skip_message)`` for a backend/error pair.
@@ -169,6 +200,9 @@ class CircuitBreaker:
             self._open_until[key] = 0.0
             self._consecutive_trips[key] = 0
             self._probe_inflight.pop(key, None)
+            if self.persist_fn:
+                with suppress(Exception):
+                    self.persist_fn(key[0], key[1], "closed", 0.0, 0, 0.0)
 
     def record_latency(self, backend: str, latency_ms: float) -> None:
         """Record the most recent execution latency for a backend."""

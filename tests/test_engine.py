@@ -595,7 +595,7 @@ def test_merge_query_variants_best_rank_merge_without_frequency_vote():
     # across engine lists (no ddgs-style frequency-inflated ordering). RRF
     # voting is per ENGINE, not per list position: a URL found by both
     # engines of a group carries both engines' votes, per the per-engine
-    # attribution contract (PROJECT.md "Transparent RRF Attribution
+    # attribution contract ("Transparent RRF Attribution
     # Contract"). This supersedes the earlier one-vote-per-group policy that
     # could not attribute contributions verifiably.
     from josty.models import SearchResult
@@ -719,7 +719,7 @@ def test_github_is_opt_in_and_fused_once(monkeypatch):
     assert combined.results[0].sources == ["one", "two"]
     # Per-engine attribution contract: each engine contributes
     # round(1/(k+rank), 6) and the score derives from those rounded terms
-    # (see PROJECT.md "Transparent RRF Attribution Contract").
+    # (see "Transparent RRF Attribution Contract" in AGENTS.md).
     assert combined.results[0].score == round(2 * round(1 / 61, 6), 6)
     assert combined.results[1].score == round(1.2 * round(1 / 61, 6), 6)
 
@@ -948,19 +948,10 @@ def test_domain_weights_boost_and_penalize_with_subdomains_and_profiles():
     assert domain_weight("https://pinterest.com/pin/123", profile="dev") == 0.5
     assert domain_weight("https://geeksforgeeks.org/python", profile="dev") == 0.5
 
-    # Academic profile
-    assert domain_weight("https://arxiv.org/abs/2301.00001", profile="academic") == 1.4
-    assert domain_weight("https://pubmed.ncbi.nlm.nih.gov/12345678/", profile="academic") == 1.4
-    assert domain_weight("https://ieeexplore.ieee.org/document/12345", profile="academic") == 1.4
-    assert domain_weight("https://dl.acm.org/doi/10.1145/123", profile="academic") == 1.4
-    assert domain_weight("https://nature.com/articles/s41586-023", profile="academic") == 1.4
-    # Documentation and encyclopedia retain authoritative baseline in academic mode
-    assert domain_weight("https://docs.python.org/3/", profile="academic") == 1.2
-    assert domain_weight("https://en.wikipedia.org/wiki/Search_engine", profile="academic") == 1.2
-    assert domain_weight("https://pinterest.com/pin/123", profile="academic") == 0.5
-
-
 def test_invalid_profile_raises_value_error():
+    with pytest.raises(ValueError, match="profile"):
+        Josty(profile="academic")
+
     with pytest.raises(ValueError, match="profile"):
         Josty(profile="unsupported")
 
@@ -975,11 +966,8 @@ def test_invalid_profile_raises_value_error():
 def test_cache_keys_are_isolated_by_profile():
     general_key = SearchCache.hash_key("query", profile="general")
     dev_key = SearchCache.hash_key("query", profile="dev")
-    academic_key = SearchCache.hash_key("query", profile="academic")
 
     assert general_key != dev_key
-    assert dev_key != academic_key
-    assert general_key != academic_key
 
 
 def test_search_cache_hit_and_miss_and_clear(tmp_path):
@@ -1424,11 +1412,6 @@ def test_domain_weights_expanded_authoritative_sets():
     assert domain_weight("https://astral.sh/blog", profile="dev") == 1.3
     assert domain_weight("https://ollama.com/library", profile="dev") == 1.3
 
-    # Academic profile boosts ML conference & preprint domains
-    assert domain_weight("https://openreview.net/forum?id=123", profile="academic") == 1.4
-    assert domain_weight("https://paperswithcode.com/sota", profile="academic") == 1.4
-    assert domain_weight("https://neurips.cc/virtual/2024", profile="academic") == 1.4
-
     # Spam domains are still penalized
     assert domain_weight("https://geeksforgeeks.org/article", profile="dev") == 0.5
 
@@ -1736,3 +1719,34 @@ def test_news_day_timelimit_cache_row_uses_floor_ttl(tmp_path, monkeypatch):
     assert len(rows) == 2
     assert any(abs(row[1] - 1800.0) < 1.0 for row in rows)
     assert any(abs(row[1] - 21600.0) < 1.0 for row in rows)
+
+
+def test_circuit_breaker_persists_across_instances(tmp_path):
+    db_file = tmp_path / "shared_cache.db"
+    engine_a = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
+
+    # Initially closed
+    allowed, msg = engine_a.breaker.status("duckduckgo")
+    assert allowed is True
+    assert msg is None
+
+    # Fail twice to trip breaker
+    engine_a.breaker.record_failure("duckduckgo")
+    engine_a.breaker.record_failure("duckduckgo")
+    allowed, msg = engine_a.breaker.status("duckduckgo")
+    assert allowed is False
+    assert "cool-down" in msg
+
+    # Create fresh engine instance sharing the same cache DB
+    engine_b = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
+    allowed, msg = engine_b.breaker.status("duckduckgo")
+    assert allowed is False
+    assert "cool-down" in msg
+
+    # Clearing cache also clears breaker state
+    engine_b.clear_cache()
+
+    engine_c = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
+    allowed, msg = engine_c.breaker.status("duckduckgo")
+    assert allowed is True
+    assert msg is None

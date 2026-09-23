@@ -118,47 +118,6 @@ AUTHORITATIVE_DOMAINS_DEV = {
     "val.town",
 }
 
-AUTHORITATIVE_DOMAINS_ACADEMIC = {
-    "arxiv.org",
-    "biorxiv.org",
-    "medrxiv.org",
-    "ncbi.nlm.nih.gov",
-    "nih.gov",
-    "nlm.nih.gov",
-    "ieee.org",
-    "ieeexplore.ieee.org",
-    "acm.org",
-    "dl.acm.org",
-    "nature.com",
-    "science.org",
-    "springer.com",
-    "sciencedirect.com",
-    "semanticscholar.org",
-    "openalex.org",
-    "doi.org",
-    "crossref.org",
-    "jstor.org",
-    "plos.org",
-    "cell.com",
-    "oup.com",
-    "tandfonline.com",
-    "wiley.com",
-    "frontiersin.org",
-    "mdpi.com",
-    "pnas.org",
-    "cambridge.org",
-    "thelancet.com",
-    # Top AI/ML Conferences & Preprints
-    "openreview.net",
-    "paperswithcode.com",
-    "chemrxiv.org",
-    "hal.science",
-    "aclweb.org",
-    "neurips.cc",
-    "icml.cc",
-    "iclr.cc",
-}
-
 SPAM_DOMAINS = {
     "pinterest.com",
     "quora.com",
@@ -231,18 +190,7 @@ def domain_weight(url: str, profile: ProfileType = "general") -> float:
         return any(hostname == d or hostname.endswith("." + d) for d in domains)
 
     if _matches_any(SPAM_DOMAINS):
-        return 0.5 if profile in ("dev", "academic") else 0.6
-
-    if profile == "academic":
-        if _matches_any(AUTHORITATIVE_DOMAINS_ACADEMIC):
-            return 1.4
-        if (
-            hostname.startswith("docs.")
-            or hostname.endswith(".readthedocs.io")
-            or _matches_any(AUTHORITATIVE_DOMAINS_GENERAL)
-        ):
-            return 1.2
-        return 1.0
+        return 0.5 if profile == "dev" else 0.6
 
     if profile == "dev":
         if (
@@ -288,7 +236,7 @@ def rrf(
     so a caller can verify the score from the recorded attribution alone.
     Engine agreement therefore counts: a URL found by two engines of the same
     group carries both votes. That is the deliberate per-engine fusion
-    semantics (see PROJECT.md, "Transparent RRF Attribution Contract").
+    semantics (see Transparent RRF Attribution Contract).
 
     Fusion never mutates caller-owned items: ranks are backfilled on clones.
     """

@@ -1,4 +1,4 @@
-"""Lightweight, keyless metasearch for AI-agent research."""
+"""Keyless search tool and bounded text extraction for agents and scripts."""
 
 from ._version import __version__
 from .breaker import CircuitBreaker

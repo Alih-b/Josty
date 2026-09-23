@@ -1,11 +1,11 @@
 <!--
   name: Josty
-  description: Zero-config, keyless metasearch engine and bounded content extraction.
+  description: Keyless search tool and bounded text extraction for agents and scripts.
   repository: https://github.com/Alih-b/Josty
   license: MIT
   specification: .agents/skills/josty/SKILL.md
-  compatibility: Compatible with all AI agent runtimes, LLM harnesses, and developer CLI workflows.
-  keywords: metasearch, keyless-search, search-engine, rrf, rank-fusion, trafilatura, python, cli, ai-agent
+  compatibility: Python 3.10+, CLI, AI agent runtimes.
+  keywords: search, agent, keyless-search, ddgs, rrf, trafilatura, cli
 -->
 
 <div align="center">
@@ -17,14 +17,13 @@
 </picture>
 
 <p>
-  <strong>Zero-config, keyless metasearch and bounded content extraction.</strong>
+  <strong>Keyless search and bounded text extraction for agents and scripts.</strong>
 </p>
 
 <p>
   <a href="https://github.com/Alih-b/Josty/actions/workflows/ci.yml"><img src="https://github.com/Alih-b/Josty/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+" /></a>
   <a href="https://github.com/Alih-b/Josty/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" /></a>
-  <a href="https://github.com/Alih-b/Josty/blob/main/CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-CHANGELOG.md-orange" alt="Changelog" /></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/code%20style-ruff-261230" alt="Code Style: Ruff" /></a>
 </p>
 
@@ -34,259 +33,110 @@
 
 ## What It Is
 
-**Josty** (from Persian *جستن* / *Jostan* — to seek) queries keyless public search backends in parallel, fuses rankings with **Reciprocal Rank Fusion (RRF)**, canonicalizes URLs, strips tracking telemetry, and extracts bounded Markdown from target pages. 
+**Josty** queries public search backends in parallel through `ddgs`, fuses rankings with Cormack-Clarke Reciprocal Rank Fusion (RRF), canonicalizes URLs, and optionally extracts bounded page text.
 
-It provides a dependable, structured search subprocess and async Python API without requiring search API keys, background daemons, or heavy browser dependencies.
+It is designed for AI agents and developer scripts that need a self-contained search step without API keys, background daemons, or browser engines.
 
----
+```text
+┌──────────────────────────────┐
+│  Local Agent / Script Step   │
+└──────────────┬───────────────┘
+               │ single search execution
+               ▼
+┌──────────────────────────────┐
+│            Josty             │
+│  - Bounded parallel fanout   │
+│  - Domain-weighted RRF (k=60)│
+│  - In-process breaker & cache│
+│  - Trafilatura text extract  │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│   Public Backends via ddgs   │
+│  (Brave, DuckDuckGo, Yahoo,  │
+│   Mojeek, Startpage, Google) │
+└──────────────────────────────┘
+```
 
 ## Installation
 
 ```bash
-# Recommended: Instant cached execution (zero persistent virtualenv overhead)
-uvx josty "Python 3.13 changes" --limit 5
+# Run instantly with uvx (no install step needed):
+uvx josty "Python 3.13 features" --limit 5
 
-# Global CLI installation via uv:
+# Or install globally:
 uv tool install josty
-
-# Alternative installation via pipx or standard pip:
-pipx install josty
-pip install josty
+# or: pipx install josty
 ```
-
----
 
 ## Quickstart
 
-### 1. CLI Usage
-
 ```bash
-# Basic web search (top 5 results)
-josty "Python 3.13 features" --limit 5
+# 1. Basic search (returns top 5 results):
+josty "Python 3.13 release highlights" --limit 5
 
-# Developer profile (boosts GitHub, PyPI, crates.io, MDN, StackOverflow)
+# 2. Boost technical documentation domains (dev profile):
 josty "FastAPI dependency injection" --profile dev --limit 5
 
-# Academic profile (boosts arXiv, PubMed, IEEE, Nature, OpenAlex)
-josty "retrieval augmented generation" --profile academic --limit 5
+# 3. Restrict search to specific domains (up to 5):
+josty "httpx connection pool timeout" --site github.com --site python-httpx.org
 
-# Domain filtering (up to 5 domains)
-josty "httpx connection reset" --site github.com --site stackoverflow.com
-
-# Open Source discovery mode
-josty "document indexing" --mode oss --github
-
-# Extract clean, bounded Markdown from top result pages
+# 4. Extract bounded Markdown page text from top results:
 josty "RRF rank fusion algorithm" --limit 3 --fetch
+
+# 5. Unix pipeline (stream search results straight into fetch):
+josty search "FastAPI dependency injection" --limit 3 | josty fetch --stdin
 ```
 
-### 2. Versioned JSON Output
+## Output & Status Contract
 
-`stdout` emits pure, parseable JSON conforming to a strict schema contract (`schema_version: "1.0"`):
+Normal searches emit one JSON document on `stdout`. Diagnostics and warnings route strictly to `stderr`.
 
 ```json
 {
   "schema_version": "1.0",
-  "query": "Python 3.13 features",
+  "query": "FastAPI dependency injection",
   "status": "complete",
   "count": 3,
   "partial": false,
   "cached": false,
-  "run_at": "2026-09-02T12:00:00+00:00",
-  "provider_count": 3,
-  "nonempty_provider_count": 3,
-  "coverage": 1.0,
-  "query_variant_count": 1,
-  "request_count": 3,
-  "fetch": {
-    "requested": true,
-    "attempted": 3,
-    "ok": 3,
-    "failed": 0,
-    "status": "complete"
-  },
-  "providers": [
-    { "provider": "brave", "query": "Python 3.13 features", "ok": true, "result_count": 5, "error": null, "error_kind": null },
-    { "provider": "duckduckgo", "query": "Python 3.13 features", "ok": true, "result_count": 5, "error": null, "error_kind": null },
-    { "provider": "google", "query": "Python 3.13 features", "ok": true, "result_count": 4, "error": null, "error_kind": null }
-  ],
+  "provider_count": 6,
+  "nonempty_provider_count": 2,
+  "coverage": 0.333,
+  "providers": [...],
   "results": [
     {
-      "title": "What's New In Python 3.13 — Python 3.13.0 documentation",
-      "url": "https://docs.python.org/3/whatsnew/3.13.html",
-      "snippet": "Python 3.13 includes an experimental free-threaded build mode...",
-      "sources": ["brave", "duckduckgo", "google"],
-      "score": 0.032787,
-      "content": "## What's New In Python 3.13\n\nThis article explains the new features...",
-      "extraction_method": "trafilatura"
+      "title": "Dependencies - FastAPI",
+      "url": "https://fastapi.tiangolo.com/tutorial/dependencies/",
+      "snippet": "FastAPI has a very powerful but intuitive Dependency Injection system...",
+      "sources": ["duckduckgo", "brave"],
+      "score": 0.039024,
+      "content": null
     }
   ]
 }
 ```
 
-`status` is one of `complete`, `empty`, `degraded`, or `failed`. `empty` means no
-results remain and no branch failed (`count=0`); treat it as "no usable result", not
-success. `degraded` and `failed` take precedence over `empty`. See
-[`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full status and envelope semantics.
+### Status Values & Exit Codes
 
-Exit code follows the search envelope, and the JSON envelope is always on `stdout`:
+| Status | Meaning | Exit Code |
+|---|---|---|
+| `complete` | Results found; no backend failed. | `0` |
+| `empty` | No results found; no backend failed (`count=0`). | `0` |
+| `degraded` | Results found, but at least one backend failed; or page extraction failed. | `0` |
+| `failed` | Every attempted backend failed; zero results returned. | `1` |
+| Validation Error | Invalid CLI options or empty query. | `2` |
 
-| Search `status` | Exit code |
-|---|---|
-| `complete`, `degraded`, `empty` | `0` |
-| `failed` | `1` |
-| usage or validation error | `2` |
+## Limitations & Non-Goals
 
-`--diagnose` and `--results-only` keep exit `0`.
+- **No Privacy or Anonymity Guarantees**: Josty does not proxy or anonymize traffic. Queries are sent directly to upstream search engines.
+- **Best-Effort Availability**: Upstream public engines may throttle (HTTP 429), present anti-bot challenges, or change response formats. Josty isolates failures via circuit breakers and surfaces errors honestly rather than hiding them behind infinite retries.
+- **Not a Search Engine**: Josty does not maintain an index or crawl the web. It is a lightweight client adapter over `ddgs`.
+- **No Hidden Query Rewriting**: If a search returns empty, Josty reports `status: "empty"`. The caller decides whether to broaden terms or adjust site filters.
 
----
+## Documentation
 
-## Python API & Integrations
-
-### Direct Async Python API
-
-```python
-import asyncio
-from josty import Josty
-
-async def main():
-    engine = Josty(profile="dev")
-    run = await engine.research_run("Linux kernel initial release year", limit=3)
-    
-    if run.usable:
-        for result in run.results:
-            print(f"[{result.title}]({result.url})\n{result.snippet}\n")
-
-asyncio.run(main())
-```
-
----
-
-### Function Calling Tool Schema
-
-```python
-search_tool_definition = {
-    "type": "function",
-    "function": {
-        "name": "web_search",
-        "description": "Search the web for up-to-date documentation and technical resources. Returns ranked results.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "The search query."
-                },
-                "fetch": {
-                    "type": "boolean",
-                    "description": "Set to true to fetch and extract clean Markdown page content.",
-                    "default": False
-                },
-                "profile": {
-                    "type": "string",
-                    "enum": ["general", "dev", "academic"],
-                    "description": "Ranking profile boosting authoritative technical or academic domains.",
-                    "default": "general"
-                },
-                "mode": {
-                    "type": "string",
-                    "enum": ["plain", "exact", "oss"],
-                    "description": "Search mode ('oss' filters for open-source repositories).",
-                    "default": "plain"
-                }
-            },
-            "required": ["query"]
-        }
-    }
-}
-```
-
----
-
-## Technical Specifications & Architecture
-
-```mermaid
-graph TD
-    Query["Search Query"] --> Cache{"SQLite WAL Cache<br/>Tiered TTL (d:30m/news:1h/w:2h, else 6h)<br/>5k rows / 50 MB, SERP-only"}
-    
-    Cache -- Cache Hit --> Out["<b>Pure JSON Output</b><br/>(schema_version: 1.0)"]
-    Cache -- "Cache Hit + --fetch" --> Traf
-    
-    Cache -- Cache Miss --> Fanout["<b>Async Parallel Fanout</b><br/>(one call per engine)"]
-    
-    Fanout --> B1["Engine Group 1<br/>(Brave, DuckDuckGo)"]
-    Fanout --> B2["Engine Group 2<br/>(Google, Mojeek, Startpage)"]
-    Fanout --> B3["Engine Group 3<br/>(Yahoo)"]
-    Fanout --> GH["GitHub Search<br/>(Optional --github)"]
-    
-    B1 --> Circuit["<b>Per-Engine Circuit Breakers</b><br/>(Sliding Window)"]
-    B2 --> Circuit
-    B3 --> Circuit
-    GH --> Circuit
-    
-    Circuit --> RRF["<b>Domain-Weighted RRF Fusion</b><br/>(k=60 + Dev/Academic Profiles)"]
-    
-    RRF --> Canon["<b>URL Canonicalization</b><br/>(RFC 3986 + Tracking Stripper)"]
-    
-    Canon --> Fetch{"<b>--fetch Active?</b>"}
-    
-    Fetch -- Yes --> Traf["Trafilatura Extractor<br/>Bounded Markdown"]
-    Fetch -- No --> Out
-    Traf --> Out
-
-    style Query fill:#dbeafe,stroke:#1e40af,stroke-width:2px;
-    style Out fill:#dcfce7,stroke:#15803d,stroke-width:2px;
-    style RRF fill:#fef3c7,stroke:#b45309,stroke-width:2px;
-```
-
-| Parameter / Feature | Code Value / Contract | Description |
-| :--- | :--- | :--- |
-| **Schema Version** | `1.0` | Output format contract on `stdout` |
-| **Max Domain Filters** | `5` (`--site`) | Maximum concurrent site constraints per query |
-| **Max Query Variants** | unlimited (`--max-query-variants`) | Caps mode/site query expansion — set this for `--mode oss` with multiple `--site` filters to bound upstream fanout |
-| **Search Concurrency** | `6` (`--search-concurrency`) | Default bounded semaphore for search backends |
-| **Fetch Concurrency** | `4` (`--fetch-concurrency`) | Default bounded semaphore for page content fetching |
-| **Max Content Size** | `8,000 chars` (`--max-content-chars`, `Josty(...)` default) | Extracted Markdown character ceiling per page (0 for unlimited) |
-| **Download Byte Limit** | `2,000,000 bytes` (2MB) | Hard ceiling on raw HTTP downloads before parsing |
-| **RRF Parameter** | $k=60$ | Cormack et al. (2009) reciprocal rank smoothing factor |
-| **SSRF Safeguards** | Verified | Blocks private subnets, loopback, RFC 1918, and `169.254.169.254` metadata |
-
----
-
-## Roadmap
-
-Shipped in **v0.4.0**: `error_kind=empty`, diagnose `challenged`, no hidden query rewrite,
-and a bounded cache. Shipped in **v0.5.0**: per-engine `providers[]` observability (one
-status per engine) and an engine-availability gate. Query relaxation, news engine filters,
-and hard host floors are out of scope. See
-**[docs/archive/ROADMAP.md](https://github.com/Alih-b/Josty/blob/main/docs/archive/ROADMAP.md)**.
-
----
-
-## Development
-
-```bash
-# Clone repository
-git clone https://github.com/Alih-b/Josty.git
-cd josty
-
-# Create and activate a virtual environment first (PEP 668:
-# Debian/Ubuntu system Python rejects direct pip installs)
-python -m venv .venv
-source .venv/bin/activate
-
-# Install in editable mode with dev dependencies
-python -m pip install -e ".[dev]"
-
-# Run test suite
-pytest -q
-
-# Lint and check code style
-ruff check .
-```
-
----
-
-## License
-
-MIT © Ali Bayest. See [LICENSE](https://github.com/Alih-b/Josty/blob/main/LICENSE) for details.
+- **Agent Tool Specification**: [`.agents/skills/josty/SKILL.md`](.agents/skills/josty/SKILL.md) (full flag specifications, schemas, provider telemetry, and agent research rules).
+- **Coding Agent Guide**: [`AGENTS.md`](AGENTS.md) (invariants, test commands, and module layout for agents working on this codebase).
+- **Security Policy**: [`SECURITY.md`](SECURITY.md).

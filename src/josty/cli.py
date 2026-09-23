@@ -7,6 +7,7 @@ import sys
 
 from ._version import __version__
 from .engine import Josty
+from .models import SearchResult
 from .status import SearchStatus
 
 
@@ -36,9 +37,9 @@ def parser() -> argparse.ArgumentParser:
     )
     command.add_argument(
         "--profile",
-        choices=("general", "dev", "academic"),
+        choices=("general", "dev"),
         default="general",
-        help="ranking profile boosting dev/academic domains (default: %(default)s)",
+        help="ranking profile boosting dev domains (default: %(default)s)",
     )
     command.add_argument("--fetch", action="store_true", help="extract bounded text from results")
     command.add_argument(
@@ -88,6 +89,130 @@ def parser() -> argparse.ArgumentParser:
     return command
 
 
+def fetch_parser() -> argparse.ArgumentParser:
+    cmd = argparse.ArgumentParser(
+        description="Extract bounded text from URLs or piped Josty search results"
+    )
+    cmd.add_argument("urls", nargs="*", help="target URLs to fetch")
+    cmd.add_argument(
+        "--stdin", action="store_true", help="read URLs or SearchRun JSON from stdin"
+    )
+    cmd.add_argument(
+        "--fetch-concurrency",
+        type=int,
+        default=Josty.DEFAULT_FETCH_CONCURRENCY,
+        help="max concurrent page fetches (default: %(default)d)",
+    )
+    cmd.add_argument(
+        "--max-content-chars",
+        type=int,
+        default=Josty.DEFAULT_MAX_CONTENT_CHARS,
+        help="cap extracted markdown length per page (default: %(default)d, 0 for unlimited)",
+    )
+    cmd.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="max number of results to fetch",
+    )
+    return cmd
+
+
+async def run_fetch(args: argparse.Namespace) -> dict | list:
+    raw_input = ""
+    if args.stdin:
+        raw_input = sys.stdin.read().strip()
+    urls = list(args.urls)
+
+    engine = Josty(
+        max_fetch_concurrency=args.fetch_concurrency,
+        max_content_chars=args.max_content_chars,
+        enable_cache=False,
+    )
+
+    if raw_input.startswith("{"):
+        try:
+            payload = json.loads(raw_input)
+            if isinstance(payload, dict) and "results" in payload:
+                results_raw = payload.get("results", [])
+                if args.limit is not None and args.limit > 0:
+                    results_raw = results_raw[: args.limit]
+                items = [
+                    SearchResult(
+                        title=r.get("title", ""),
+                        url=r.get("url", ""),
+                        snippet=r.get("snippet", ""),
+                        sources=r.get("sources", []),
+                        published_at=r.get("published_at"),
+                        publisher=r.get("publisher"),
+                        score=r.get("score", 0.0),
+                        content=r.get("content"),
+                        extraction_method=r.get("extraction_method"),
+                        fetched_url=r.get("fetched_url"),
+                        fetched_at=r.get("fetched_at"),
+                        fetch_error=r.get("fetch_error"),
+                        engine_ranks=r.get("engine_ranks", {}),
+                        rank_contributions=r.get("rank_contributions", {}),
+                        score_weights=r.get("score_weights", {}),
+                    )
+                    for r in results_raw
+                    if isinstance(r, dict) and r.get("url")
+                ]
+                await engine.fetch_content(items)
+                payload["results"] = [item.dict() for item in items]
+                ok_count = sum(1 for item in items if item.content is not None)
+                fail_count = sum(1 for item in items if item.fetch_error is not None)
+                payload["fetch_requested"] = True
+                payload["fetch_attempted"] = len(items)
+                payload["fetch_ok"] = ok_count
+                payload["fetch_failed"] = fail_count
+                status_str = (
+                    "noop"
+                    if len(items) == 0
+                    else (
+                        "complete"
+                        if fail_count == 0
+                        else ("failed" if ok_count == 0 else "degraded")
+                    )
+                )
+                payload["fetch"] = {
+                    "requested": True,
+                    "attempted": len(items),
+                    "ok": ok_count,
+                    "failed": fail_count,
+                    "status": status_str,
+                }
+                if fail_count > 0 and payload.get("status") == SearchStatus.COMPLETE:
+                    payload["status"] = SearchStatus.DEGRADED
+                return payload
+        except json.JSONDecodeError:
+            pass
+
+    # Plain text URLs from stdin or arguments
+    if raw_input and not urls:
+        urls = [line.strip() for line in raw_input.splitlines() if line.strip()]
+
+    if not urls:
+        raise ValueError("no URLs provided to fetch (supply URLs as arguments or pass --stdin)")
+
+    if args.limit is not None and args.limit > 0:
+        urls = urls[: args.limit]
+
+    items = [SearchResult(title="", url=u, snippet="") for u in urls]
+    await engine.fetch_content(items)
+    return [
+        {
+            "url": item.url,
+            "content": item.content,
+            "extraction_method": item.extraction_method,
+            "fetched_url": item.fetched_url,
+            "fetched_at": item.fetched_at,
+            "fetch_error": item.fetch_error,
+        }
+        for item in items
+    ]
+
+
 async def run(args: argparse.Namespace) -> dict | list:
     engine = Josty(
         github_token=os.getenv("GITHUB_TOKEN"),
@@ -130,9 +255,35 @@ def _sanitize_json(value: object) -> object:
     return value
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if argv and argv[0] == "fetch":
+        fparser = fetch_parser()
+        fargs = fparser.parse_args(argv[1:])
+        if not fargs.stdin and not fargs.urls:
+            fparser.error("must provide target URLs or pass --stdin")
+        try:
+            payload = asyncio.run(run_fetch(fargs))
+            print(
+                json.dumps(
+                    _sanitize_json(payload),
+                    ensure_ascii=False,
+                    indent=2,
+                    allow_nan=False,
+                )
+            )
+            return
+        except (ValueError, KeyboardInterrupt) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            raise SystemExit(2) from exc
+
+    if argv and argv[0] == "search":
+        argv = argv[1:]
+
     command = parser()
-    args = command.parse_args()
+    args = command.parse_args(argv)
     if args.clear_cache:
         Josty().clear_cache()
         print(json.dumps({"status": "cleared", "message": "Search cache cleared"}))

@@ -23,17 +23,6 @@
     "confidence": "reproduced"
   },
   {
-    "id": "academic_profile_rag",
-    "layer": "rank",
-    "verdict": "fail",
-    "taxonomy_class": "product_gap",
-    "pathway": "Soft academic weights only; no hard host floor.",
-    "issues": [
-      "no result on required hosts ('arxiv.org', 'biorxiv.org', 'medrxiv.org', 'ncbi.nlm.nih.gov', 'nih.gov', 'ieee.org')\u2026"
-    ],
-    "confidence": "reproduced"
-  },
-  {
     "id": "dev_profile_fastapi",
     "layer": "rank",
     "verdict": "pass",
