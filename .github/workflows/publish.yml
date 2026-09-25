@@ -41,10 +41,14 @@ jobs:
       # Guards the failure this workflow exists to prevent: uploading an artifact
       # whose version disagrees with the release tag, or a stale dist/ from an
       # earlier build.
+      # The tag is passed through the environment rather than interpolated into the
+      # shell: a git ref may legally contain ; $ ( ) { }, so `${{ }}` here would be
+      # command injection from anyone who can publish a release.
       - name: Artifact must match the release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          version="${{ github.event.release.tag_name }}"
-          version="${version#v}"
+          version="${RELEASE_TAG#v}"
           test -f "dist/josty-${version}-py3-none-any.whl" || { echo "no wheel for ${version}"; ls -l dist/; exit 1; }
           test -f "dist/josty-${version}.tar.gz" || { echo "no sdist for ${version}"; ls -l dist/; exit 1; }
 
