@@ -10,13 +10,9 @@ build/
 .tmp_*
 NUL
 
-# Benchmark per-run capture artifacts (keep frozen corpus + canonical report)
-tests/benchmark_out/*/
-!tests/benchmark_out/replay/
-
-# Scenario eval live captures (keep frozen corpus + canonical replay report)
-tests/scenario_out/*/
-!tests/scenario_out/replay/
+# Generated benchmark and scenario-eval output; the frozen corpora stay tracked.
+tests/benchmark_out/
+tests/scenario_out/
 
 .commandcode/
 uv.lock
@@ -38,6 +34,9 @@ graphify-out/
 
 # Agent run artifacts and the project-local Borhan memory store.
 .borhan/
+# Local tool caches (uv archive cache, session state) — never project content.
+/.cache/
+/.local/
 
 .agents/skills/wayfinder/
 .agents/skills/retro/
