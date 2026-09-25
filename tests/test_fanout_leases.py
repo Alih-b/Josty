@@ -237,6 +237,64 @@ def test_run_timeout_sheds_with_the_deadline_reason(monkeypatch):
     assert payload["fanout"]["shed"] == run.shed_count
 
 
+def test_the_github_call_is_admitted_like_any_other(monkeypatch):
+    """An included GitHub call is proposed and bounded, not a free extra request.
+
+    It records on the same ledger, so counting it as issued without counting it as
+    scheduled made fanout.issued exceed fanout.scheduled on every run with
+    include_github=True, and left the call outside the concurrency cap.
+    """
+    tracker = _Tracker()
+    engine = _engine(
+        monkeypatch,
+        tracker,
+        backends=("brave",),
+        hang=0.5,
+        budget=0.02,
+        max_search_concurrency=1,
+    )
+    run = asyncio.run(engine.research_run("q", limit=5, include_github=True))
+
+    # Exactly one of the two proposed calls wins the single lease.
+    assert run.scheduled_count == 2
+    assert run.request_count == 1
+    assert run.shed_count == 1
+    assert run.scheduled_count == run.request_count + run.shed_count
+    refused = [p for p in run.providers if p.error_kind == "skipped"]
+    assert len(refused) == 1
+    assert refused[0].error is not None
+    assert refused[0].error.startswith("skipped: not issued")
+
+
+def test_a_cached_run_reports_an_all_zero_fanout(tmp_path, monkeypatch):
+    """A cache hit proposes nothing, so every fanout number is a real zero.
+
+    The hydrator does not restore the block and scheduled_count defaults to None,
+    so a cached envelope used to carry scheduled: null beside issued: 0 and no
+    consumer could apply the documented identity.
+    """
+    tracker = _Tracker()
+    monkeypatch.setattr(eng, "DDGS", _hanging_ddgs(tracker, 0.5, answer={"brave"}))
+    monkeypatch.setattr(eng, "SEARCH_THREAD_TIMEOUT_HEADROOM", 0.0)
+    monkeypatch.setattr(eng, "_engine_available", lambda category, backend: (True, None))
+    engine = eng.Josty(backends=("brave",), timeout=0.5, cache_db=tmp_path / "c.db")
+
+    first = asyncio.run(engine.search_run("q", limit=1))
+    assert first.cached is False and first.request_count == 1
+
+    second = asyncio.run(engine.search_run("q", limit=1))
+    assert second.cached is True
+    fanout = second.dict()["fanout"]
+    assert fanout == {
+        "scheduled": 0,
+        "issued": 0,
+        "shed": 0,
+        "shed_by_reason": {},
+        "ghosts_outstanding": 0,
+        "ghosts_peak": 0,
+    }
+
+
 def test_a_later_run_is_not_shed_by_an_earlier_runs_ghost(monkeypatch):
     """The reproduced leak: HEAD's pool lived on the instance, so run 2 was shed.
 

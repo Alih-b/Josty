@@ -15,18 +15,23 @@ refuses with a reason. A lease past its expiry whose worker has not returned is
 moved to the ghost ledger, so capacity is accounted for explicitly and bounded
 by ``max_ghosts`` rather than degrading silently or not at all.
 
-Pure state: no threads, no clock, no asyncio. ``now`` is always a parameter,
-which is what makes the whole policy replayable from a test with a fake clock.
+No threads, no clock, no asyncio of its own: ``now`` is always a parameter, which
+is what makes the whole policy replayable from a test with a fake clock.
 
 Concurrency note. ``acquire``/``reap`` run on the event loop thread; ``release``
-may run on a worker thread. Every mutation is a single ``dict`` operation on a
-plain dict, which is atomic under the GIL, and ``reap`` snapshots before popping,
-so a release that wins the race is indistinguishable from one that never needed
-to run. That is why there is no lock here.
+may run on a worker thread. Single ``dict`` operations are atomic under the GIL,
+but ``reap`` migrates a lease in *two* of them -- pop from the held map, insert
+into the ghost map -- and a worker that released in between would find neither map
+and be resurrected as a ghost that nothing ever clears, shrinking admission width
+for the rest of the run. One small re-entrant lock covers the three mutators; it is
+never held across a wait, so it cannot block the loop. The window is not
+reproducible from a test -- it needs a GIL switch inside two bytecodes -- so the
+lock, not a test, is the guarantee.
 """
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 
 #: Why a scheduled call was never issued.
@@ -72,6 +77,7 @@ class LeasePool:
         self.capacity = int(capacity)
         self.lease_seconds = float(lease_seconds)
         self.max_ghosts = int(max_ghosts)
+        self._lock = threading.RLock()
         self._held: dict[int, Lease] = {}
         self._ghosts: dict[int, Lease] = {}
         self._next_id = 0
@@ -139,29 +145,30 @@ class LeasePool:
         deadline: float | None = None,
     ) -> Lease | None:
         """Grant a lease, or return ``None`` having recorded a shed reason."""
-        self.reap(now)
-        # Strict comparison so the ceiling reads as "tolerate at most this many
-        # ghosts": max_ghosts=0 means "admit nothing while a ghost exists", and
-        # the default (= capacity) never fires because effective_capacity below
-        # already refuses once ghosts consume the pool.
-        if self.ghosts > self.max_ghosts:
-            return self._refuse(SHED_GHOST_BUDGET)
-        if deadline is not None and now >= deadline:
-            return self._refuse(SHED_DEADLINE)
-        if self.held >= self.effective_capacity:
-            # Name the ghost explicitly: "the pool is busy" and "the pool is busy
-            # because N threads are stuck in a socket read" call for different
-            # operator responses, and only one of them recovers on its own.
-            reason = SHED_GHOST_CAPACITY if self.ghosts else SHED_CAPACITY
-            return self._refuse(reason)
-        self._next_id += 1
-        expires_at = now + self.lease_seconds
-        if deadline is not None:
-            expires_at = min(expires_at, deadline)
-        lease = Lease(self._next_id, provider, query, expires_at)
-        self._held[lease.lease_id] = lease
-        self._issued += 1
-        return lease
+        with self._lock:
+            self.reap(now)
+            # Strict comparison so the ceiling reads as "tolerate at most this many
+            # ghosts": max_ghosts=0 means "admit nothing while a ghost exists", and
+            # the default (= capacity) never fires because effective_capacity below
+            # already refuses once ghosts consume the pool.
+            if self.ghosts > self.max_ghosts:
+                return self._refuse(SHED_GHOST_BUDGET)
+            if deadline is not None and now >= deadline:
+                return self._refuse(SHED_DEADLINE)
+            if self.held >= self.effective_capacity:
+                # Name the ghost explicitly: "the pool is busy" and "the pool is busy
+                # because N threads are stuck in a socket read" call for different
+                # operator responses, and only one of them recovers on its own.
+                reason = SHED_GHOST_CAPACITY if self.ghosts else SHED_CAPACITY
+                return self._refuse(reason)
+            self._next_id += 1
+            expires_at = now + self.lease_seconds
+            if deadline is not None:
+                expires_at = min(expires_at, deadline)
+            lease = Lease(self._next_id, provider, query, expires_at)
+            self._held[lease.lease_id] = lease
+            self._issued += 1
+            return lease
 
     def release(self, lease_id: int) -> bool:
         """Retire a lease. Idempotent by construction.
@@ -173,23 +180,31 @@ class LeasePool:
         here would permanently inflate admission width and admit more sockets
         than the cap allows.
         """
-        if self._held.pop(lease_id, None) is not None:
-            return True
-        return self._ghosts.pop(lease_id, None) is not None
+        with self._lock:
+            if self._held.pop(lease_id, None) is not None:
+                return True
+            return self._ghosts.pop(lease_id, None) is not None
 
     def reap(self, now: float) -> int:
-        """Move expired outstanding leases to the ghost ledger."""
-        expired = [lid for lid, lease in self._held.items() if lease.expires_at <= now]
-        reclaimed = 0
-        for lease_id in expired:
-            lease = self._held.pop(lease_id, None)
-            if lease is not None:  # a concurrent release may have won the race
-                self._ghosts[lease_id] = lease
-                self._reclaimed += 1
-                reclaimed += 1
-        if len(self._ghosts) > self._ghosts_peak:
-            self._ghosts_peak = len(self._ghosts)
-        return reclaimed
+        """Move expired outstanding leases to the ghost ledger.
+
+        The migration is two ``dict`` operations, so it is held under the same lock
+        as :meth:`release`: without it a worker returning between the pop and the
+        insert finds neither map, and the insert then resurrects it as a ghost that
+        nothing clears.
+        """
+        with self._lock:
+            expired = [lid for lid, lease in self._held.items() if lease.expires_at <= now]
+            reclaimed = 0
+            for lease_id in expired:
+                lease = self._held.pop(lease_id, None)
+                if lease is not None:  # a concurrent release may have won the race
+                    self._ghosts[lease_id] = lease
+                    self._reclaimed += 1
+                    reclaimed += 1
+            if len(self._ghosts) > self._ghosts_peak:
+                self._ghosts_peak = len(self._ghosts)
+            return reclaimed
 
     # -- internals -------------------------------------------------------
 

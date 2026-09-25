@@ -666,6 +666,41 @@ class Josty:
     def _extract(html: str, url: str) -> tuple[str, str]:
         return extract(html, url)
 
+    async def _github_call_admitted(
+        self,
+        query: str,
+        limit: int,
+        *,
+        ledger: _FanoutLedger,
+        pool: LeasePool,
+        deadline: float | None,
+    ) -> tuple[list[SearchResult], ProviderStatus]:
+        """Run the GitHub call through the same admission as a ddgs branch.
+
+        The ledger counts this call at its issue site, so it must also be counted
+        as proposed and be bounded by the pool. Otherwise ``fanout.issued`` can
+        exceed ``fanout.scheduled`` and the call escapes both the concurrency cap
+        and the run deadline -- the identity AGENTS.md invariant 4 promises would
+        be false on every run that includes GitHub.
+        """
+        pool.note_scheduled()
+        lease = pool.acquire("github", query, now=time.monotonic(), deadline=deadline)
+        if lease is None:
+            return [], ProviderStatus(
+                "github-api",
+                query,
+                False,
+                0,
+                error=pool.shed_message(pool.last_shed_reason or "capacity"),
+                error_kind="skipped",
+                latency_ms=None,
+                **self._breaker_telemetry("github-api"),
+            )
+        try:
+            return await self.github_run(query, limit, ledger=ledger)
+        finally:
+            pool.release(lease.lease_id)
+
     async def github_run(
         self, query: str, limit: int = 20, *, ledger: _FanoutLedger | None = None
     ) -> tuple[list[SearchResult], ProviderStatus]:
@@ -913,8 +948,16 @@ class Josty:
                 try:
                     run = _search_run_from_dict(cached_data)
                     run.query_variant_count = variant_count
-                    # Cache hit: no upstream search is scheduled on this call.
+                    # Cache hit: nothing was proposed, admitted, refused or left
+                    # running, so the whole fanout block is a true zero. The
+                    # hydrator does not restore these and scheduled_count defaults
+                    # to None, which would break the accounting identity.
                     run.request_count = 0
+                    run.scheduled_count = 0
+                    run.shed_count = 0
+                    run.shed_by_reason = {}
+                    run.ghosts_outstanding = 0
+                    run.ghosts_peak = 0
                     if fetch and any(result.content is None for result in run.results):
                         # Cached payload is SERP-only; rehydrate page content on demand.
                         await self.fetch_content(run.results)
@@ -956,7 +999,10 @@ class Josty:
             )
             if include_github:
                 (lists, providers), (github, github_status) = await asyncio.gather(
-                    web_task, self.github_run(query, limit, ledger=ledger)
+                    web_task,
+                    self._github_call_admitted(
+                        query, limit, ledger=ledger, pool=pool, deadline=deadline
+                    ),
                 )
                 if github:
                     lists.append(github)
