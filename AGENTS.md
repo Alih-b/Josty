@@ -66,3 +66,20 @@ When modifying behavior, edit the specific module rather than bloating the facad
 - **`src/josty/backends.py`**: Checks backend engine availability against installed `ddgs` registry.
 - **`src/josty/cli.py`**: Command-line interface (`parser`, `run`, `main`).
 - **`src/josty/_version.py`**: Single source of truth for package version literal (`__version__`).
+
+## Releasing
+
+`src/josty/_version.py` is the single version source: hatchling reads that literal,
+and `pyproject.toml` holds `dynamic = ["version"]` and must never gain a second copy.
+
+1. Merge to `main`, then tag the merge commit: `git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`
+2. Publish a GitHub Release for that tag: `gh release create vX.Y.Z --generate-notes`.
+   That triggers `.github/workflows/publish.yml`, which re-runs the suite and lint,
+   builds, checks the artifact matches the tag, and uploads to PyPI by trusted
+   publishing — no token, no `twine`, no local `dist/`.
+3. Nothing is uploaded by hand. If the workflow fails before the upload step, fix and
+   re-run it; PyPI refuses a second upload of the same version, so never rebuild and
+   republish a version that already shipped.
+
+The release workflow runs from the default branch's copy of the file, so it must be
+merged to `main` before the first release that uses it.
