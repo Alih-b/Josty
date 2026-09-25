@@ -17,6 +17,7 @@ import json
 import socket
 import sqlite3
 import ssl
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
@@ -49,12 +50,10 @@ def result(url, snippet="", source="test"):
     return SearchResult("title", url, snippet, sources=[source])
 
 
-def make_parts(return_lists, providers, sites=()):
+def make_parts(return_lists, providers):
     """Build a fake ``_search_parts`` returning the correct nested-list shape."""
-    async def parts(query, *, sites=None, mode="plain", limit=20, category="text",
-                    region=None, safesearch="moderate", timelimit=None,
-                    max_query_variants=None):
-        return return_lists, providers, sites or []
+    async def parts(queries, **kwargs):
+        return return_lists, providers
     return parts
 
 
@@ -1117,32 +1116,31 @@ class TestCircuitBreakerAdvanced:
         assert breaker.status("never-failed", "search") == (True, None)
 
 
-def test_search_executor_saturated_skips_without_calling_ddgs(monkeypatch):
-    calls = {"n": 0}
+def test_search_concurrency_caps_simultaneous_engine_calls(monkeypatch):
+    """``max_search_concurrency`` is the rate knob: however many engine-variant
+    tasks are scheduled, no more than N ddgs calls run at the same time."""
+    state = {"active": 0, "peak": 0}
 
-    class CountingDDGS:
+    class TrackingDDGS:
         def __init__(self, **kwargs):
             pass
 
         def text(self, *args, **kwargs):
-            calls["n"] += 1
+            state["active"] += 1
+            state["peak"] = max(state["peak"], state["active"])
+            time.sleep(0.03)
+            state["active"] -= 1
             return [{"title": "t", "href": "https://example.com/x", "body": "b"}]
 
-    monkeypatch.setattr("josty.engine.DDGS", CountingDDGS)
+    monkeypatch.setattr("josty.engine.DDGS", TrackingDDGS)
     engine = Josty(
-        backends=("duckduckgo",),
+        backends=("brave", "duckduckgo", "yahoo"),
         max_search_concurrency=1,
         enable_cache=False,
     )
-    engine._ensure_search_executor()
-    assert engine._executor_slots is not None
-    assert engine._executor_slots.acquire(blocking=False)
-    run = asyncio.run(engine.search_run("q", limit=3))
-    engine._executor_slots.release()
-    assert calls["n"] == 0
-    assert run.providers[0].ok is False
-    assert run.providers[0].error_kind == "skipped"
-    assert run.providers[0].error == "skipped: search executor saturated"
+    run = asyncio.run(engine.search_run("q", mode="exact", limit=3))
+    assert state["peak"] == 1
+    assert run.status == "complete"
 
 
 # ======================================================================================
@@ -1348,7 +1346,7 @@ class TestResearchRun:
         engine = Josty(cache_db=tmp_path / "c.db")
         inner = [result("https://example.com/x")]
         parts = make_parts([inner], [ProviderStatus("bing", "q", True, 1)])
-        async def github_fails(query, limit):
+        async def github_fails(query, limit, **kwargs):
             return [], ProviderStatus("github-api", "q", False, error="boom", error_kind="unknown")
         monkeypatch.setattr(engine, "_search_parts", parts)
         monkeypatch.setattr(engine, "github_run", github_fails)
@@ -1360,9 +1358,9 @@ class TestResearchRun:
     def test_news_category_uses_news_backends(self, monkeypatch, tmp_path):
         engine = Josty(cache_db=tmp_path / "c.db")
         captured = {}
-        async def parts(query, *, sites, mode, limit, category, **kw):
-            captured["category"] = category
-            return [], [ProviderStatus("bing-news", query, True, 0)], sites or []
+        async def parts(queries, **kwargs):
+            captured["category"] = kwargs["category"]
+            return [], [ProviderStatus("bing-news", queries[0], True, 0)]
         monkeypatch.setattr(engine, "_search_parts", parts)
         asyncio.run(engine.search_run("q", limit=5, category="news"))
         assert captured["category"] == "news"
@@ -1375,8 +1373,8 @@ class TestResearchRun:
         ]
         # Return [inner] (list of one list) — one backend group returned two
         # candidates, one matches the site filter, one doesn't.
-        async def parts(query, *, sites, mode, limit, category, **kw):
-            return [inner], [ProviderStatus("test", query, True, 2)], sites or []
+        async def parts(queries, **kwargs):
+            return [inner], [ProviderStatus("test", queries[0], True, 2)]
         monkeypatch.setattr(engine, "_search_parts", parts)
         run = asyncio.run(engine.search_run("q", limit=5, sites=["github.com"]))
         urls = [r.url for r in run.results]
@@ -1385,10 +1383,10 @@ class TestResearchRun:
     def test_max_query_variants_isolated_in_cache_key(self, monkeypatch, tmp_path):
         engine = Josty(backends=("test",), cache_db=tmp_path / "c.db", enable_cache=True)
         calls = {"n": 0}
-        async def parts(query, *, sites, mode, limit, category, **kw):
+        async def parts(queries, **kwargs):
             calls["n"] += 1
             res = [[result("https://example.com/x")]]
-            return res, [ProviderStatus("test", query, True, 1)], sites or []
+            return res, [ProviderStatus("test", queries[0], True, 1)]
         monkeypatch.setattr(engine, "_search_parts", parts)
         # Different max_query_variants -> different cache keys -> two network calls
         asyncio.run(engine.search_run("q", max_query_variants=2))
@@ -1397,11 +1395,10 @@ class TestResearchRun:
 
     def test_research_run_profile_override(self, monkeypatch, tmp_path):
         engine = Josty(profile="general", cache_db=tmp_path / "c.db")
-        async def parts(query, **kwargs):
+        async def parts(queries, **kwargs):
             return (
                 [[result("https://huggingface.co/m", source="test")]],
-                [ProviderStatus("test", query, True, 1)],
-                [],
+                [ProviderStatus("test", queries[0], True, 1)],
             )
         monkeypatch.setattr(engine, "_search_parts", parts)
         g = asyncio.run(engine.research_run("q", profile="general"))
@@ -1431,9 +1428,9 @@ class TestNoQueryRewrite:
         engine = Josty(backends=("test",), cache_db=None)
         call_count = {"n": 0}
 
-        async def parts(query, **kwargs):
+        async def parts(queries, **kwargs):
             call_count["n"] += 1
-            return [[]], [ProviderStatus("test", query, True, 0, error_kind="empty")], []
+            return [[]], [ProviderStatus("test", queries[0], True, 0, error_kind="empty")]
 
         monkeypatch.setattr(engine, "_search_parts", parts)
         run = asyncio.run(engine.search_run("alpha beta gamma", limit=5))
@@ -1445,9 +1442,9 @@ class TestNoQueryRewrite:
         engine = Josty(backends=("test",), cache_db=None)
         seen_queries = []
 
-        async def parts(query, **kwargs):
-            seen_queries.append(query)
-            return [[]], [ProviderStatus("test", query, True, 0, error_kind="empty")], []
+        async def parts(queries, **kwargs):
+            seen_queries.append(queries[0])
+            return [[]], [ProviderStatus("test", queries[0], True, 0, error_kind="empty")]
 
         monkeypatch.setattr(engine, "_search_parts", parts)
         asyncio.run(engine.search_run('"alpha beta gamma"', limit=5))
@@ -1457,9 +1454,12 @@ class TestNoQueryRewrite:
         engine = Josty(backends=("test",), cache_db=None)
         call_count = {"n": 0}
 
-        async def parts(query, **kwargs):
+        async def parts(queries, **kwargs):
             call_count["n"] += 1
-            return [[result("https://example.com/x")]], [ProviderStatus("test", query, True, 1)], []
+            return (
+                [[result("https://example.com/x")]],
+                [ProviderStatus("test", queries[0], True, 1)],
+            )
 
         monkeypatch.setattr(engine, "_search_parts", parts)
         run = asyncio.run(engine.search_run("alpha beta gamma", limit=5))
@@ -1469,8 +1469,8 @@ class TestNoQueryRewrite:
     def test_empty_run_does_not_duplicate_providers(self, monkeypatch):
         engine = Josty(backends=("test",), cache_db=None)
 
-        async def parts(query, **kwargs):
-            return [[]], [ProviderStatus("test", query, True, 0, error_kind="empty")], []
+        async def parts(queries, **kwargs):
+            return [[]], [ProviderStatus("test", queries[0], True, 0, error_kind="empty")]
 
         monkeypatch.setattr(engine, "_search_parts", parts)
         run = asyncio.run(engine.search_run("alpha beta gamma", limit=5))
@@ -1479,8 +1479,8 @@ class TestNoQueryRewrite:
     def test_short_empty_query_unchanged(self, monkeypatch):
         engine = Josty(backends=("test",), cache_db=None)
 
-        async def parts(query, **kwargs):
-            return [[]], [ProviderStatus("test", query, True, 0, error_kind="empty")], []
+        async def parts(queries, **kwargs):
+            return [[]], [ProviderStatus("test", queries[0], True, 0, error_kind="empty")]
 
         monkeypatch.setattr(engine, "_search_parts", parts)
         run = asyncio.run(engine.search_run("ab", limit=5))
@@ -1733,11 +1733,6 @@ class TestConstructorValidation:
             Josty(breaker_window_seconds=0)
         with pytest.raises(ValueError):
             Josty(breaker_cool_down_seconds=0)
-
-    def test_max_concurrency_alias_overrides_search(self):
-        engine = Josty(max_concurrency=3)
-        assert engine.max_search_concurrency == 3
-        assert engine.max_fetch_concurrency == Josty.DEFAULT_FETCH_CONCURRENCY
 
     def test_independent_semaphores(self):
         engine = Josty(max_search_concurrency=2, max_fetch_concurrency=3)

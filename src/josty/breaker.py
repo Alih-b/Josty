@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import threading
 import time
-from contextlib import suppress
 from datetime import datetime, timezone
 from typing import Any
 
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
 
-
-
-
+def _cool_down_message(remaining_seconds: float) -> str:
+    """Human-readable cool-down skip reason; shared by search and diagnose."""
+    until_iso = (
+        datetime.fromtimestamp(time.time() + remaining_seconds, timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+    return f"skipped: engine in cool-down until {until_iso}"
 
 
 class CircuitBreaker:
@@ -29,6 +29,11 @@ class CircuitBreaker:
     - HALF_OPEN: Exactly one in-flight trial probe is admitted. Success resets
       to CLOSED and clears failure history and consecutive trips. Failure trips
       back to OPEN. Concurrent callers skip until the probe completes.
+
+    State is process-local by design: it is never written to disk. A shared file
+    would have to reconcile wall-clock cool-downs with per-process monotonic
+    time and would let one process's trip throttle its siblings, so
+    cross-restart politeness stays the caller's business.
 
     ``error_class`` exists for contract compatibility: ``"rate_limit"`` and
     ``"search"`` are aliases sharing one failure namespace, and the default
@@ -56,30 +61,6 @@ class CircuitBreaker:
         self._keys_by_backend: dict[str, set[tuple[str, str]]] = {}
         self._latencies: dict[str, float] = {}
         self._lock = threading.Lock()
-        self.persist_fn: Any = None
-
-    def load_state(self, states: list[dict[str, Any]]) -> None:
-        """Hydrate breaker state from persisted storage."""
-        now_mono = time.monotonic()
-        now_wall = time.time()
-        with self._lock:
-            for item in states:
-                backend = item.get("backend")
-                error_class = item.get("error_class", "search")
-                if not backend:
-                    continue
-                key = self._key(backend, error_class)
-                self._register_key(key)
-                open_until_epoch = float(item.get("open_until", 0.0))
-                remaining = open_until_epoch - now_wall
-                trips = int(item.get("consecutive_trips", 0))
-                if item.get("state") == "open" and remaining > 0:
-                    self._state[key] = "open"
-                    self._open_until[key] = now_mono + remaining
-                    self._consecutive_trips[key] = trips
-                    self._last_trip_at[key] = now_mono
-                elif trips > 0:
-                    self._consecutive_trips[key] = trips
 
     @staticmethod
     def _key(backend: str, error_class: str) -> tuple[str, str]:
@@ -89,14 +70,6 @@ class CircuitBreaker:
 
     def _register_key(self, key: tuple[str, str]) -> None:
         self._keys_by_backend.setdefault(key[0], set()).add(key)
-
-    def _cool_down_message(self, open_until: float, now: float) -> str:
-        until_iso = (
-            datetime.fromtimestamp(time.time() + (open_until - now), UTC)
-            .isoformat()
-            .replace("+00:00", "Z")
-        )
-        return f"skipped: engine in cool-down until {until_iso}"
 
     def _admit_half_open_locked(self, key: tuple[str, str]) -> tuple[bool, str | None]:
         """Admit a single HALF_OPEN trial probe; concurrent callers are skipped.
@@ -128,12 +101,6 @@ class CircuitBreaker:
         self._state[key] = "open"
         self._probe_inflight.pop(key, None)
         self._register_key(key)
-        if self.persist_fn:
-            with suppress(Exception):
-                open_until_epoch = time.time() + backoff
-                self.persist_fn(
-                    key[0], key[1], "open", open_until_epoch, trips, time.time()
-                )
 
     def status(self, backend: str, error_class: str = "rate_limit") -> tuple[bool, str | None]:
         """Return ``(allowed, skip_message)`` for a backend/error pair.
@@ -149,7 +116,7 @@ class CircuitBreaker:
             if self._state.get(key) == "open":
                 open_until = self._open_until.get(key, 0.0)
                 if now < open_until:
-                    return False, self._cool_down_message(open_until, now)
+                    return False, _cool_down_message(open_until - now)
                 self._state[key] = "half-open"
                 self._failures[key] = []
                 return self._admit_half_open_locked(key)
@@ -200,9 +167,6 @@ class CircuitBreaker:
             self._open_until[key] = 0.0
             self._consecutive_trips[key] = 0
             self._probe_inflight.pop(key, None)
-            if self.persist_fn:
-                with suppress(Exception):
-                    self.persist_fn(key[0], key[1], "closed", 0.0, 0, 0.0)
 
     def record_latency(self, backend: str, latency_ms: float) -> None:
         """Record the most recent execution latency for a backend."""

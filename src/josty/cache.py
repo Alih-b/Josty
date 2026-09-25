@@ -8,11 +8,13 @@ import math
 import os
 import sqlite3
 import time
+from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
 from .models import ProviderStatus, SearchResult, SearchRun
+from .status import SCHEMA_VERSION
 
 CACHE_MAX_ROWS = 5000
 CACHE_PRUNE_BATCH = 500
@@ -84,19 +86,6 @@ class SearchCache:
                 );
                 """
             )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS circuit_breaker_state (
-                    backend TEXT NOT NULL,
-                    error_class TEXT NOT NULL,
-                    state TEXT NOT NULL,
-                    open_until REAL NOT NULL,
-                    consecutive_trips INTEGER NOT NULL,
-                    last_trip_at REAL NOT NULL,
-                    PRIMARY KEY (backend, error_class)
-                );
-                """
-            )
             columns = {
                 row[1] for row in conn.execute("PRAGMA table_info(search_cache)").fetchall()
             }
@@ -114,8 +103,13 @@ class SearchCache:
 
     @staticmethod
     def hash_key(query: str, **kwargs: Any) -> str:
+        # Envelope generation is part of cache identity: a row written under a
+        # different schema version is simply a different key, so an upgrade can
+        # never hydrate an old payload into a new envelope.
         serialized = json.dumps(
-            {"q": query.strip().lower(), **kwargs}, sort_keys=True, default=str
+            {"q": query.strip().lower(), "schema_version": SCHEMA_VERSION, **kwargs},
+            sort_keys=True,
+            default=str,
         )
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
@@ -243,7 +237,6 @@ class SearchCache:
             return
         with suppress(Exception), self._get_conn() as conn:
             conn.execute("DELETE FROM search_cache;")
-            conn.execute("DELETE FROM circuit_breaker_state;")
 
     def delete(self, key: str) -> None:
         """Evict a specific cache entry (e.g. on corruption or invalidation)."""
@@ -251,68 +244,6 @@ class SearchCache:
             return
         with suppress(Exception), self._get_conn() as conn:
             conn.execute("DELETE FROM search_cache WHERE key = ?", (key,))
-
-    def save_breaker_state(
-        self,
-        backend: str,
-        error_class: str,
-        state: str,
-        open_until: float,
-        consecutive_trips: int,
-        last_trip_at: float,
-    ) -> None:
-        """Persist circuit breaker transition to SQLite."""
-        if self.disabled:
-            return
-        with suppress(Exception), self._get_conn() as conn:
-            conn.execute(
-                """
-                INSERT INTO circuit_breaker_state (
-                    backend, error_class, state, open_until, consecutive_trips, last_trip_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(backend, error_class) DO UPDATE SET
-                    state = excluded.state,
-                    open_until = excluded.open_until,
-                    consecutive_trips = excluded.consecutive_trips,
-                    last_trip_at = excluded.last_trip_at;
-                """,
-                (
-                    backend,
-                    error_class,
-                    state,
-                    float(open_until),
-                    int(consecutive_trips),
-                    float(last_trip_at),
-                ),
-            )
-
-    def load_breaker_states(self) -> list[dict[str, Any]]:
-        """Load persisted circuit breaker states from SQLite."""
-        if self.disabled:
-            return []
-        try:
-            with self._get_conn() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT backend, error_class, state, open_until, consecutive_trips, "
-                    "last_trip_at FROM circuit_breaker_state;"
-                )
-                rows = cursor.fetchall()
-                return [
-                    {
-                        "backend": row[0],
-                        "error_class": row[1],
-                        "state": row[2],
-                        "open_until": row[3],
-                        "consecutive_trips": row[4],
-                        "last_trip_at": row[5],
-                    }
-                    for row in rows
-                ]
-        except Exception:
-            return []
-
 
 _FETCH_ONLY_FIELDS = ("content", "extraction_method", "fetched_url", "fetched_at", "fetch_error")
 
@@ -368,6 +299,26 @@ def _strip_fetch_fields(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def _cached_number_map(raw: Any, cast: Callable[[Any], Any]) -> dict[str, Any]:
+    """Coerce a cached ``{str: number}`` map, dropping entries that will not cast.
+
+    Non-finite floats are dropped rather than propagated: they are the one
+    cached value that would break the stdout JSON contract.
+    """
+    if not isinstance(raw, dict):
+        return {}
+    loaded: dict[str, Any] = {}
+    for key, value in raw.items():
+        try:
+            candidate = cast(value)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(candidate, float) and not math.isfinite(candidate):
+            continue
+        loaded[str(key)] = candidate
+    return loaded
+
+
 def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
     if not isinstance(payload, dict):
         raise ValueError("Invalid payload: expected dict")
@@ -378,34 +329,9 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
     for item in raw_results:
         if not isinstance(item, dict):
             continue
-        engine_ranks_raw = item.get("engine_ranks")
-        engine_ranks: dict[str, int] = {}
-        if isinstance(engine_ranks_raw, dict):
-            for k, v in engine_ranks_raw.items():
-                try:
-                    engine_ranks[str(k)] = int(v)
-                except (ValueError, TypeError):
-                    continue
-        rank_contribs_raw = item.get("rank_contributions")
-        rank_contributions: dict[str, float] = {}
-        if isinstance(rank_contribs_raw, dict):
-            for k, v in rank_contribs_raw.items():
-                try:
-                    contrib = float(v)
-                except (ValueError, TypeError):
-                    continue
-                if math.isfinite(contrib):
-                    rank_contributions[str(k)] = contrib
-        score_weights_raw = item.get("score_weights")
-        score_weights: dict[str, float] = {}
-        if isinstance(score_weights_raw, dict):
-            for k, v in score_weights_raw.items():
-                try:
-                    weight = float(v)
-                except (ValueError, TypeError):
-                    continue
-                if math.isfinite(weight):
-                    score_weights[str(k)] = weight
+        engine_ranks = _cached_number_map(item.get("engine_ranks"), int)
+        rank_contributions = _cached_number_map(item.get("rank_contributions"), float)
+        score_weights = _cached_number_map(item.get("score_weights"), float)
         try:
             score = float(item.get("score", 0.0))
             if not math.isfinite(score):
