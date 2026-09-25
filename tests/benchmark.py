@@ -42,7 +42,8 @@ from benchmark_metrics import (  # noqa: E402
 from benchmark_queries import QUERIES  # noqa: E402
 from ddgs import DDGS  # type: ignore  # noqa: E402
 
-from josty.engine import Josty, canonical  # noqa: E402
+from josty.engine import Josty  # noqa: E402
+from josty.ranking import canonical  # noqa: E402
 
 OUT_ROOT = HERE / "benchmark_out"
 OUT_ROOT.mkdir(exist_ok=True)

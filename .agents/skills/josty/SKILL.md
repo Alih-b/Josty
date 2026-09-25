@@ -124,6 +124,9 @@ Emitted on stdout for standard searches:
 }
 ```
 
+- `query_variant_count` counts the expanded query variants sent to each engine. `request_count` is a ledger: the number of search calls actually issued by this invocation. Engines skipped by the circuit breaker or missing from the installed ddgs registry issue nothing and are not counted, and a cache hit issues none.
+- `fanout` reports admission accounting for the fanout: `scheduled` (calls proposed), `issued` (equal to `request_count`), `shed` (refused before opening a socket) with `shed_by_reason` keyed by `capacity`, `ghost_capacity`, `ghost_budget`, or `deadline`, plus `ghosts_outstanding` / `ghosts_peak` for workers that outlived their deadline and had not returned when the run finished. `scheduled == issued + shed` plus registry/breaker skips. A shed call is reported as `error_kind: "skipped"` with `error: "skipped: not issued (<reason>)"` — it is never reported as an upstream network failure. Repeated `ghost_capacity` shedding means `max_search_concurrency` is fully occupied by calls that have not returned; raise the cap or reduce query variants.
+
 ### 2. Auxiliary Command Shapes
 - `--results-only`: Returns a flat JSON array of `SearchResult` objects (`[ { ... }, ... ]`).
 - `--diagnose`: Returns `{ "schema_version": "1.0", "phase": "transport", "probe": "https_host", "status": "complete"|"degraded"|"failed", "reachable": int, "count": int, "note": str, "providers": [ ... ] }`.

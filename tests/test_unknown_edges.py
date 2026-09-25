@@ -86,24 +86,6 @@ class TestTrailingDotHostnames:
 class TestConstructorGuards:
     """Validation gaps in Josty.__init__ that the existing tests do not exercise."""
 
-    @pytest.mark.xfail(strict=True, reason="max_concurrency alias is applied after validation")
-    def test_max_concurrency_alias_rejects_zero(self):
-        with pytest.raises(ValueError):
-            Josty(max_concurrency=0, enable_cache=False)
-
-    @pytest.mark.xfail(strict=True, reason="max_concurrency alias is applied after validation")
-    def test_max_concurrency_alias_rejects_negative(self):
-        with pytest.raises(ValueError):
-            Josty(max_concurrency=-5, enable_cache=False)
-
-    def test_max_concurrency_alias_bypasses_validation_today(self):
-        # FINDING (BUG): the direct params are validated before the alias is
-        # applied, so max_concurrency=0 builds a zero-permit search semaphore.
-        # The first search_run then awaits it forever.
-        engine = Josty(max_concurrency=0, enable_cache=False)
-        assert engine.max_search_concurrency == 0
-        assert engine._search_semaphore()._value == 0
-
     @pytest.mark.xfail(strict=True, reason="timeout NaN compares false against <= 0")
     def test_nan_timeout_rejected(self):
         with pytest.raises(ValueError):

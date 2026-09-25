@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -10,16 +11,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
-
 import httpx
 from ddgs import DDGS
 
 from .backends import _engine_available
-from .breaker import CircuitBreaker
+from .breaker import CircuitBreaker, _cool_down_message
 from .cache import (
     CACHE_MAX_BYTES,
     SearchCache,
@@ -30,6 +26,7 @@ from .cache import (
 )
 from .errors import _aggregate_engine_status, _classify_probe_error, _classify_search_error
 from .fetch import BROWSER_FETCH_HEADERS, download, extract, is_ad_redirect, validate_public_url
+from .lease import LeasePool
 from .models import DiagnoseRun, HostStatus, ProviderStatus, SearchResult, SearchRun
 from .ranking import (
     _site_matches,
@@ -48,6 +45,23 @@ from .status import (
     SearchStatus,
     TimeLimit,
 )
+
+
+class _FanoutLedger:
+    """Per-run count of search calls actually issued.
+
+    Incremented by worker threads immediately before a ddgs/GitHub call, so it
+    counts invocations, not sockets: a scheduled task that never reaches its
+    call site (registry-missing, breaker-skipped) contributes nothing.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.issued = 0
+
+    def record(self) -> None:
+        with self._lock:
+            self.issued += 1
 
 
 class Josty:
@@ -88,12 +102,14 @@ class Josty:
         self,
         *,
         timeout: float = 8,
-        max_concurrency: int | None = None,
         max_search_concurrency: int = 6,
         max_fetch_concurrency: int = 4,
+        max_concurrency: int | None = None,  # deprecated alias for max_search_concurrency
         max_download_bytes: int = 2_000_000,
         max_content_chars: int | None = DEFAULT_MAX_CONTENT_CHARS,
         max_query_variants: int | None = None,
+        run_timeout: float | None = None,
+        max_ghosts: int | None = None,
         github_token: str | None = None,
         backends: tuple[str, ...] | None = None,
         news_backends: tuple[str, ...] | None = None,
@@ -107,12 +123,19 @@ class Josty:
         breaker_window_seconds: float = 60,
         breaker_cool_down_seconds: float = 30,
     ):
+        if max_concurrency is not None:
+            # Deprecated alias, applied before validation. Applying it afterwards
+            # (as an earlier revision did) let Josty(max_concurrency=0) bypass the
+            # check and build a zero-permit semaphore that hung every search.
+            max_search_concurrency = max_concurrency
         if timeout <= 0 or max_search_concurrency < 1 or max_fetch_concurrency < 1:
             raise ValueError("timeout and concurrency limits must be positive")
         if max_query_variants is not None and max_query_variants < 1:
             raise ValueError("max_query_variants must be positive")
-        if max_concurrency is not None:
-            max_search_concurrency = max_concurrency
+        if run_timeout is not None and run_timeout <= 0:
+            raise ValueError("run_timeout must be positive when set")
+        if max_ghosts is not None and max_ghosts < 0:
+            raise ValueError("max_ghosts must not be negative")
         if max_download_bytes < 1 or (max_content_chars is not None and max_content_chars < 0):
             raise ValueError("content limits must be positive")
         if profile not in ("general", "dev"):
@@ -123,6 +146,15 @@ class Josty:
         self.max_download_bytes = max_download_bytes
         self.max_content_chars = max_content_chars
         self.max_query_variants = max_query_variants
+        # Opt-in outer wall-clock bound for one run. None keeps today's behaviour
+        # (each call gets its own full budget), which is what a healthy fanout
+        # needs: a default tight enough to fire on 6 engines x 20 variants would
+        # turn a slow-but-working run into a shed one.
+        self.run_timeout = run_timeout
+        # Ceiling on unreturned ("ghost") workers tolerated before new calls are
+        # refused rather than admitted. Defaults to the concurrency cap, which
+        # keeps live threads <= the cap.
+        self.max_ghosts = max_ghosts
         self.github_token = github_token
         self.backends = backends or self.DEFAULT_BACKENDS
         self.news_backends = news_backends or (
@@ -138,8 +170,6 @@ class Josty:
         )
         self._search_sem: asyncio.Semaphore | None = None
         self._fetch_sem: asyncio.Semaphore | None = None
-        self._search_executor: ThreadPoolExecutor | None = None
-        self._executor_slots: threading.BoundedSemaphore | None = None
         if breaker is not None:
             self.breaker = breaker
         else:
@@ -148,9 +178,6 @@ class Josty:
                 window_seconds=breaker_window_seconds,
                 cool_down_seconds=breaker_cool_down_seconds,
             )
-        if self.cache and not self.cache.disabled:
-            self.breaker.load_state(self.cache.load_breaker_states())
-            self.breaker.persist_fn = self.cache.save_breaker_state
 
     def clear_cache(self) -> None:
         if self.cache:
@@ -201,25 +228,6 @@ class Josty:
     def _engine_names(self, category: SearchCategory) -> list[str]:
         return [name for _, name in self._engine_specs(category)]
 
-    def _fanout_telemetry(
-        self,
-        query: str,
-        *,
-        sites: list[str],
-        mode: SearchMode,
-        category: SearchCategory,
-        include_github: bool,
-        max_query_variants: int | None,
-    ) -> tuple[int, int]:
-        """Return ``(query_variant_count, scheduled_request_count)`` for this call."""
-        variants = self.expand(
-            query, sites, mode, max_query_variants=max_query_variants
-        )
-        request_count = len(self._engine_names(category)) * len(variants)
-        if include_github:
-            request_count += 1
-        return len(variants), request_count
-
     def _search_semaphore(self) -> asyncio.Semaphore:
         if self._search_sem is None:
             self._search_sem = asyncio.Semaphore(self.max_search_concurrency)
@@ -229,17 +237,6 @@ class Josty:
         if self._fetch_sem is None:
             self._fetch_sem = asyncio.Semaphore(self.max_fetch_concurrency)
         return self._fetch_sem
-
-    def _ensure_search_executor(self) -> tuple[ThreadPoolExecutor, threading.BoundedSemaphore]:
-        """Bounded DDGS worker pool: ghost threads occupy a slot until they return."""
-        if self._search_executor is None or self._executor_slots is None:
-            workers = self.max_search_concurrency
-            self._search_executor = ThreadPoolExecutor(
-                max_workers=workers,
-                thread_name_prefix="josty-search",
-            )
-            self._executor_slots = threading.BoundedSemaphore(workers)
-        return self._search_executor, self._executor_slots
 
     @staticmethod
     def expand(
@@ -282,7 +279,12 @@ class Josty:
         region: str | None,
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
+        ledger: _FanoutLedger,
+        pool: LeasePool,
+        executor: ThreadPoolExecutor,
+        deadline: float | None,
     ) -> tuple[list[SearchResult], ProviderStatus]:
+        pool.note_scheduled()
         available, unavailable_message = _engine_available(category, backend)
         if not available:
             return [], ProviderStatus(
@@ -312,6 +314,10 @@ class Josty:
                 region=region,
                 safesearch=safesearch,
                 timelimit=timelimit,
+                ledger=ledger,
+                pool=pool,
+                executor=executor,
+                deadline=deadline,
             )
         finally:
             self.breaker.release_probe(backend, "search")
@@ -326,78 +332,56 @@ class Josty:
         region: str | None,
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
+        ledger: _FanoutLedger,
+        pool: LeasePool,
+        executor: ThreadPoolExecutor,
+        deadline: float | None,
     ) -> tuple[list[SearchResult], ProviderStatus]:
         async with self._search_semaphore():
-            executor, slots = self._ensure_search_executor()
-            if not slots.acquire(blocking=False):
+            now = time.monotonic()
+            lease = pool.acquire("search", backend, now=now, deadline=deadline)
+            if lease is None:
+                # Refused admission: no socket was opened, so this must never be
+                # reported as an upstream failure. The reason names the cause.
                 return [], ProviderStatus(
                     backend,
                     query,
                     False,
-                    error="skipped: search executor saturated",
+                    0,
+                    error=pool.shed_message(pool.last_shed_reason or "capacity"),
                     error_kind="skipped",
+                    latency_ms=None,
                     **self._breaker_telemetry(backend),
                 )
-
-            cancelled = threading.Event()
-
-            def run() -> tuple[list[SearchResult], float, Exception | None]:
-                t0 = time.perf_counter()
-                try:
-                    # A fresh DDGS client per call is deliberate, not waste:
-                    # ddgs engine instances carry a shared cached_property lxml
-                    # parser, which is not thread-safe. Caching one client per
-                    # backend would let concurrent query variants of the same
-                    # engine parse HTML on one parser — the same C-level
-                    # corruption class already fixed for trafilatura extraction.
-                    ddgs = DDGS(timeout=self.timeout)
-                    method = ddgs.news if category == "news" else ddgs.text
-                    kwargs: dict[str, Any] = {
-                        "backend": backend,
-                        "max_results": limit,
-                        "safesearch": safesearch,
-                    }
-                    if region:
-                        kwargs["region"] = region
-                    if timelimit:
-                        kwargs["timelimit"] = timelimit
-                    rows = method(query, **kwargs)
-                    if cancelled.is_set():
-                        return [], round((time.perf_counter() - t0) * 1000, 2), None
-                    results = []
-                    rank = 1
-                    for row in rows:
-                        result_url = row.get("href") or row.get("url") or ""
-                        if result_url and not self._is_ad_redirect(result_url):
-                            results.append(
-                                SearchResult(
-                                    title=row.get("title", ""),
-                                    url=result_url,
-                                    snippet=row.get("body", ""),
-                                    sources=[backend],
-                                    published_at=row.get("date"),
-                                    publisher=row.get("source"),
-                                    engine_ranks={backend: rank},
-                                )
-                            )
-                            rank += 1
-                    latency_ms = round((time.perf_counter() - t0) * 1000, 2)
-                    return results, latency_ms, None
-                except Exception as exc:
-                    latency_ms = round((time.perf_counter() - t0) * 1000, 2)
-                    return [], latency_ms, exc
-                finally:
-                    slots.release()
-
+            budget = self.timeout + SEARCH_THREAD_TIMEOUT_HEADROOM
+            if deadline is not None:
+                budget = min(budget, max(0.0, deadline - now))
             t_start = time.perf_counter()
-            loop = asyncio.get_running_loop()
             try:
                 results, latency_ms, exc = await asyncio.wait_for(
-                    loop.run_in_executor(executor, run),
-                    timeout=self.timeout + SEARCH_THREAD_TIMEOUT_HEADROOM,
+                    asyncio.get_running_loop().run_in_executor(
+                        executor,
+                        functools.partial(
+                            self._search_worker,
+                            query,
+                            backend,
+                            limit,
+                            category=category,
+                            region=region,
+                            safesearch=safesearch,
+                            timelimit=timelimit,
+                            ledger=ledger,
+                            pool=pool,
+                            lease_id=lease.lease_id,
+                        ),
+                    ),
+                    timeout=budget,
                 )
             except (asyncio.TimeoutError, TimeoutError):
-                cancelled.set()
+                # The worker keeps running (a "ghost"): a blocked socket call
+                # cannot be cancelled, so this branch reports the timeout now and
+                # the thread ends on ddgs's own client timeout. Nothing reads its
+                # return value, so a late success cannot revive the branch.
                 latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
                 self.breaker.record_latency(backend, latency_ms)
                 self.breaker.record_failure(backend, "search")
@@ -411,10 +395,6 @@ class Josty:
                     latency_ms=latency_ms,
                     **self._breaker_telemetry(backend),
                 )
-            except BaseException:
-                cancelled.set()
-                raise
-
             if exc is not None:
                 self.breaker.record_latency(backend, latency_ms)
                 err_kind = _classify_search_error(exc)
@@ -457,19 +437,86 @@ class Josty:
                 **self._breaker_telemetry(backend),
             )
 
-    async def _search_parts(
+    def _search_worker(
         self,
         query: str,
+        backend: str,
+        limit: int,
         *,
-        sites: list[str] | None,
-        mode: SearchMode,
+        category: SearchCategory,
+        region: str | None,
+        safesearch: SafeSearch,
+        timelimit: TimeLimit | None,
+        ledger: _FanoutLedger,
+        pool: LeasePool,
+        lease_id: int,
+    ) -> tuple[list[SearchResult], float, Exception | None]:
+        """One blocking engine call, run on a worker thread.
+
+        Always retires its own lease, including on the exception path. The release
+        is idempotent, so returning *after* the arbiter already reaped this lease
+        as a ghost is a safe no-op rather than a double free.
+        """
+        t0 = time.perf_counter()
+        try:
+            # A fresh DDGS client per call is deliberate, not waste:
+            # ddgs engine instances carry a shared cached_property lxml
+            # parser, which is not thread-safe. Caching one client per
+            # backend would let concurrent query variants of the same
+            # engine parse HTML on one parser — the same C-level
+            # corruption class already fixed for trafilatura extraction.
+            ddgs = DDGS(timeout=self.timeout)
+            method = ddgs.news if category == "news" else ddgs.text
+            kwargs: dict[str, Any] = {
+                "backend": backend,
+                "max_results": limit,
+                "safesearch": safesearch,
+            }
+            if region:
+                kwargs["region"] = region
+            if timelimit:
+                kwargs["timelimit"] = timelimit
+            # The one request site: counted immediately before the call so the
+            # ledger measures calls issued, not tasks scheduled.
+            ledger.record()
+            rows = method(query, **kwargs)
+            results = []
+            rank = 1
+            for row in rows:
+                result_url = row.get("href") or row.get("url") or ""
+                if result_url and not self._is_ad_redirect(result_url):
+                    results.append(
+                        SearchResult(
+                            title=row.get("title", ""),
+                            url=result_url,
+                            snippet=row.get("body", ""),
+                            sources=[backend],
+                            published_at=row.get("date"),
+                            publisher=row.get("source"),
+                            engine_ranks={backend: rank},
+                        )
+                    )
+                    rank += 1
+            return results, round((time.perf_counter() - t0) * 1000, 2), None
+        except Exception as exc:
+            return [], round((time.perf_counter() - t0) * 1000, 2), exc
+        finally:
+            pool.release(lease_id)
+
+    async def _search_parts(
+        self,
+        queries: list[str],
+        *,
         limit: int,
         category: SearchCategory,
         region: str | None,
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
-        max_query_variants: int | None = None,
-    ) -> tuple[list[list[SearchResult]], list[ProviderStatus], list[str]]:
+        ledger: _FanoutLedger,
+        pool: LeasePool,
+        executor: ThreadPoolExecutor,
+        deadline: float | None,
+    ) -> tuple[list[list[SearchResult]], list[ProviderStatus]]:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
         if category not in ("text", "news"):
@@ -478,18 +525,6 @@ class Josty:
             raise ValueError(f"unsupported safe-search mode: {safesearch}")
         if timelimit not in (None, "d", "w", "m", "y"):
             raise ValueError(f"unsupported time limit: {timelimit}")
-        effective_max_variants = (
-            max_query_variants if max_query_variants is not None else self.max_query_variants
-        )
-        if effective_max_variants is not None and effective_max_variants < 1:
-            raise ValueError("max_query_variants must be positive")
-        normalized_sites = normalize_sites(sites)
-        queries = self.expand(
-            query,
-            normalized_sites,
-            mode,
-            max_query_variants=effective_max_variants,
-        )
         groups = self.news_backends if category == "news" else self.backends
         # An engine listed in multiple groups is queried once, in its first
         # group: one call and one status per engine, contract-wide.
@@ -504,6 +539,10 @@ class Josty:
                     region=region,
                     safesearch=safesearch,
                     timelimit=timelimit,
+                    ledger=ledger,
+                    pool=pool,
+                    executor=executor,
+                    deadline=deadline,
                 )
                 for _group_index, engine in engine_specs
                 for variant in queries
@@ -542,7 +581,7 @@ class Josty:
             )
             if merged:
                 lists.append(merged)
-        return lists, statuses, normalized_sites
+        return lists, statuses
 
     @staticmethod
     def _filter_sites(results: list[SearchResult], sites: list[str]) -> list[SearchResult]:
@@ -603,7 +642,7 @@ class Josty:
                             item.content = content
                         item.extraction_method = method
                         item.fetched_url = final_url
-                        item.fetched_at = datetime.now(UTC).isoformat()
+                        item.fetched_at = datetime.now(timezone.utc).isoformat()
                     except Exception as exc:
                         item.content = None
                         item.fetch_error = f"{type(exc).__name__}: {exc}"
@@ -628,7 +667,7 @@ class Josty:
         return extract(html, url)
 
     async def github_run(
-        self, query: str, limit: int = 20
+        self, query: str, limit: int = 20, *, ledger: _FanoutLedger | None = None
     ) -> tuple[list[SearchResult], ProviderStatus]:
         allowed, skip_message = self.breaker.status("github-api", "search")
         if not allowed:
@@ -653,6 +692,8 @@ class Josty:
             timeout=self.timeout, headers=headers, trust_env=False
         ) as client:
             try:
+                if ledger is not None:
+                    ledger.record()
                 response = await client.get(url, params={"q": query, "per_page": min(limit, 100)})
                 response.raise_for_status()
                 body = response.json()
@@ -716,19 +757,13 @@ class Josty:
             )
         snap = self.breaker.get_state(provider)
         if snap["state"] == "open":
-            remaining = snap["backoff_remaining"]
-            until_iso = (
-                datetime.fromtimestamp(time.time() + remaining, UTC)
-                .isoformat()
-                .replace("+00:00", "Z")
-            )
             return HostStatus(
                 provider,
                 host,
                 False,
                 None,
                 "skipped",
-                f"skipped: engine in cool-down until {until_iso}",
+                _cool_down_message(snap["backoff_remaining"]),
                 latency_ms=None,
                 **self._breaker_telemetry(provider),
             )
@@ -846,14 +881,16 @@ class Josty:
             raise ValueError("max_query_variants must be positive")
         cache_key = None
         normalized_sites = normalize_sites(sites)
-        variant_count, scheduled_requests = self._fanout_telemetry(
+        # One expansion per run: the same variant list feeds the cache identity,
+        # the telemetry, and the fanout below.
+        queries = self.expand(
             query,
-            sites=normalized_sites,
-            mode=mode,
-            category=category,
-            include_github=include_github,
+            normalized_sites,
+            mode,
             max_query_variants=effective_max_variants,
         )
+        variant_count = len(queries)
+        ledger = _FanoutLedger()
         if self.enable_cache and self.cache:
             effective_backends = tuple(self.news_backends if category == "news" else self.backends)
             # SERP identity: fetch is a separate phase and must not bust the cache.
@@ -887,26 +924,51 @@ class Josty:
                 except Exception:
                     self.cache.delete(cache_key)
 
-        web_task = self._search_parts(
-            query,
-            sites=sites,
-            mode=mode,
-            limit=limit,
-            category=category,
-            region=region,
-            safesearch=safesearch,
-            timelimit=timelimit,
-            max_query_variants=effective_max_variants,
+        # One arbiter and one dedicated worker pool per run. Per-run rather than
+        # per-instance, so a worker that never returns cannot shed a later run;
+        # dedicated rather than shared, so trafilatura extraction never queues
+        # behind search workers. Sized to the cap because admission guarantees
+        # held + ghosts <= capacity, so a submission is never queued.
+        pool = LeasePool(
+            self.max_search_concurrency,
+            lease_seconds=self.timeout + SEARCH_THREAD_TIMEOUT_HEADROOM,
+            max_ghosts=self.max_ghosts,
         )
-        if include_github:
-            (lists, providers, normalized_sites), (github, github_status) = await asyncio.gather(
-                web_task, self.github_run(query, limit)
+        executor = ThreadPoolExecutor(
+            max_workers=self.max_search_concurrency,
+            thread_name_prefix="josty-search",
+        )
+        deadline = (
+            time.monotonic() + self.run_timeout if self.run_timeout is not None else None
+        )
+        try:
+            web_task = self._search_parts(
+                queries,
+                limit=limit,
+                category=category,
+                region=region,
+                safesearch=safesearch,
+                timelimit=timelimit,
+                ledger=ledger,
+                pool=pool,
+                executor=executor,
+                deadline=deadline,
             )
-            if github:
-                lists.append(github)
-            providers.append(github_status)
-        else:
-            lists, providers, normalized_sites = await web_task
+            if include_github:
+                (lists, providers), (github, github_status) = await asyncio.gather(
+                    web_task, self.github_run(query, limit, ledger=ledger)
+                )
+                if github:
+                    lists.append(github)
+                providers.append(github_status)
+            else:
+                lists, providers = await web_task
+        finally:
+            # Do not join: a ghost is exactly the thread we are choosing not to
+            # wait for. Reaping records the ones still outstanding so the run
+            # reports them instead of hiding them.
+            executor.shutdown(wait=False)
+        pool.reap(time.monotonic())
         results = self._filter_sites(
             rrf(lists, profile=effective_profile), normalized_sites
         )[:limit]
@@ -916,9 +978,14 @@ class Josty:
             query=query,
             results=results,
             providers=providers,
-            run_at=datetime.now(UTC).isoformat(),
+            run_at=datetime.now(timezone.utc).isoformat(),
             query_variant_count=variant_count,
-            request_count=scheduled_requests,
+            request_count=ledger.issued,
+            scheduled_count=pool.scheduled,
+            shed_count=pool.shed,
+            shed_by_reason=pool.shed_by_reason,
+            ghosts_outstanding=pool.ghosts,
+            ghosts_peak=pool.ghosts_peak,
         )
         _stamp_fetch_stats(run, requested=fetch)
         if (

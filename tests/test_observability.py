@@ -144,64 +144,60 @@ def test_partial_fetch_success_keeps_search_complete():
     assert payload["fetch"]["failed"] == 1
 
 
-def test_oss_two_sites_schedules_48_requests():
-    engine = Josty()
-    variants, requests = engine._fanout_telemetry(
-        "document indexing",
-        sites=["github.com", "gitlab.com"],
-        mode="oss",
-        category="text",
-        include_github=False,
-        max_query_variants=None,
-    )
-    assert variants == 8
-    assert requests == 48
+def test_request_count_is_the_issued_ledger(monkeypatch):
+    """request_count counts ddgs calls actually issued, not tasks scheduled."""
+
+    class CountingDDGS:
+        calls = 0
+
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            type(self).calls += 1
+            return [{"title": "t", "href": "https://example.com/x", "body": "b"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", CountingDDGS)
+    engine = Josty(backends=("brave", "duckduckgo"), enable_cache=False)
+    run = asyncio.run(engine.search_run("q", mode="exact", limit=3))
+    assert run.query_variant_count == 2
+    assert run.request_count == 4 == CountingDDGS.calls
 
 
-def test_exact_mode_doubles_scheduled_requests():
-    engine = Josty()
-    plain_v, plain_n = engine._fanout_telemetry(
-        "q",
-        sites=[],
-        mode="plain",
-        category="text",
-        include_github=False,
-        max_query_variants=None,
+def test_breaker_skips_do_not_inflate_request_count(monkeypatch):
+    """A skipped engine issues nothing, so it must not appear in the ledger."""
+
+    class CountingDDGS:
+        calls = 0
+
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, *args, **kwargs):
+            type(self).calls += 1
+            return [{"title": "t", "href": "https://example.com/x", "body": "b"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", CountingDDGS)
+    engine = Josty(
+        backends=("brave", "duckduckgo"),
+        enable_cache=False,
+        breaker_fail_threshold=2,
     )
-    exact_v, exact_n = engine._fanout_telemetry(
-        "q",
-        sites=[],
-        mode="exact",
-        category="text",
-        include_github=False,
-        max_query_variants=None,
-    )
-    assert plain_v == 1
-    assert exact_v == 2
-    assert exact_n == plain_n * 2
-    assert exact_n == 12
+    engine.breaker.record_failure("brave")
+    engine.breaker.record_failure("brave")
+    run = asyncio.run(engine.search_run("q", limit=3))
+    assert run.request_count == 1 == CountingDDGS.calls
+    assert any(p.error_kind == "skipped" for p in run.providers)
 
 
-def test_github_opt_in_adds_one_scheduled_request():
-    engine = Josty(backends=("brave",))
-    _, without_gh = engine._fanout_telemetry(
-        "q",
-        sites=[],
-        mode="plain",
-        category="text",
-        include_github=False,
-        max_query_variants=None,
-    )
-    _, with_gh = engine._fanout_telemetry(
-        "q",
-        sites=[],
-        mode="plain",
-        category="text",
-        include_github=True,
-        max_query_variants=None,
-    )
-    assert without_gh == 1
-    assert with_gh == 2
+def test_query_variant_count_reflects_expansion(monkeypatch):
+    monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    engine = Josty(backends=("brave",), enable_cache=False)
+    run = asyncio.run(engine.search_run("q", mode="exact", limit=3))
+    assert run.query_variant_count == 2
+    assert run.request_count == 2
+    oss = Josty.expand("document indexing", ["github.com", "gitlab.com"], mode="oss")
+    assert len(oss) == 8
 
 
 def test_research_run_stamps_fanout_and_coverage(monkeypatch):

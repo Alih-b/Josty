@@ -186,10 +186,15 @@ def test_concurrency_constructor_params_are_validated():
         Josty(max_fetch_concurrency=0)
 
 
-def test_max_concurrency_alias_targets_search_slot():
-    engine = Josty(max_concurrency=3)
-    assert engine.max_search_concurrency == 3
-    assert engine.max_fetch_concurrency == Josty.DEFAULT_FETCH_CONCURRENCY
+def test_max_concurrency_alias_targets_the_search_slot():
+    """The deprecated alias still works and maps onto max_search_concurrency."""
+    assert Josty(max_concurrency=3, enable_cache=False).max_search_concurrency == 3
+
+
+@pytest.mark.parametrize("bad", [0, -5])
+def test_max_concurrency_alias_is_validated(bad):
+    with pytest.raises(ValueError):
+        Josty(max_concurrency=bad, enable_cache=False)
 
 
 def test_search_and_fetch_semaphores_do_not_share_a_pool():
@@ -703,7 +708,7 @@ def test_github_is_opt_in_and_fused_once(monkeypatch):
     repo = result("https://github.com/owner/repo", source="github-api")
 
     async def parts(*args, **kwargs):
-        return [[a1], [a2]], [ProviderStatus("web", "q", True, 1)], []
+        return [[a1], [a2]], [ProviderStatus("web", "q", True, 1)]
 
     async def github(*args, **kwargs):
         return [repo], ProviderStatus("github-api", "q", True, 1)
@@ -1418,10 +1423,10 @@ def test_domain_weights_expanded_authoritative_sets():
 def test_search_run_and_research_run_behavior_parity(tmp_path, monkeypatch):
     engine = Josty(enable_cache=False)
 
-    async def fake_search_parts(query, **kwargs):
-        res = [SearchResult(title=f"Result for {query}", url="https://example.com/res")]
-        status = [ProviderStatus("bing", query, True, 1)]
-        return [res], status, []
+    async def fake_search_parts(queries, **kwargs):
+        res = [SearchResult(title=f"Result for {queries[0]}", url="https://example.com/res")]
+        status = [ProviderStatus("bing", queries[0], True, 1)]
+        return [res], status
 
     monkeypatch.setattr(engine, "_search_parts", fake_search_parts)
 
@@ -1641,8 +1646,8 @@ def test_github_breaker_is_independent_from_search_backends(monkeypatch):
 def test_search_run_dict_includes_run_at():
     engine = Josty(backends=("test",), enable_cache=False)
 
-    async def parts(query, **kwargs):
-        return [[result("https://example.com/x")]], [ProviderStatus("test", query, True, 1)], []
+    async def parts(queries, **kwargs):
+        return [[result("https://example.com/x")]], [ProviderStatus("test", queries[0], True, 1)]
 
     engine._search_parts = parts
     run = asyncio.run(engine.search_run("q", limit=1))
@@ -1721,32 +1726,24 @@ def test_news_day_timelimit_cache_row_uses_floor_ttl(tmp_path, monkeypatch):
     assert any(abs(row[1] - 21600.0) < 1.0 for row in rows)
 
 
-def test_circuit_breaker_persists_across_instances(tmp_path):
+def test_breaker_state_stays_process_local(tmp_path):
+    """Breaker state is in-process by contract: a second engine sharing the cache
+    database starts closed, and clearing the cache does not touch throttling."""
     db_file = tmp_path / "shared_cache.db"
     engine_a = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
 
-    # Initially closed
     allowed, msg = engine_a.breaker.status("duckduckgo")
     assert allowed is True
     assert msg is None
 
-    # Fail twice to trip breaker
     engine_a.breaker.record_failure("duckduckgo")
     engine_a.breaker.record_failure("duckduckgo")
     allowed, msg = engine_a.breaker.status("duckduckgo")
     assert allowed is False
     assert "cool-down" in msg
 
-    # Create fresh engine instance sharing the same cache DB
     engine_b = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
     allowed, msg = engine_b.breaker.status("duckduckgo")
-    assert allowed is False
-    assert "cool-down" in msg
-
-    # Clearing cache also clears breaker state
-    engine_b.clear_cache()
-
-    engine_c = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
-    allowed, msg = engine_c.breaker.status("duckduckgo")
     assert allowed is True
+    assert msg is None
     assert msg is None

@@ -104,6 +104,18 @@ class SearchRun:
     run_at: str | None = None  # ISO8601 UTC moment the search was executed
     query_variant_count: int | None = None
     request_count: int | None = None
+    # Fanout admission accounting. `request_count` is the measured number of calls
+    # that reached the ddgs/GitHub call site; `scheduled_count` is how many were
+    # proposed; the difference is calls that were never issued, split by why.
+    # `shed_*` counts refused admission (capacity / ghost_capacity / ghost_budget /
+    # deadline). A shed call never opened a socket and is reported as `skipped`,
+    # never as a network failure. `ghosts_*` count workers that outlived their
+    # lease and had not returned when the fanout finished.
+    scheduled_count: int | None = None
+    shed_count: int = 0
+    shed_by_reason: dict[str, int] = field(default_factory=dict)
+    ghosts_outstanding: int = 0
+    ghosts_peak: int = 0
     fetch_requested: bool = False
     fetch_attempted: int = 0
     fetch_ok: int = 0
@@ -187,6 +199,14 @@ class SearchRun:
             "coverage": self.coverage,
             "query_variant_count": self.query_variant_count,
             "request_count": self.request_count,
+            "fanout": {
+                "scheduled": self.scheduled_count,
+                "issued": self.request_count,
+                "shed": self.shed_count,
+                "shed_by_reason": dict(self.shed_by_reason),
+                "ghosts_outstanding": self.ghosts_outstanding,
+                "ghosts_peak": self.ghosts_peak,
+            },
             "fetch": {
                 "requested": self.fetch_requested,
                 "attempted": self.fetch_attempted,
