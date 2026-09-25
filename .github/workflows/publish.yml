@@ -1,0 +1,58 @@
+name: publish
+
+on:
+  # Runs from the default branch's copy of this file, so it must be merged to main
+  # before any release is published.
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # OIDC token for PyPI trusted publishing; no API token is used
+    steps:
+      # Actions are pinned to release SHAs: this job holds an OIDC token that can
+      # publish to PyPI, so a retargeted tag upstream must not be able to reach it.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+
+      - name: Suite and lint
+        run: |
+          pytest -q
+          ruff check .
+
+      - name: Build
+        run: python -m build
+
+      # Guards the failure this workflow exists to prevent: uploading an artifact
+      # whose version disagrees with the release tag, or a stale dist/ from an
+      # earlier build.
+      # The tag is passed through the environment rather than interpolated into the
+      # shell: a git ref may legally contain ; $ ( ) { }, so `${{ }}` here would be
+      # command injection from anyone who can publish a release.
+      - name: Artifact must match the release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          test -f "dist/josty-${version}-py3-none-any.whl" || { echo "no wheel for ${version}"; ls -l dist/; exit 1; }
+          test -f "dist/josty-${version}.tar.gz" || { echo "no sdist for ${version}"; ls -l dist/; exit 1; }
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          print-hash: true
