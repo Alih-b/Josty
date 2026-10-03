@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -15,6 +13,7 @@ import httpx
 from ddgs import DDGS
 
 from .backends import _engine_available
+from .branch import BranchRunner, SearchCall
 from .breaker import CircuitBreaker, _cool_down_message
 from .cache import (
     CACHE_MAX_BYTES,
@@ -24,13 +23,13 @@ from .cache import (
     _strip_fetch_fields,
     _ttl_for,
 )
-from .errors import _aggregate_engine_status, _classify_probe_error, _classify_search_error
+from .errors import _classify_probe_error
+from .fanout import Fanout, Plan, _FanoutLedger
 from .fetch import BROWSER_FETCH_HEADERS, download, extract, is_ad_redirect, validate_public_url
-from .lease import LeasePool
 from .models import DiagnoseRun, HostStatus, ProviderStatus, SearchResult, SearchRun
+from .providers import DdgsSearchAdapter, GithubSearchAdapter
 from .ranking import (
     _site_matches,
-    merge_query_variants,
     normalize_sites,
     rrf,
 )
@@ -45,23 +44,6 @@ from .status import (
     SearchStatus,
     TimeLimit,
 )
-
-
-class _FanoutLedger:
-    """Per-run count of search calls actually issued.
-
-    Incremented by worker threads immediately before a ddgs/GitHub call, so it
-    counts invocations, not sockets: a scheduled task that never reaches its
-    call site (registry-missing, breaker-skipped) contributes nothing.
-    """
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self.issued = 0
-
-    def record(self) -> None:
-        with self._lock:
-            self.issued += 1
 
 
 class Josty:
@@ -275,247 +257,46 @@ class Josty:
         backend: str,
         limit: int,
         *,
+        fanout: Fanout,
         category: SearchCategory,
         region: str | None,
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
-        ledger: _FanoutLedger,
-        pool: LeasePool,
-        executor: ThreadPoolExecutor,
-        deadline: float | None,
     ) -> tuple[list[SearchResult], ProviderStatus]:
-        pool.note_scheduled()
-        available, unavailable_message = _engine_available(category, backend)
-        if not available:
-            return [], ProviderStatus(
-                backend,
-                query,
-                False,
-                error=unavailable_message,
-                error_kind="skipped",
-                **self._breaker_telemetry(backend),
-            )
-        allowed, skip_message = self.breaker.status(backend, "search")
-        if not allowed:
-            return [], ProviderStatus(
-                backend,
-                query,
-                False,
-                error=skip_message,
-                error_kind="skipped",
-                **self._breaker_telemetry(backend),
-            )
-        try:
-            return await self._ddgs_execute(
-                query,
-                backend,
-                limit,
-                category=category,
-                region=region,
-                safesearch=safesearch,
-                timelimit=timelimit,
-                ledger=ledger,
-                pool=pool,
-                executor=executor,
-                deadline=deadline,
-            )
-        finally:
-            self.breaker.release_probe(backend, "search")
+        """Compat shim: one ddgs branch through the shared admission pipeline.
 
-    async def _ddgs_execute(
-        self,
-        query: str,
-        backend: str,
-        limit: int,
-        *,
-        category: SearchCategory,
-        region: str | None,
-        safesearch: SafeSearch,
-        timelimit: TimeLimit | None,
-        ledger: _FanoutLedger,
-        pool: LeasePool,
-        executor: ThreadPoolExecutor,
-        deadline: float | None,
-    ) -> tuple[list[SearchResult], ProviderStatus]:
-        async with self._search_semaphore():
-            now = time.monotonic()
-            lease = pool.acquire("search", backend, now=now, deadline=deadline)
-            if lease is None:
-                # Refused admission: no socket was opened, so this must never be
-                # reported as an upstream failure. The reason names the cause.
-                return [], ProviderStatus(
-                    backend,
-                    query,
-                    False,
-                    0,
-                    error=pool.shed_message(pool.last_shed_reason or "capacity"),
-                    error_kind="skipped",
-                    latency_ms=None,
-                    **self._breaker_telemetry(backend),
-                )
-            budget = self.timeout + SEARCH_THREAD_TIMEOUT_HEADROOM
-            if deadline is not None:
-                budget = min(budget, max(0.0, deadline - now))
-            t_start = time.perf_counter()
-            try:
-                results, latency_ms, exc = await asyncio.wait_for(
-                    asyncio.get_running_loop().run_in_executor(
-                        executor,
-                        functools.partial(
-                            self._search_worker,
-                            query,
-                            backend,
-                            limit,
-                            category=category,
-                            region=region,
-                            safesearch=safesearch,
-                            timelimit=timelimit,
-                            ledger=ledger,
-                            pool=pool,
-                            lease_id=lease.lease_id,
-                        ),
-                    ),
-                    timeout=budget,
-                )
-            except (asyncio.TimeoutError, TimeoutError):
-                # The worker keeps running (a "ghost"): a blocked socket call
-                # cannot be cancelled, so this branch reports the timeout now and
-                # the thread ends on ddgs's own client timeout. Nothing reads its
-                # return value, so a late success cannot revive the branch.
-                latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
-                self.breaker.record_latency(backend, latency_ms)
-                self.breaker.record_failure(backend, "search")
-                return [], ProviderStatus(
-                    backend,
-                    query,
-                    False,
-                    0,
-                    error="TimeoutError: search backend timed out",
-                    error_kind="network",
-                    latency_ms=latency_ms,
-                    **self._breaker_telemetry(backend),
-                )
-            if exc is not None:
-                self.breaker.record_latency(backend, latency_ms)
-                err_kind = _classify_search_error(exc)
-                if err_kind == "empty":
-                    # Empty-ok branches do not clear rate-limit history: a
-                    # throttled engine answering with zero results must not
-                    # reset its own trip window.
-                    return [], ProviderStatus(
-                        backend,
-                        query,
-                        True,
-                        0,
-                        error_kind="empty",
-                        latency_ms=latency_ms,
-                        **self._breaker_telemetry(backend),
-                    )
-                self.breaker.record_failure(backend, "search")
-                return [], ProviderStatus(
-                    backend,
-                    query,
-                    False,
-                    error=f"{type(exc).__name__}: {exc}",
-                    error_kind=err_kind,
-                    latency_ms=latency_ms,
-                    **self._breaker_telemetry(backend),
-                )
-
-            self.breaker.record_latency(backend, latency_ms)
-            # Empty-ok branches do not clear rate-limit history (see above):
-            # only a variant that actually produced results resets the breaker.
-            if results:
-                self.breaker.record_success(backend, "search")
-            return results, ProviderStatus(
-                backend,
-                query,
-                True,
-                len(results),
-                error_kind="empty" if not results else None,
-                latency_ms=latency_ms,
-                **self._breaker_telemetry(backend),
-            )
-
-    def _search_worker(
-        self,
-        query: str,
-        backend: str,
-        limit: int,
-        *,
-        category: SearchCategory,
-        region: str | None,
-        safesearch: SafeSearch,
-        timelimit: TimeLimit | None,
-        ledger: _FanoutLedger,
-        pool: LeasePool,
-        lease_id: int,
-    ) -> tuple[list[SearchResult], float, Exception | None]:
-        """One blocking engine call, run on a worker thread.
-
-        Always retires its own lease, including on the exception path. The release
-        is idempotent, so returning *after* the arbiter already reaped this lease
-        as a ghost is a safe no-op rather than a double free.
+        ``DDGS`` and ``_engine_available`` are read from module globals here, at
+        call time, because the suite patches exactly those names on
+        ``josty.engine``; resolving them at import time would freeze the real
+        client into the adapter.
         """
-        t0 = time.perf_counter()
-        try:
-            # A fresh DDGS client per call is deliberate, not waste:
-            # ddgs engine instances carry a shared cached_property lxml
-            # parser, which is not thread-safe. Caching one client per
-            # backend would let concurrent query variants of the same
-            # engine parse HTML on one parser — the same C-level
-            # corruption class already fixed for trafilatura extraction.
-            ddgs = DDGS(timeout=self.timeout)
-            method = ddgs.news if category == "news" else ddgs.text
-            kwargs: dict[str, Any] = {
-                "backend": backend,
-                "max_results": limit,
-                "safesearch": safesearch,
-            }
-            if region:
-                kwargs["region"] = region
-            if timelimit:
-                kwargs["timelimit"] = timelimit
-            # The one request site: counted immediately before the call so the
-            # ledger measures calls issued, not tasks scheduled.
-            ledger.record()
-            rows = method(query, **kwargs)
-            results = []
-            rank = 1
-            for row in rows:
-                result_url = row.get("href") or row.get("url") or ""
-                if result_url and not self._is_ad_redirect(result_url):
-                    results.append(
-                        SearchResult(
-                            title=row.get("title", ""),
-                            url=result_url,
-                            snippet=row.get("body", ""),
-                            sources=[backend],
-                            published_at=row.get("date"),
-                            publisher=row.get("source"),
-                            engine_ranks={backend: rank},
-                        )
-                    )
-                    rank += 1
-            return results, round((time.perf_counter() - t0) * 1000, 2), None
-        except Exception as exc:
-            return [], round((time.perf_counter() - t0) * 1000, 2), exc
-        finally:
-            pool.release(lease_id)
+        call = SearchCall(
+            query=query,
+            backend=backend,
+            limit=limit,
+            category=category,
+            region=region,
+            safesearch=safesearch,
+            timelimit=timelimit,
+        )
+        adapter = DdgsSearchAdapter(
+            provider=backend,
+            client_factory=DDGS,
+            available=_engine_available,
+            timeout=self.timeout,
+        )
+        return await fanout.runner().run(call, adapter)
 
     async def _search_parts(
         self,
         queries: list[str],
         *,
+        fanout: Fanout,
         limit: int,
         category: SearchCategory,
         region: str | None,
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
-        ledger: _FanoutLedger,
-        pool: LeasePool,
-        executor: ThreadPoolExecutor,
-        deadline: float | None,
     ) -> tuple[list[list[SearchResult]], list[ProviderStatus]]:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
@@ -525,63 +306,50 @@ class Josty:
             raise ValueError(f"unsupported safe-search mode: {safesearch}")
         if timelimit not in (None, "d", "w", "m", "y"):
             raise ValueError(f"unsupported time limit: {timelimit}")
-        groups = self.news_backends if category == "news" else self.backends
         # An engine listed in multiple groups is queried once, in its first
-        # group: one call and one status per engine, contract-wide.
-        engine_specs = self._engine_specs(category)
-        batches = await asyncio.gather(
-            *(
-                self._ddgs(
-                    variant,
-                    engine,
-                    limit,
+        # group: one call and one status per engine, contract-wide. Plans are
+        # engine-major then variant, and Fanout re-groups them in plan order.
+        plans = [
+            Plan(
+                group_index=group_index,
+                call=SearchCall(
+                    query=variant,
+                    backend=engine,
+                    limit=limit,
                     category=category,
                     region=region,
                     safesearch=safesearch,
                     timelimit=timelimit,
-                    ledger=ledger,
-                    pool=pool,
-                    executor=executor,
-                    deadline=deadline,
-                )
-                for _group_index, engine in engine_specs
-                for variant in queries
+                ),
             )
-        )
-        group_results: dict[int, list[list[SearchResult]]] = {}
-        engine_statuses: dict[tuple[int, str], list[ProviderStatus]] = {}
-        engine_items: dict[tuple[int, str], list[list[SearchResult]]] = {}
-        call_specs = [
-            (group_index, _engine)
-            for group_index, _engine in engine_specs
-            for _variant in queries
+            for group_index, engine in self._engine_specs(category)
+            for variant in queries
         ]
-        for (group_index, engine), (items, status) in zip(
-            call_specs, batches, strict=True
-        ):
-            group_results.setdefault(group_index, []).append(items)
-            key = (group_index, engine)
-            engine_statuses.setdefault(key, []).append(status)
-            engine_items.setdefault(key, []).append(items)
-        statuses = []
-        for key in engine_statuses:
-            agg = _aggregate_engine_status(engine_statuses[key], engine_items[key])
-            # Stamp breaker fields AFTER the gather: per-variant snapshots ran
-            # concurrently, so only a fresh read reflects the final state.
-            engine_name = key[1]
-            b_state = self.breaker.get_state(engine_name)
-            agg.circuit_state = b_state["state"]
-            agg.failures = b_state["failures"]
-            agg.backoff_remaining = b_state["backoff_remaining"]
-            statuses.append(agg)
-        lists = []
-        for group_index in range(len(groups)):
-            merged = merge_query_variants(
-                [items for items in group_results.get(group_index, []) if items]
-            )
-            if merged:
-                lists.append(merged)
-        return lists, statuses
+        return await fanout.search(
+            plans, functools.partial(self._invoke_plan, fanout=fanout)
+        )
+
+    async def _invoke_plan(
+        self, plan: Plan, *, fanout: Fanout
+    ) -> tuple[list[SearchResult], ProviderStatus]:
+        """Dispatch one plan to its provider branch.
+
+        Keeping the engine-level ``_ddgs``/``github_run`` patch points live here
+        is what lets the suite swap either branch without touching the pipeline.
+        """
+        call = plan.call
+        if call.backend == "github-api":
+            return await self.github_run(call.query, call.limit, fanout=fanout)
+        return await self._ddgs(
+            call.query,
+            call.backend,
+            call.limit,
+            fanout=fanout,
+            category=call.category,
+            region=call.region,
+            safesearch=call.safesearch,
+            timelimit=call.timelimit,
+        )
 
     @staticmethod
     def _filter_sites(results: list[SearchResult], sites: list[str]) -> list[SearchResult]:
@@ -666,110 +434,47 @@ class Josty:
     def _extract(html: str, url: str) -> tuple[str, str]:
         return extract(html, url)
 
-    async def _github_call_admitted(
-        self,
-        query: str,
-        limit: int,
-        *,
-        ledger: _FanoutLedger,
-        pool: LeasePool,
-        deadline: float | None,
-    ) -> tuple[list[SearchResult], ProviderStatus]:
-        """Run the GitHub call through the same admission as a ddgs branch.
-
-        The ledger counts this call at its issue site, so it must also be counted
-        as proposed and be bounded by the pool. Otherwise ``fanout.issued`` can
-        exceed ``fanout.scheduled`` and the call escapes both the concurrency cap
-        and the run deadline -- the identity AGENTS.md invariant 4 promises would
-        be false on every run that includes GitHub.
-        """
-        pool.note_scheduled()
-        lease = pool.acquire("github", query, now=time.monotonic(), deadline=deadline)
-        if lease is None:
-            return [], ProviderStatus(
-                "github-api",
-                query,
-                False,
-                0,
-                error=pool.shed_message(pool.last_shed_reason or "capacity"),
-                error_kind="skipped",
-                latency_ms=None,
-                **self._breaker_telemetry("github-api"),
-            )
-        try:
-            return await self.github_run(query, limit, ledger=ledger)
-        finally:
-            pool.release(lease.lease_id)
-
     async def github_run(
-        self, query: str, limit: int = 20, *, ledger: _FanoutLedger | None = None
+        self, query: str, limit: int = 20, *, fanout: Fanout | None = None
     ) -> tuple[list[SearchResult], ProviderStatus]:
-        allowed, skip_message = self.breaker.status("github-api", "search")
-        if not allowed:
-            return [], ProviderStatus(
-                "github-api",
-                query,
-                False,
-                error=skip_message,
-                error_kind="skipped",
-                **self._breaker_telemetry("github-api"),
+        """GitHub repository search through the shared branch pipeline.
+
+        With ``fanout=None`` (a direct caller) this builds an *unadmitted* runner
+        over the search semaphore and a scratch ledger: no pool, so nothing is
+        scheduled or shed, but the call still respects the concurrency cap.
+        ``SEARCH_THREAD_TIMEOUT_HEADROOM`` is read at call time for the same
+        reason ``_ddgs`` reads its globals late.
+        """
+        call = SearchCall(
+            query=query,
+            backend="github-api",
+            limit=limit,
+            category="text",
+            region=None,
+            safesearch="moderate",
+            timelimit=None,
+        )
+        adapter = GithubSearchAdapter(
+            token=self.github_token,
+            timeout=self.timeout,
+            user_agent=USER_AGENT,
+        )
+        if fanout is not None:
+            runner = fanout.runner()
+        else:
+            # Standalone (AMENDMENT 1): no run-scoped worker pool and no outer
+            # deadline, because the GitHub adapter issues on the event loop.
+            runner = BranchRunner(
+                breaker=self.breaker,
+                ledger=_FanoutLedger(),
+                pool=None,
+                semaphore=self._search_semaphore(),
+                timeout=self.timeout,
+                headroom=SEARCH_THREAD_TIMEOUT_HEADROOM,
+                executor=None,
+                deadline=None,
             )
-        url = "https://api.github.com/search/repositories"
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "User-Agent": USER_AGENT,
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        if self.github_token:
-            headers["Authorization"] = f"Bearer {self.github_token}"
-        t0 = time.perf_counter()
-        async with httpx.AsyncClient(
-            timeout=self.timeout, headers=headers, trust_env=False
-        ) as client:
-            try:
-                if ledger is not None:
-                    ledger.record()
-                response = await client.get(url, params={"q": query, "per_page": min(limit, 100)})
-                response.raise_for_status()
-                body = response.json()
-                results = []
-                rank = 1
-                for item in body.get("items", []):
-                    if isinstance(item, dict) and item.get("full_name") and item.get("html_url"):
-                        results.append(
-                            SearchResult(
-                                title=item["full_name"],
-                                url=item["html_url"],
-                                snippet=item.get("description") or "",
-                                sources=["github-api"],
-                                engine_ranks={"github-api": rank},
-                            )
-                        )
-                        rank += 1
-                latency_ms = round((time.perf_counter() - t0) * 1000, 2)
-                self.breaker.record_latency("github-api", latency_ms)
-                self.breaker.record_success("github-api", "search")
-                return results, ProviderStatus(
-                    "github-api",
-                    query,
-                    True,
-                    len(results),
-                    latency_ms=latency_ms,
-                    **self._breaker_telemetry("github-api"),
-                )
-            except Exception as exc:
-                latency_ms = round((time.perf_counter() - t0) * 1000, 2)
-                self.breaker.record_latency("github-api", latency_ms)
-                self.breaker.record_failure("github-api", "search")
-                return [], ProviderStatus(
-                    "github-api",
-                    query,
-                    False,
-                    error=f"{type(exc).__name__}: {exc}",
-                    error_kind=_classify_search_error(exc),
-                    latency_ms=latency_ms,
-                    **self._breaker_telemetry("github-api"),
-                )
+        return await runner.run(call, adapter)
 
     async def _probe_host(self, provider: str, host: str) -> HostStatus:
         """Bare HTTPS probe; any HTTP response (even 3xx/4xx) means the host is reachable —
@@ -925,7 +630,6 @@ class Josty:
             max_query_variants=effective_max_variants,
         )
         variant_count = len(queries)
-        ledger = _FanoutLedger()
         if self.enable_cache and self.cache:
             effective_backends = tuple(self.news_backends if category == "news" else self.backends)
             # SERP identity: fetch is a separate phase and must not bust the cache.
@@ -967,54 +671,72 @@ class Josty:
                 except Exception:
                     self.cache.delete(cache_key)
 
-        # One arbiter and one dedicated worker pool per run. Per-run rather than
-        # per-instance, so a worker that never returns cannot shed a later run;
-        # dedicated rather than shared, so trafilatura extraction never queues
-        # behind search workers. Sized to the cap because admission guarantees
-        # held + ghosts <= capacity, so a submission is never queued.
-        pool = LeasePool(
-            self.max_search_concurrency,
-            lease_seconds=self.timeout + SEARCH_THREAD_TIMEOUT_HEADROOM,
+        # One Fanout per run owns the admission pool, the dedicated worker pool,
+        # the ledger and the deadline. Per-run rather than per-instance, so a
+        # worker that never returns cannot shed a later run; dedicated rather
+        # than shared, so trafilatura extraction never queues behind search
+        # workers. Sized to the cap because admission guarantees held + ghosts
+        # <= capacity, so a submission is never queued.
+        fanout = Fanout(
+            capacity=self.max_search_concurrency,
+            search_timeout=self.timeout,
+            headroom=SEARCH_THREAD_TIMEOUT_HEADROOM,
             max_ghosts=self.max_ghosts,
-        )
-        executor = ThreadPoolExecutor(
-            max_workers=self.max_search_concurrency,
-            thread_name_prefix="josty-search",
-        )
-        deadline = (
-            time.monotonic() + self.run_timeout if self.run_timeout is not None else None
+            semaphore=self._search_semaphore(),
+            breaker=self.breaker,
+            run_timeout=self.run_timeout,
         )
         try:
             web_task = self._search_parts(
                 queries,
+                fanout=fanout,
                 limit=limit,
                 category=category,
                 region=region,
                 safesearch=safesearch,
                 timelimit=timelimit,
-                ledger=ledger,
-                pool=pool,
-                executor=executor,
-                deadline=deadline,
             )
             if include_github:
-                (lists, providers), (github, github_status) = await asyncio.gather(
-                    web_task,
-                    self._github_call_admitted(
-                        query, limit, ledger=ledger, pool=pool, deadline=deadline
+                # The GitHub branch is one more plan through the SAME fanout, so
+                # it draws on the same ledger, pool and deadline as the web calls
+                # and is scheduled/bounded like any other. It is dispatched here
+                # (not inside the patchable ``_search_parts``) so a test that
+                # replaces ``_search_parts`` and ``github_run`` reaches both, and
+                # ``_invoke_plan`` keeps the ``github_run`` patch point live.
+                groups = self.news_backends if category == "news" else self.backends
+                # ``group_index == len(groups)`` is the index after every web
+                # group, so ``Fanout.search``'s ascending group order emits the
+                # GitHub list last -- exactly where the original appended it, and
+                # where rrf's fusion order expects it.
+                github_plan = Plan(
+                    group_index=len(groups),
+                    call=SearchCall(
+                        query=query,
+                        backend="github-api",
+                        limit=limit,
+                        category=category,
+                        region=region,
+                        safesearch=safesearch,
+                        timelimit=timelimit,
                     ),
                 )
-                if github:
-                    lists.append(github)
-                providers.append(github_status)
+                github_task = fanout.search(
+                    [github_plan],
+                    functools.partial(self._invoke_plan, fanout=fanout),
+                )
+                (lists, providers), (gh_lists, gh_statuses) = await asyncio.gather(
+                    web_task,
+                    github_task,
+                )
+                lists.extend(gh_lists)
+                providers.extend(gh_statuses)
             else:
                 lists, providers = await web_task
         finally:
             # Do not join: a ghost is exactly the thread we are choosing not to
-            # wait for. Reaping records the ones still outstanding so the run
-            # reports them instead of hiding them.
-            executor.shutdown(wait=False)
-        pool.reap(time.monotonic())
+            # wait for. close() shuts the executor down without waiting and reaps
+            # the pool, so the run reports the ghosts instead of hiding them.
+            await fanout.close()
         results = self._filter_sites(
             rrf(lists, profile=effective_profile), normalized_sites
         )[:limit]
@@ -1026,12 +748,7 @@ class Josty:
             providers=providers,
             run_at=datetime.now(timezone.utc).isoformat(),
             query_variant_count=variant_count,
-            request_count=ledger.issued,
-            scheduled_count=pool.scheduled,
-            shed_count=pool.shed,
-            shed_by_reason=pool.shed_by_reason,
-            ghosts_outstanding=pool.ghosts,
-            ghosts_peak=pool.ghosts_peak,
+            **fanout.accounting(),
         )
         _stamp_fetch_stats(run, requested=fetch)
         if (
