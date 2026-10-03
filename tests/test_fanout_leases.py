@@ -16,6 +16,11 @@ import time
 import pytest
 
 import josty.engine as eng
+from josty.branch import BranchRunner, IssueOutcome, SearchCall
+from josty.breaker import CircuitBreaker
+from josty.fanout import _FanoutLedger
+from josty.lease import LeasePool
+from josty.models import SearchResult
 
 
 class _Tracker:
@@ -328,3 +333,69 @@ def test_run_timeout_must_be_positive():
         eng.Josty(run_timeout=0, enable_cache=False)
     with pytest.raises(ValueError):
         eng.Josty(max_ghosts=-1, enable_cache=False)
+
+
+def test_slot_is_taken_before_a_lease_no_branch_holds_a_lease_while_parked():
+    """The fanout's admission order is a decision, not an accident of two paths.
+
+    A branch takes the run's concurrency slot first and only acquires a pool lease
+    inside it, so no provider ever sits parked holding an expiring,
+    capacity-counted lease. That ordering is what removed the structural shed:
+    under saturation the base revision issued 6 and shed 1 (``capacity``) because
+    the GitHub branch grabbed a lease before the semaphore, while the refactor
+    issues 7 and sheds 0. Outcome-only assertions cannot see the difference --
+    shed counts pass under either ordering -- so this test observes the order
+    itself. Move ``pool.acquire`` above the ``async with self._semaphore`` block in
+    ``BranchRunner`` and this is the pin that goes red.
+    """
+
+    class _ImmediateAdapter:
+        provider = "brave"
+
+        def __init__(self) -> None:
+            self.issued = 0
+
+        def precheck(self, call: SearchCall) -> str | None:
+            return None
+
+        async def issue(self, call, *, ledger, pool, lease, budget, executor):
+            self.issued += 1
+            ledger.record()
+            return IssueOutcome(
+                [SearchResult(title="t", url="https://example.org/x", snippet="b")],
+                0.5,
+                None,
+            )
+
+    async def scenario() -> None:
+        pool = LeasePool(1, lease_seconds=5.0)
+        semaphore = asyncio.Semaphore(1)
+        await semaphore.acquire()  # the only slot is parked at another branch
+        runner = BranchRunner(
+            breaker=CircuitBreaker(fail_threshold=100),
+            ledger=_FanoutLedger(),
+            pool=pool,
+            semaphore=semaphore,
+            timeout=1.0,
+            headroom=0.0,
+        )
+        adapter = _ImmediateAdapter()
+        call = SearchCall("q", "brave", 5, "text", None, "moderate", None)
+        task = asyncio.create_task(runner.run(call, adapter))
+
+        for _ in range(200):  # let the branch reach the gate
+            if pool.scheduled:
+                break
+            await asyncio.sleep(0.01)
+        assert pool.scheduled == 1, "the branch never reached the admission gate"
+        assert pool.held == 0 and adapter.issued == 0, (
+            "a branch acquired a lease while parked on the concurrency slot"
+        )
+
+        semaphore.release()
+        results, status = await asyncio.wait_for(task, timeout=5)
+        assert adapter.issued == 1
+        assert status.ok is True
+        assert results[0].url == "https://example.org/x"
+
+    asyncio.run(scenario())
