@@ -116,8 +116,8 @@ def _aggregate_engine_status(
     latency_ms = round(max(latencies), 2) if latencies else None
     # circuit_state/failures/backoff_remaining are intentionally NOT aggregated
     # from per-variant snapshots (they run concurrently, so snapshot order is
-    # not recency): _search_parts stamps them from a fresh breaker.get_state()
-    # after the gather.
+    # not recency): Fanout.search (fanout.py) stamps them from a fresh
+    # breaker.get_state() after the gather.
     return ProviderStatus(
         provider,
         query,

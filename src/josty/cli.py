@@ -135,29 +135,11 @@ async def run_fetch(args: argparse.Namespace) -> dict | list:
             payload = json.loads(raw_input)
             if isinstance(payload, dict) and "results" in payload:
                 results_raw = payload.get("results", [])
-                if args.limit is not None and args.limit > 0:
-                    results_raw = results_raw[: args.limit]
-                items = [
-                    SearchResult(
-                        title=r.get("title", ""),
-                        url=r.get("url", ""),
-                        snippet=r.get("snippet", ""),
-                        sources=r.get("sources", []),
-                        published_at=r.get("published_at"),
-                        publisher=r.get("publisher"),
-                        score=r.get("score", 0.0),
-                        content=r.get("content"),
-                        extraction_method=r.get("extraction_method"),
-                        fetched_url=r.get("fetched_url"),
-                        fetched_at=r.get("fetched_at"),
-                        fetch_error=r.get("fetch_error"),
-                        engine_ranks=r.get("engine_ranks", {}),
-                        rank_contributions=r.get("rank_contributions", {}),
-                        score_weights=r.get("score_weights", {}),
+                if not isinstance(results_raw, list):
+                    raise ValueError(
+                        "stdin JSON 'results' must be a list of result objects"
                     )
-                    for r in results_raw
-                    if isinstance(r, dict) and r.get("url")
-                ]
+                items = SearchResult.from_rows(results_raw, args.limit)
                 await engine.fetch_content(items)
                 payload["results"] = [item.dict() for item in items]
                 ok_count = sum(1 for item in items if item.content is not None)
@@ -188,6 +170,21 @@ async def run_fetch(args: argparse.Namespace) -> dict | list:
         except json.JSONDecodeError:
             pass
 
+    # A bare JSON array is what `josty --results-only ... | josty fetch --stdin`
+    # produces. Without this it fell through to the text path and was line-split
+    # into one garbage URL per line of pretty-printed JSON, at exit 0.
+    if raw_input.startswith("["):
+        try:
+            array_payload = json.loads(raw_input)
+        except json.JSONDecodeError:
+            array_payload = None
+        if array_payload is not None:
+            # A JSON document that starts with "[" is an array; json.loads having
+            # succeeded is the whole shape check, so there is nothing to re-test.
+            items = SearchResult.from_rows(array_payload, args.limit)
+            await engine.fetch_content(items)
+            return [item.fetch_dict() for item in items]
+
     # Plain text URLs from stdin or arguments
     if raw_input and not urls:
         urls = [line.strip() for line in raw_input.splitlines() if line.strip()]
@@ -200,17 +197,7 @@ async def run_fetch(args: argparse.Namespace) -> dict | list:
 
     items = [SearchResult(title="", url=u, snippet="") for u in urls]
     await engine.fetch_content(items)
-    return [
-        {
-            "url": item.url,
-            "content": item.content,
-            "extraction_method": item.extraction_method,
-            "fetched_url": item.fetched_url,
-            "fetched_at": item.fetched_at,
-            "fetch_error": item.fetch_error,
-        }
-        for item in items
-    ]
+    return [item.fetch_dict() for item in items]
 
 
 async def run(args: argparse.Namespace) -> dict | list:
