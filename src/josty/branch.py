@@ -91,6 +91,22 @@ class IssueOutcome:
     lease_retained: bool = False
 
 
+@dataclass(frozen=True)
+class IssueContext:
+    """Everything an adapter needs to perform one admitted call.
+
+    The five fields travel together by construction and mean nothing apart, so
+    they travel as one value rather than as five keyword arguments repeated on
+    the Protocol and every adapter.
+    """
+
+    ledger: _FanoutLedger
+    pool: LeasePool | None
+    lease: Lease | None
+    budget: float
+    executor: ThreadPoolExecutor | None
+
+
 class ProviderAdapter(Protocol):
     """The half of a provider that only it can know: how to reach upstream."""
 
@@ -99,22 +115,13 @@ class ProviderAdapter(Protocol):
     def precheck(self, call: SearchCall) -> str | None:
         """Skip reason (engine not installed/enabled, no host), or None to proceed."""
 
-    async def issue(
-        self,
-        call: SearchCall,
-        *,
-        ledger: _FanoutLedger,
-        pool: LeasePool | None,
-        lease: Lease | None,
-        budget: float,
-        executor: ThreadPoolExecutor | None,
-    ) -> IssueOutcome:
+    async def issue(self, call: SearchCall, ctx: IssueContext) -> IssueOutcome:
         """Perform the network call.
 
-        MUST call ledger.record() immediately before the network call.
-        MUST guarantee pool.release(lease.lease_id) exactly once: before returning, or
-        by the worker thread it leaves behind (idempotent release). lease is None when
-        the call is unadmitted (standalone use).
+        MUST call ctx.ledger.record() immediately before the network call.
+        MUST guarantee ctx.pool.release(ctx.lease.lease_id) exactly once: before
+        returning, or by the worker thread it leaves behind (idempotent release).
+        ctx.lease is None when the call is unadmitted (standalone use).
         """
 
 
@@ -148,17 +155,40 @@ class BranchRunner:
         self._executor = executor
         self._deadline = deadline
 
+    @classmethod
+    def unadmitted(
+        cls,
+        *,
+        breaker: CircuitBreaker,
+        semaphore: asyncio.Semaphore,
+        timeout: float,
+        headroom: float,
+    ) -> BranchRunner:
+        """A runner for a direct caller rather than a run: no pool, no deadline.
+
+        Nothing is scheduled or shed (there is no pool to refuse a call), but the
+        call still takes the shared concurrency slot -- a standalone provider call
+        must not become a request outside the cap it shares with search.
+        """
+        from .fanout import _FanoutLedger  # local: fanout imports this module
+
+        return cls(
+            breaker=breaker,
+            ledger=_FanoutLedger(),
+            pool=None,
+            semaphore=semaphore,
+            timeout=timeout,
+            headroom=headroom,
+        )
+
     async def run(
         self,
         call: SearchCall,
         adapter: ProviderAdapter,
-        *,
-        deadline: float | None = None,
     ) -> tuple[list[SearchResult], ProviderStatus]:
         """Run one branch. Returns its result rows and its status; never raises
         for an upstream failure."""
-        # An explicit argument wins so a caller can still tighten one call.
-        deadline = self._deadline if deadline is None else deadline
+        deadline = self._deadline
         pool = self._pool
         if pool is not None:
             # Proposed before any gate: a registry-missing or breaker-skipped call
@@ -224,11 +254,13 @@ class BranchRunner:
         try:
             outcome = await adapter.issue(
                 call,
-                ledger=self._ledger,
-                pool=pool,
-                lease=lease,
-                budget=budget,
-                executor=self._executor,
+                IssueContext(
+                    ledger=self._ledger,
+                    pool=pool,
+                    lease=lease,
+                    budget=budget,
+                    executor=self._executor,
+                ),
             )
             retained = outcome.lease_retained
         finally:

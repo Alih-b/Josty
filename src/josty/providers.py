@@ -20,16 +20,14 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from .branch import IssueOutcome, SearchCall
+from .branch import IssueContext, IssueOutcome, SearchCall
 from .fetch import is_ad_redirect
 from .models import SearchResult
 from .status import SearchCategory
 
 if TYPE_CHECKING:
-    from concurrent.futures import ThreadPoolExecutor
-
     from .fanout import _FanoutLedger
-    from .lease import Lease, LeasePool
+    from .lease import LeasePool
 
 
 class DdgsSearchAdapter:
@@ -57,31 +55,22 @@ class DdgsSearchAdapter:
             return None
         return message
 
-    async def issue(
-        self,
-        call: SearchCall,
-        *,
-        ledger: _FanoutLedger,
-        pool: LeasePool | None,
-        lease: Lease | None,
-        budget: float,
-        executor: ThreadPoolExecutor | None,
-    ) -> IssueOutcome:
-        lease_id = lease.lease_id if lease is not None else None
+    async def issue(self, call: SearchCall, ctx: IssueContext) -> IssueOutcome:
+        lease_id = ctx.lease.lease_id if ctx.lease is not None else None
         t_start = time.perf_counter()
         try:
             results, latency_ms, exc = await asyncio.wait_for(
                 asyncio.get_running_loop().run_in_executor(
-                    executor,
+                    ctx.executor,
                     functools.partial(
                         self._worker,
                         call,
-                        ledger=ledger,
-                        pool=pool,
+                        ledger=ctx.ledger,
+                        pool=ctx.pool,
                         lease_id=lease_id,
                     ),
                 ),
-                timeout=budget,
+                timeout=ctx.budget,
             )
         except (asyncio.TimeoutError, TimeoutError) as exc:
             # The worker keeps running (a "ghost"): a blocked socket call
@@ -170,16 +159,7 @@ class GithubSearchAdapter:
         """GitHub is keyless and has no registry gate: always attemptable."""
         return None
 
-    async def issue(
-        self,
-        call: SearchCall,
-        *,
-        ledger: _FanoutLedger,
-        pool: LeasePool | None,
-        lease: Lease | None,
-        budget: float,
-        executor: ThreadPoolExecutor | None,
-    ) -> IssueOutcome:
+    async def issue(self, call: SearchCall, ctx: IssueContext) -> IssueOutcome:
         url = "https://api.github.com/search/repositories"
         headers = {
             "Accept": "application/vnd.github+json",
@@ -195,7 +175,7 @@ class GithubSearchAdapter:
             try:
                 # The one request site: counted immediately before the call so the
                 # ledger measures calls issued, not tasks scheduled.
-                ledger.record()
+                ctx.ledger.record()
                 response = await client.get(
                     url, params={"q": call.query, "per_page": min(call.limit, 100)}
                 )

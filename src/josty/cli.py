@@ -118,51 +118,6 @@ def fetch_parser() -> argparse.ArgumentParser:
     return cmd
 
 
-def _results_from_rows(rows: list) -> list[SearchResult]:
-    """Build fetch items from JSON result objects.
-
-    Shared by both JSON stdin shapes (a ``{"results": [...]}`` envelope and a
-    bare array), so an entry is interpreted identically either way: only dict
-    entries with a non-empty ``url`` become items.
-    """
-    return [
-        SearchResult(
-            title=r.get("title", ""),
-            url=r.get("url", ""),
-            snippet=r.get("snippet", ""),
-            sources=r.get("sources", []),
-            published_at=r.get("published_at"),
-            publisher=r.get("publisher"),
-            score=r.get("score", 0.0),
-            content=r.get("content"),
-            extraction_method=r.get("extraction_method"),
-            fetched_url=r.get("fetched_url"),
-            fetched_at=r.get("fetched_at"),
-            fetch_error=r.get("fetch_error"),
-            engine_ranks=r.get("engine_ranks", {}),
-            rank_contributions=r.get("rank_contributions", {}),
-            score_weights=r.get("score_weights", {}),
-        )
-        for r in rows
-        if isinstance(r, dict) and r.get("url")
-    ]
-
-
-def _fetched_items(items: list[SearchResult]) -> list[dict]:
-    """The per-item fetch envelope, one definition for every stdin shape."""
-    return [
-        {
-            "url": item.url,
-            "content": item.content,
-            "extraction_method": item.extraction_method,
-            "fetched_url": item.fetched_url,
-            "fetched_at": item.fetched_at,
-            "fetch_error": item.fetch_error,
-        }
-        for item in items
-    ]
-
-
 async def run_fetch(args: argparse.Namespace) -> dict | list:
     raw_input = ""
     if args.stdin:
@@ -184,9 +139,7 @@ async def run_fetch(args: argparse.Namespace) -> dict | list:
                     raise ValueError(
                         "stdin JSON 'results' must be a list of result objects"
                     )
-                if args.limit is not None and args.limit > 0:
-                    results_raw = results_raw[: args.limit]
-                items = _results_from_rows(results_raw)
+                items = SearchResult.from_rows(results_raw, args.limit)
                 await engine.fetch_content(items)
                 payload["results"] = [item.dict() for item in items]
                 ok_count = sum(1 for item in items if item.content is not None)
@@ -226,14 +179,11 @@ async def run_fetch(args: argparse.Namespace) -> dict | list:
         except json.JSONDecodeError:
             array_payload = None
         if array_payload is not None:
-            if not isinstance(array_payload, list):
-                raise ValueError("stdin JSON must be an array of result objects")
-            results_raw = array_payload
-            if args.limit is not None and args.limit > 0:
-                results_raw = results_raw[: args.limit]
-            items = _results_from_rows(results_raw)
+            # A JSON document that starts with "[" is an array; json.loads having
+            # succeeded is the whole shape check, so there is nothing to re-test.
+            items = SearchResult.from_rows(array_payload, args.limit)
             await engine.fetch_content(items)
-            return _fetched_items(items)
+            return [item.fetch_dict() for item in items]
 
     # Plain text URLs from stdin or arguments
     if raw_input and not urls:
@@ -247,7 +197,7 @@ async def run_fetch(args: argparse.Namespace) -> dict | list:
 
     items = [SearchResult(title="", url=u, snippet="") for u in urls]
     await engine.fetch_content(items)
-    return _fetched_items(items)
+    return [item.fetch_dict() for item in items]
 
 
 async def run(args: argparse.Namespace) -> dict | list:

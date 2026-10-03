@@ -24,7 +24,7 @@ from .cache import (
     _ttl_for,
 )
 from .errors import _classify_probe_error
-from .fanout import Fanout, Plan, _FanoutLedger
+from .fanout import Fanout, Plan
 from .fetch import BROWSER_FETCH_HEADERS, download, extract, is_ad_redirect, validate_public_url
 from .models import DiagnoseRun, HostStatus, ProviderStatus, SearchResult, SearchRun
 from .providers import DdgsSearchAdapter, GithubSearchAdapter
@@ -464,15 +464,11 @@ class Josty:
         else:
             # Standalone (AMENDMENT 1): no run-scoped worker pool and no outer
             # deadline, because the GitHub adapter issues on the event loop.
-            runner = BranchRunner(
+            runner = BranchRunner.unadmitted(
                 breaker=self.breaker,
-                ledger=_FanoutLedger(),
-                pool=None,
                 semaphore=self._search_semaphore(),
                 timeout=self.timeout,
                 headroom=SEARCH_THREAD_TIMEOUT_HEADROOM,
-                executor=None,
-                deadline=None,
             )
         return await runner.run(call, adapter)
 

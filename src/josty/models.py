@@ -26,8 +26,56 @@ class SearchResult:
     rank_contributions: dict[str, float] = field(default_factory=dict)
     score_weights: dict[str, float] = field(default_factory=dict)
 
+    #: The per-item fetch envelope, in output order. Owned here because these are
+    #: this type's fields; the CLI only prints the mapping.
+    FETCH_FIELDS = (
+        "url",
+        "content",
+        "extraction_method",
+        "fetched_url",
+        "fetched_at",
+        "fetch_error",
+    )
+
     def dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    def fetch_dict(self) -> dict[str, Any]:
+        """The per-item fetch envelope, one definition for every stdin shape."""
+        return {name: getattr(self, name) for name in self.FETCH_FIELDS}
+
+    @classmethod
+    def from_rows(cls, rows: list, limit: int | None = None) -> list[SearchResult]:
+        """Build fetch items from JSON result objects.
+
+        Shared by both JSON stdin shapes (a ``{"results": [...]}`` envelope and a
+        bare array), so an entry is interpreted identically either way: only dict
+        entries with a non-empty ``url`` become items. ``limit`` is applied here so
+        both shapes honour ``--limit`` in one place.
+        """
+        if limit is not None and limit > 0:
+            rows = rows[:limit]
+        return [
+            cls(
+                title=r.get("title", ""),
+                url=r.get("url", ""),
+                snippet=r.get("snippet", ""),
+                sources=r.get("sources", []),
+                published_at=r.get("published_at"),
+                publisher=r.get("publisher"),
+                score=r.get("score", 0.0),
+                content=r.get("content"),
+                extraction_method=r.get("extraction_method"),
+                fetched_url=r.get("fetched_url"),
+                fetched_at=r.get("fetched_at"),
+                fetch_error=r.get("fetch_error"),
+                engine_ranks=r.get("engine_ranks", {}),
+                rank_contributions=r.get("rank_contributions", {}),
+                score_weights=r.get("score_weights", {}),
+            )
+            for r in rows
+            if isinstance(r, dict) and r.get("url")
+        ]
 
 
 @dataclass

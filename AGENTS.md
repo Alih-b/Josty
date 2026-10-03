@@ -45,6 +45,11 @@ not a gate.
 Write unit tests for critical behaviour only — admission, SSRF, cache, status
 transitions. The suite is a safety net for the hard parts, not a coverage target.
 
+A "nothing else moved" claim has to be reproducible, not remembered: the
+cross-revision probe lives in `scripts/refactor_probe/` (see its README). Run it on
+the base revision and on the change, and treat any surviving diff as a regression
+until it is either one of the deliberate changes or explained.
+
 If modifying packaging or dependencies, also verify build:
 ```bash
 python3 -m build
@@ -55,9 +60,9 @@ python3 -m build
 When modifying behavior, edit the specific module rather than bloating the facade:
 
 - **`src/josty/engine.py`**: Orchestration facade (`Josty`). Coordinates expansion, caching, fanout, fusion and the fetch phase, and owns no admission state: each run builds one `Fanout` and delegates to it. `_ddgs` and `github_run` survive as compatibility shims over the branch pipeline (the suite patches those names, plus the `DDGS` global and `SEARCH_THREAD_TIMEOUT_HEADROOM`, at call time) — put new behaviour in the modules below, not here.
-- **`src/josty/branch.py`**: The provider-branch pipeline (`BranchRunner`): gate → admit → issue → classify → status. Holds the three policies that must exist exactly once — the empty-ok carve-out, the shed message, and the breaker-telemetry stamp — plus `SearchCall`, `IssueOutcome` and the `ProviderAdapter` protocol. Step order is load-bearing; see the module docstring.
+- **`src/josty/branch.py`**: The provider-branch pipeline (`BranchRunner`): gate → admit → issue → classify → status. Holds the three policies that must exist exactly once — the empty-ok carve-out, the shed message, and the breaker-telemetry stamp — plus `SearchCall`, `IssueContext`, `IssueOutcome` and the `ProviderAdapter` protocol. Step order is load-bearing; see the module docstring.
 - **`src/josty/fanout.py`**: One run's admission and accounting (`Fanout`, `Plan`, `_FanoutLedger`). Owns the `LeasePool`, the dedicated `ThreadPoolExecutor`, the deadline and the ledger; gathers plans, merges each group's query variants, aggregates per-engine statuses and restamps breaker telemetry after the gather.
-- **`src/josty/providers.py`**: The adapters behind the seam (`DdgsSearchAdapter`, `GithubSearchAdapter`). An adapter knows only how to perform one upstream call, and calls `ledger.record()` at the network call site — which is what makes `request_count` a measurement of calls issued rather than tasks scheduled.
+- **`src/josty/providers.py`**: The adapters behind the seam (`DdgsSearchAdapter`, `GithubSearchAdapter`). An adapter knows only how to perform one upstream call, and calls `ctx.ledger.record()` at the network call site — which is what makes `request_count` a measurement of calls issued rather than tasks scheduled.
 - **`src/josty/lease.py`**: Per-run lease admission (`LeasePool`, `Lease`). Fixed capacity, expiring leases, idempotent release, and ghost accounting; refusal reasons (`capacity`, `ghost_capacity`, `ghost_budget`, `deadline`) never masquerade as upstream failures.
 - **`src/josty/models.py`**: Dataclasses (`SearchRun`, `SearchResult`, `ProviderStatus`, `HostStatus`, `DiagnoseRun`).
 - **`src/josty/status.py`**: Enums, constants (`SearchStatus`, `ErrorKind`, `ProfileType`, `SCHEMA_VERSION = "1.0"`).

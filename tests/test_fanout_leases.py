@@ -358,9 +358,9 @@ def test_slot_is_taken_before_a_lease_no_branch_holds_a_lease_while_parked():
         def precheck(self, call: SearchCall) -> str | None:
             return None
 
-        async def issue(self, call, *, ledger, pool, lease, budget, executor):
+        async def issue(self, call, ctx):
             self.issued += 1
-            ledger.record()
+            ctx.ledger.record()
             return IssueOutcome(
                 [SearchResult(title="t", url="https://example.org/x", snippet="b")],
                 0.5,
