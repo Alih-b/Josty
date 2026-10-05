@@ -57,6 +57,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from .breaker import CircuitBreaker
 from .errors import _classify_search_error
+from .health import known_error_kind
 from .lease import Lease, LeasePool
 from .models import ProviderStatus, SearchResult
 from .status import ErrorKind, SafeSearch, SearchCategory, TimeLimit
@@ -312,12 +313,37 @@ class BranchRunner:
         # resets the breaker.
         if outcome.results:
             breaker.record_success(provider, "search")
+            return self._status(
+                call,
+                provider,
+                ok=True,
+                result_count=len(outcome.results),
+                error_kind=None,
+                latency_ms=latency_ms,
+            )
+        # Zero results and no exception. Usually that is a genuinely quiet
+        # engine -- but ddgs returns an empty list for a captcha page, a consent
+        # wall and a JavaScript shell too, so at this point a blocked backend is
+        # indistinguishable from an idle one. josty --health proves which it is;
+        # when that proof is fresh and says this backend is unreadable, report
+        # what was proved and let the breaker count the failure.
+        proven = known_error_kind(provider)
+        if proven is not None:
+            breaker.record_failure(provider, "search")
+            return self._status(
+                call,
+                provider,
+                ok=False,
+                error="health probe: backend was unreadable at last check",
+                error_kind=proven,
+                latency_ms=latency_ms,
+            )
         return self._status(
             call,
             provider,
             ok=True,
-            result_count=len(outcome.results),
-            error_kind="empty" if not outcome.results else None,
+            result_count=0,
+            error_kind="empty",
             latency_ms=latency_ms,
         )
 

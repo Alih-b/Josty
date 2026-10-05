@@ -7,6 +7,7 @@ import sys
 
 from ._version import __version__
 from .engine import Josty
+from .health import run_health
 from .models import SearchResult
 from .status import SearchStatus
 
@@ -52,6 +53,14 @@ def parser() -> argparse.ArgumentParser:
         "--diagnose",
         action="store_true",
         help="probe HTTPS homepage reachability (transport only; not search health)",
+    )
+    command.add_argument(
+        "--health",
+        action="store_true",
+        help=(
+            "test each search backend's own search page and classify the reply "
+            "(ok, challenged, consent, js_required, rate_limited, blocked, empty)"
+        ),
     )
     command.add_argument(
         "--no-cache", action="store_true", help="bypass local disk cache"
@@ -214,6 +223,14 @@ async def run(args: argparse.Namespace) -> dict | list:
         return (
             await engine.diagnose_run(include_github=args.github, category=args.category)
         ).dict()
+    if args.health:
+        backends = [name for group in Josty.DEFAULT_BACKENDS for name in group.split(",")]
+        return await asyncio.to_thread(
+            run_health,
+            backends,
+            query=args.query or "josty search health",
+            save=True,
+        )
     search = await engine.research_run(
         args.query,
         sites=args.sites,
@@ -278,12 +295,13 @@ def main(argv: list[str] | None = None) -> None:
     if args.cache_stats:
         print(json.dumps(Josty().cache_stats(), indent=2))
         return
-    if not args.query and not args.diagnose:
+    if not args.query and not args.diagnose and not args.health:
         command.error(
-            "a query is required unless --diagnose, --clear-cache, or --cache-stats is given"
+            "a query is required unless --diagnose, --health, --clear-cache, "
+            "or --cache-stats is given"
         )
-    if args.diagnose and args.results_only:
-        command.error("--results-only cannot be combined with --diagnose")
+    if (args.diagnose or args.health) and args.results_only:
+        command.error("--results-only cannot be combined with --diagnose or --health")
     try:
         payload = asyncio.run(run(args))
         # allow_nan=False keeps stdout strictly RFC-8259 JSON. Non-finite
@@ -303,6 +321,7 @@ def main(argv: list[str] | None = None) -> None:
         # a transport probe with its own status and keeps exit 0.
         if (
             not args.diagnose
+            and not args.health
             and isinstance(payload, dict)
             and payload.get("status") == SearchStatus.FAILED
         ):

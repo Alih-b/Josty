@@ -31,7 +31,16 @@ josty search "query" --limit 3 | josty fetch --stdin
 
 # Filter to specific domains (up to 5):
 uvx josty "query" --site docs.python.org --site github.com
+
+# Which backends actually answer? (classifies captcha/consent/JS walls)
+uvx josty --health
 ```
+
+**A backend that returns nothing is not always a quiet backend.** ddgs returns
+an empty list when an engine serves a captcha, a consent wall or a JavaScript
+shell, so a blocked engine looks like an idle one. Run `josty --health` once;
+searches afterwards report `rate_limited`, `blocked` or `parse` for those
+backends instead of `empty`, and the run is marked `partial`.
 
 If `josty` is not installed and `uvx` is unavailable:
 
@@ -58,6 +67,7 @@ python3 -m pip install --user josty
 | `--github` | Boolean flag | Also queries official GitHub repository search API. |
 | `--results-only` | Boolean flag | Emits raw JSON list of `SearchResult` objects instead of the run envelope. |
 | `--diagnose` | Boolean flag | Tests HTTPS homepage reachability of engine hosts (transport only). |
+| `--health` | Boolean flag | Fetches each backend's own search page and classifies it: `ok`, `challenged`, `consent`, `js_required`, `rate_limited`, `blocked`, `empty`. Writes a snapshot the search path then uses to report blocked backends honestly. |
 | `--no-cache` | Boolean flag | Bypasses local SQLite cache read and write. |
 | `--cache-stats` | Boolean flag | Prints JSON cache usage statistics and exits. |
 | `--clear-cache` | Boolean flag | Clears the local SQLite search cache and exits. |

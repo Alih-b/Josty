@@ -72,6 +72,7 @@ When modifying behavior, edit the specific module rather than bloating the facad
 - **`src/josty/fetch.py`**: Streaming HTTP download, SSRF IP validation, Trafilatura text extraction.
 - **`src/josty/errors.py`**: Provider error classification (`_classify_search_error`) and multi-variant aggregation.
 - **`src/josty/backends.py`**: Checks backend engine availability against installed `ddgs` registry.
+- **`src/josty/health.py`**: Backend search-page health (`--health`). Fetches each engine's own search URL and classifies the reply (challenged, consent, js_required, rate_limited, blocked, empty), because ddgs returns an empty list for all of those and the search path cannot tell them apart. Saving a snapshot is best-effort; when one is fresh, `branch.py` reports the real `error_kind` for a zero-result backend and the breaker counts it.
 - **`src/josty/cli.py`**: Command-line interface (`parser`, `run`, `main`).
 - **`src/josty/_version.py`**: Single source of truth for package version literal (`__version__`).
 
