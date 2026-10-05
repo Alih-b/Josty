@@ -35,6 +35,8 @@
 
 **Josty** queries public search backends in parallel through `ddgs`, fuses rankings with Cormack-Clarke Reciprocal Rank Fusion (RRF), canonicalizes URLs, and optionally extracts bounded page text.
 
+It also calls [Mwmbl](https://mwmbl.org)'s keyless JSON search API directly. `ddgs` has no Mwmbl engine, so this one source is a native adapter: still one bounded call per query variant, still no key. It is a **fallback**: its rows are fused only when every other engine returned nothing, because fused as an equal voter it can displace results the primary engines ranked higher, and an empty run is already reported as `status: "empty"` for the caller to act on. It takes only a query, so a run with `--time-limit` or `--region` reports the source as `skipped` rather than returning results that ignore the filter, and `--safe-search on` skips it too (see the skill's option table for which engines apply that hint at all).
+
 It is designed for AI agents and developer scripts that need a self-contained search step without API keys, background daemons, or browser engines.
 
 ```text
@@ -53,9 +55,11 @@ It is designed for AI agents and developer scripts that need a self-contained se
                │
                ▼
 ┌──────────────────────────────┐
-│   Public Backends via ddgs   │
-│  (Brave, DuckDuckGo, Yahoo,  │
-│   Mojeek, Startpage, Google) │
+│  Public Backends             │
+│  via ddgs: Brave,DuckDuckGo, │
+│   Yahoo, Mojeek, Startpage,  │
+│   Google                     │
+│  native: Mwmbl (keyless JSON)│
 └──────────────────────────────┘
 ```
 
@@ -101,9 +105,9 @@ Normal searches emit one JSON document on `stdout`. Diagnostics and warnings rou
   "count": 3,
   "partial": false,
   "cached": false,
-  "provider_count": 6,
+  "provider_count": 7,
   "nonempty_provider_count": 2,
-  "coverage": 0.333,
+  "coverage": 0.286,
   "providers": [...],
   "results": [
     {
@@ -132,7 +136,7 @@ Normal searches emit one JSON document on `stdout`. Diagnostics and warnings rou
 
 - **No Privacy or Anonymity Guarantees**: Josty does not proxy or anonymize traffic. Queries are sent directly to upstream search engines.
 - **Best-Effort Availability**: Upstream public engines may throttle (HTTP 429), present anti-bot challenges, or change response formats. Josty isolates failures via circuit breakers and surfaces errors honestly rather than hiding them behind infinite retries.
-- **Not a Search Engine**: Josty does not maintain an index or crawl the web. It is a lightweight client adapter over `ddgs`.
+- **Not a Search Engine**: Josty does not maintain an index or crawl the web. It is a lightweight client adapter over `ddgs` and Mwmbl's public search API.
 - **No Hidden Query Rewriting**: If a search returns empty, Josty reports `status: "empty"`. The caller decides whether to broaden terms or adjust site filters.
 
 ## Documentation
