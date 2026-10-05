@@ -7,6 +7,6 @@ from importlib.metadata import PackageNotFoundError, version
 
 # Single version source: the static literal doubles as the pre-install fallback and
 # hatchling's build-time version; installed distributions override via importlib.metadata.
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 with suppress(PackageNotFoundError):
     __version__ = version("josty")
