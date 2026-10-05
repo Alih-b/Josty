@@ -145,6 +145,109 @@ class DdgsSearchAdapter:
                 pool.release(lease_id)
 
 
+#: Mwmbl's public search API: keyless JSON, one request returns the whole
+#: result set (it ignores limit/offset parameters), so a run makes exactly one
+#: call per query variant.
+MWMBL_SEARCH_URL = "https://api.mwmbl.org/api/v2/search/"
+
+
+class MwmblSearchAdapter:
+    """Mwmbl's keyless JSON web-search API.
+
+    A source Josty calls itself rather than through ``ddgs``, because ``ddgs``
+    has no Mwmbl engine. The API takes only a query: it has no date, region or
+    safe-search parameter, so :meth:`precheck` refuses a call whose filter it
+    cannot honour rather than returning results that ignore the caller.
+    """
+
+    provider: str = "mwmbl"
+
+    def __init__(self, *, timeout: float, user_agent: str) -> None:
+        self._timeout = timeout
+        self._user_agent = user_agent
+
+    def precheck(self, call: SearchCall) -> str | None:
+        """Refuse a call whose filter this API cannot honour, or None to proceed."""
+        if call.category != "text":
+            return "skipped: mwmbl serves web search only, not news"
+        if call.timelimit is not None:
+            return "skipped: mwmbl does not support time-limited search"
+        if call.region is not None:
+            return "skipped: mwmbl does not support region selection"
+        if call.safesearch == "on":
+            # "on" is a strict request. At the permissive "moderate" default this
+            # source is no different from the installed duckduckgo, yahoo,
+            # grokipedia and wikipedia engines, which take no safe-search
+            # parameter either and are queried anyway.
+            return "skipped: mwmbl has no safe-search filter"
+        return None
+
+    async def _request(self, client: httpx.AsyncClient, query: str) -> object:
+        """The one wire call; the single test seam for this source."""
+        response = await client.get(MWMBL_SEARCH_URL, params={"q": query})
+        response.raise_for_status()
+        return response.json()
+
+    async def _fetch(self, query: str, budget: float, headers: dict[str, str]) -> object:
+        async with httpx.AsyncClient(
+            timeout=budget, headers=headers, follow_redirects=False, trust_env=False
+        ) as client:
+            return await self._request(client, query)
+
+    async def issue(self, call: SearchCall, ctx: IssueContext) -> IssueOutcome:
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": self._user_agent,
+        }
+        t0 = time.perf_counter()
+        try:
+            # The one request site: counted immediately before the call so the
+            # ledger measures calls issued, not tasks scheduled.
+            ctx.ledger.record()
+            # wait_for is the wall-clock bound, not the per-operation HTTPX
+            # timeouts: a server that trickles a chunk inside the read timeout
+            # would otherwise hold this branch, its lease and its slot past the
+            # run deadline. The ddgs adapter gets the same bound from the
+            # wait_for around its worker thread.
+            body = await asyncio.wait_for(
+                self._fetch(call.query, min(self._timeout, ctx.budget), headers),
+                timeout=ctx.budget,
+            )
+            results = []
+            rank = 1
+            # A 200 whose body is not Mwmbl's shape yields no rows rather than an
+            # exception: `results` may be absent, null or a non-list, and a row's
+            # fields may be any JSON type. Letting a shape variant raise here
+            # would turn a quiet upstream into a traceback on stdout's path, so
+            # every field that reaches the models is checked.
+            rows = body.get("results") if isinstance(body, dict) else []
+            if not isinstance(rows, list):
+                rows = []
+            for row in rows:
+                url = row.get("url") if isinstance(row, dict) else None
+                if not isinstance(url, str) or not url:
+                    continue
+                title = row.get("title")
+                snippet = row.get("content") or row.get("extract")
+                results.append(
+                    SearchResult(
+                        title=title if isinstance(title, str) else "",
+                        url=url,
+                        snippet=snippet if isinstance(snippet, str) else "",
+                        sources=["mwmbl"],
+                        engine_ranks={"mwmbl": rank},
+                    )
+                )
+                rank += 1
+                if rank > call.limit:
+                    break
+            latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+            return IssueOutcome(results, latency_ms, None)
+        except Exception as exc:
+            latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+            return IssueOutcome([], latency_ms, exc)
+
+
 class GithubSearchAdapter:
     """GitHub repository search over the REST API."""
 

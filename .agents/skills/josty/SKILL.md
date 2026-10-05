@@ -8,7 +8,9 @@ allowed-tools: Bash(uvx josty *), Bash(josty *), Bash(uv tool install josty), Ba
 
 # Josty
 
-Josty runs one bounded search request across public search backends using `ddgs`. It emits structured JSON on stdout, reports provider health, and can optionally extract bounded text from top result pages.
+Josty runs one bounded search request across public search backends using `ddgs`, plus Mwmbl's keyless JSON search API, which `ddgs` does not cover. It emits structured JSON on stdout, reports provider health, and can optionally extract bounded text from top result pages.
+
+Mwmbl is a **fallback** source: it is queried on every run, but its rows are fused only when every other engine returned nothing, so it never reorders a run that the primary engines answered. It takes only a query, so a run with `--time-limit` or `--region` reports `error_kind: "skipped"` for it rather than returning results that ignore the filter.
 
 Josty requires outbound internet access. Upstream search engines receive search queries directly and may throttle, challenge, or alter results. Josty provides no anonymity or privacy guarantees.
 
@@ -55,6 +57,7 @@ python3 -m pip install --user josty
 | `--category <c>` | `text`, `news` | Text search or news search via `DDGS.news()`. |
 | `--time-limit <t>` | `d`, `w`, `m`, `y` | Restrict results by publication timeframe. |
 | `--region <r>` | E.g. `us-en`, `de-de` | Upstream region code. |
+| `--safe-search <mode>` | `on`, `moderate`, `off` | Upstream safe-search hint. `google`, `brave`, `mojeek` and `startpage` apply it; `duckduckgo` and `yahoo` take no such parameter and are queried anyway, and `mwmbl` is skipped at `on`. `on` is therefore only strict for the engines that support it. |
 | `--github` | Boolean flag | Also queries official GitHub repository search API. |
 | `--results-only` | Boolean flag | Emits raw JSON list of `SearchResult` objects instead of the run envelope. |
 | `--diagnose` | Boolean flag | Tests HTTPS homepage reachability of engine hosts (transport only). |
@@ -76,11 +79,11 @@ Emitted on stdout for standard searches:
   "partial": false,
   "cached": false,
   "run_at": "2026-09-20T12:00:00+00:00",
-  "provider_count": 6,
+  "provider_count": 7,
   "nonempty_provider_count": 2,
-  "coverage": 0.333,
+  "coverage": 0.286,
   "query_variant_count": 1,
-  "request_count": 6,
+  "request_count": 7,
   "fetch": {
     "requested": false,
     "attempted": 0,
@@ -124,8 +127,8 @@ Emitted on stdout for standard searches:
 }
 ```
 
-- `query_variant_count` counts the expanded query variants sent to each engine. `request_count` is a ledger: the number of search calls actually issued by this invocation. Engines skipped by the circuit breaker or missing from the installed ddgs registry issue nothing and are not counted, and a cache hit issues none.
-- `fanout` reports admission accounting for the fanout: `scheduled` (calls proposed), `issued` (equal to `request_count`), `shed` (refused before opening a socket) with `shed_by_reason` keyed by `capacity`, `ghost_capacity`, `ghost_budget`, or `deadline`, plus `ghosts_outstanding` / `ghosts_peak` for workers that outlived their deadline and had not returned when the run finished. `scheduled == issued + shed` plus registry/breaker skips. A shed call is reported as `error_kind: "skipped"` with `error: "skipped: not issued (<reason>)"` — it is never reported as an upstream network failure. Repeated `ghost_capacity` shedding means `max_search_concurrency` is fully occupied by calls that have not returned; raise the cap or reduce query variants.
+- `query_variant_count` counts the expanded query variants sent to each engine. `request_count` is a ledger: the number of search calls actually issued by this invocation. Engines skipped by the circuit breaker, missing from the installed ddgs registry, or refused by a source's own filter check issue nothing and are not counted, and a cache hit issues none.
+- `fanout` reports admission accounting for the fanout: `scheduled` (calls proposed), `issued` (equal to `request_count`), `shed` (refused before opening a socket) with `shed_by_reason` keyed by `capacity`, `ghost_capacity`, `ghost_budget`, or `deadline`, plus `ghosts_outstanding` / `ghosts_peak` for workers that outlived their deadline and had not returned when the run finished. `scheduled == issued + shed` plus registry/breaker/filter skips. A shed call is reported as `error_kind: "skipped"` with `error: "skipped: not issued (<reason>)"` — it is never reported as an upstream network failure. Repeated `ghost_capacity` shedding means `max_search_concurrency` is fully occupied by calls that have not returned; raise the cap or reduce query variants.
 
 ### 2. Auxiliary Command Shapes
 - `--results-only`: Returns a flat JSON array of `SearchResult` objects (`[ { ... }, ... ]`).
@@ -152,7 +155,7 @@ Emitted on stdout for standard searches:
 
 1. **No Hidden Amplification**: Josty does not automatically retry backends or rewrite queries. If results are empty or incomplete, the agent must decide whether to broaden terms, remove site filters, or wait.
 2. **Attribution Is Ranking, Not Truth**: `score`, `engine_ranks`, and `sources` show provider agreement and RRF scoring ($1 / (k + rank)$). They do not verify factual truth.
-3. **Inspect Coverage**: `coverage` is the fraction of scheduled engine branches that returned non-empty results. `coverage=0.167` means only 1 of 6 engines contributed.
+3. **Inspect Coverage**: `coverage` is the fraction of scheduled engine branches that returned non-empty results. `coverage=0.143` means only 1 of 7 engines contributed.
 4. **Distinguish Error Kinds**:
    - `empty`: Engine answered successfully with 0 results.
    - `rate_limited`: HTTP 429 or rate-limit message.

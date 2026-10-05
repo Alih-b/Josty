@@ -274,6 +274,29 @@ def rrf(
     )
 
 
+def prefer_primary(
+    ranked: list[list[SearchResult]],
+    fallback: frozenset[str],
+) -> list[list[SearchResult]]:
+    """Drop fallback sources' lists when any primary list has results.
+
+    A fallback source exists to answer a run the primary engines left empty. It
+    is queried every run like any other, but fused as an equal voter it can
+    outrank results the primary engines ranked higher, so it contributes only
+    when no primary list returned anything: otherwise the fused order is exactly
+    what it would have been without it. A caller can already see an empty run as
+    ``status="empty"`` and broaden; this only stops that being the answer.
+    """
+    if not fallback:
+        return ranked
+    primary = [
+        items
+        for items in ranked
+        if not (items and all(set(item.sources) <= fallback for item in items))
+    ]
+    return primary or ranked
+
+
 def merge_query_variants(ranked: list[list[SearchResult]]) -> list[SearchResult]:
     """Merge query rewrites for one backend without counting them as independent votes."""
     merged: dict[str, tuple[int, int, SearchResult]] = {}

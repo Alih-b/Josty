@@ -27,10 +27,11 @@ from .errors import _classify_probe_error
 from .fanout import Fanout, Plan
 from .fetch import BROWSER_FETCH_HEADERS, download, extract, is_ad_redirect, validate_public_url
 from .models import DiagnoseRun, HostStatus, ProviderStatus, SearchResult, SearchRun
-from .providers import DdgsSearchAdapter, GithubSearchAdapter
+from .providers import DdgsSearchAdapter, GithubSearchAdapter, MwmblSearchAdapter
 from .ranking import (
     _site_matches,
     normalize_sites,
+    prefer_primary,
     rrf,
 )
 from .status import (
@@ -54,8 +55,19 @@ class Josty:
         "brave,duckduckgo",
         "google,mojeek,startpage",
         "yahoo",
+        "mwmbl",
     )
     DEFAULT_NEWS_BACKENDS = ("bing,duckduckgo,yahoo",)
+
+    #: Backends Josty calls itself instead of through the installed ``ddgs``
+    #: registry. They bypass the registry availability gate in ``diagnose_run``;
+    #: the adapter's own ``precheck`` decides whether a call may be attempted.
+    NATIVE_BACKENDS = frozenset({"mwmbl"})
+
+    #: Sources that only answer a run the primary engines left empty. They are
+    #: queried every run, but their rows are fused only when no primary list has
+    #: results (see ``ranking.prefer_primary``).
+    FALLBACK_BACKENDS = frozenset({"mwmbl"})
 
     BACKEND_HOSTS = {
         "bing": "www.bing.com",
@@ -69,6 +81,7 @@ class Josty:
         "wikipedia": "en.wikipedia.org",
         "grokipedia": "grokipedia.com",
         "github-api": "api.github.com",
+        "mwmbl": "api.mwmbl.org",
     }
 
     DEFAULT_SEARCH_CONCURRENCY = 6
@@ -338,6 +351,13 @@ class Josty:
         is what lets the suite swap either branch without touching the pipeline.
         """
         call = plan.call
+        if call.backend == "mwmbl":
+            # A native JSON source, admitted like any other: same fanout runner,
+            # so it draws on the run's pool, deadline, ledger and breaker.
+            return await fanout.runner().run(
+                call,
+                MwmblSearchAdapter(timeout=self.timeout, user_agent=USER_AGENT),
+            )
         if call.backend == "github-api":
             return await self.github_run(call.query, call.limit, fanout=fanout)
         return await self._ddgs(
@@ -558,20 +578,21 @@ class Josty:
         targets: list[tuple[str, str]] = []
         skipped: list[HostStatus] = []
         for name in self._engine_names(category):
-            available, unavailable_message = _engine_available(category, name)
-            if not available:
-                skipped.append(
-                    HostStatus(
-                        name,
-                        "",
-                        False,
-                        None,
-                        "skipped",
-                        unavailable_message,
-                        **self._breaker_telemetry(name),
+            if name not in self.NATIVE_BACKENDS:
+                available, unavailable_message = _engine_available(category, name)
+                if not available:
+                    skipped.append(
+                        HostStatus(
+                            name,
+                            "",
+                            False,
+                            None,
+                            "skipped",
+                            unavailable_message,
+                            **self._breaker_telemetry(name),
+                        )
                     )
-                )
-                continue
+                    continue
             host = self.BACKEND_HOSTS.get(name, "")
             if not host:
                 skipped.append(
@@ -734,7 +755,11 @@ class Josty:
             # the pool, so the run reports the ghosts instead of hiding them.
             await fanout.close()
         results = self._filter_sites(
-            rrf(lists, profile=effective_profile), normalized_sites
+            rrf(
+                prefer_primary(lists, self.FALLBACK_BACKENDS),
+                profile=effective_profile,
+            ),
+            normalized_sites,
         )[:limit]
         if fetch:
             await self.fetch_content(results)
