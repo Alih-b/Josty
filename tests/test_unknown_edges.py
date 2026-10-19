@@ -1,16 +1,15 @@
 """Unknown-edge probes for josty 0.6.1.
 
 This suite targets boundaries the existing suites do not cover. It was written
-black-box: the probes assert the documented contract, and where they expose a
-defect they are marked xfail(strict=True) so they fail until the behavior is
-made correct (at which point the strict marker turns green and forces a review).
+black-box: the probes assert the documented contract, and where they exposed a
+defect the probe was marked xfail(strict=True) until the defect was fixed. The
+trailing-dot and non-finite-timeout defects are fixed; their probes now pass
+without a marker.
 
 Conventions
 -----------
-* xfail(strict=True) tests assert the CORRECT behavior and currently fail.
-  They are defects, not preferences.
-* Passing tests pin current behavior that is surprising but arguably by design,
-  with a FINDING comment describing what was observed and the risk.
+* Tests pinned to current behavior carry a FINDING comment describing what was
+  observed and the risk. Those defects are still open.
 
 Run: pytest tests/test_unknown_edges.py -q
 """
@@ -42,41 +41,29 @@ def result(url, snippet="", source="test", **kwargs):
 class TestTrailingDotHostnames:
     """A host written pinterest.com. is the same DNS name as pinterest.com.
 
-    josty lowercases and strips www. in domain_weight()/canonical(), but never
-    strips a trailing root dot. That escapes the spam penalty AND the authority
-    boost, and yields a second canonical key for the same page.
+    canonical(), domain_weight() and the --site filter strip the RFC 1034 root
+    dot, so the absolute form gets the same key, weights and filter match.
     """
 
-    def test_trailing_dot_and_apex_are_distinct_canonical_keys(self):
-        # FINDING: same DNS name, two canonical keys. RRF fusion and the search
-        # cache treat them as different pages, and a page can occupy two result
-        # slots with a trailing-dot/non-dot pair from two engines.
-        assert canonical("https://example.com/a") != canonical("https://example.com./a")
+    def test_trailing_dot_and_apex_share_canonical_key(self):
+        # Fixed: same DNS name, one canonical key, so RRF fusion and the search
+        # cache cannot split one page into two rows.
+        assert canonical("https://example.com/a") == canonical("https://example.com./a")
 
-    @pytest.mark.xfail(strict=True, reason="domain_weight does not strip a trailing root dot")
     def test_spam_penalty_applies_to_trailing_dot_host(self):
         assert domain_weight("https://pinterest.com./x") == 0.6
         assert domain_weight("https://geeksforgeeks.org./x", profile="dev") == 0.5
 
-    @pytest.mark.xfail(strict=True, reason="domain_weight does not strip a trailing root dot")
     def test_authority_boost_applies_to_trailing_dot_host(self):
         assert domain_weight("https://github.com./a") == 1.2
-        assert domain_weight("https://arxiv.org./a", profile="academic") == 1.4
+        assert domain_weight("https://gitlab.com./a", profile="dev") == 1.3
 
-    @pytest.mark.xfail(strict=True, reason="canonical does not normalize a trailing root dot")
     def test_trailing_dot_canonicalizes_identically(self):
         assert canonical("https://example.com./a") == canonical("https://example.com/a")
 
-    def test_current_trailing_dot_weight_is_flat(self):
-        # Pins the defect's observable signature: both spam and authority flat at 1.0.
-        assert domain_weight("https://pinterest.com./x") == 1.0
-        assert domain_weight("https://github.com./x") == 1.0
-        assert domain_weight("https://arxiv.org./x", profile="academic") == 1.0
-
-    def test_site_filter_drops_trailing_dot_result(self):
-        # FINDING: a --site filter removes the very page it names when the SERP
-        # returns the absolute form. This is a false negative, not a bypass.
-        assert _site_matches("https://example.com./x", ["example.com"]) is False
+    def test_site_filter_matches_trailing_dot_result(self):
+        # Fixed: a --site filter now matches the same page in absolute form.
+        assert _site_matches("https://example.com./x", ["example.com"]) is True
 
 
 # ======================================================================================
@@ -84,17 +71,20 @@ class TestTrailingDotHostnames:
 # ======================================================================================
 
 class TestConstructorGuards:
-    """Validation gaps in Josty.__init__ that the existing tests do not exercise."""
+    """Validation guards in Josty.__init__ that the existing tests do not exercise."""
 
-    @pytest.mark.xfail(strict=True, reason="timeout NaN compares false against <= 0")
     def test_nan_timeout_rejected(self):
         with pytest.raises(ValueError):
             Josty(timeout=float("nan"), enable_cache=False)
 
-    def test_nan_and_inf_timeout_accepted_today(self):
-        # FINDING: nan/inf pass the timeout <= 0 guard. inf disables the outer
-        # wait_for bound; nan makes every timeout comparison false.
-        assert Josty(timeout=float("inf"), enable_cache=False).timeout == float("inf")
+    def test_non_finite_timeouts_rejected(self):
+        # Fixed: inf used to disable the outer wait_for bound and nan made every
+        # timeout comparison false.
+        for value in (float("inf"), float("-inf")):
+            with pytest.raises(ValueError):
+                Josty(timeout=value, enable_cache=False)
+        with pytest.raises(ValueError):
+            Josty(run_timeout=float("nan"), enable_cache=False)
 
     def test_string_backends_fan_out_per_character(self):
         # FINDING (BUG): the type hint says tuple[str, ...] but a string is

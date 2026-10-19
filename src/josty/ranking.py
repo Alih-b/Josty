@@ -128,11 +128,20 @@ SPAM_DOMAINS = {
 }
 
 
+def _hostname(url: str) -> str:
+    """Lowercased hostname with the RFC 1034 root dot removed.
+
+    ``example.com.`` is the absolute form of ``example.com``; keeping the dot
+    splits canonical keys and defeats domain weights and site filters.
+    """
+    return (urlsplit(url.strip()).hostname or "").lower().removesuffix(".")
+
+
 def canonical(url: str) -> str:
     """Normalize URL variants while preserving resource-identifying query parameters."""
     parsed = urlsplit(url.strip())
     scheme = parsed.scheme.lower()
-    hostname = (parsed.hostname or "").lower()
+    hostname = _hostname(url)
     if scheme not in ("http", "https") or not hostname or parsed.username or parsed.password:
         raise ValueError("canonical URLs must be public-style HTTP(S) URLs")
     port = parsed.port
@@ -178,7 +187,7 @@ def _merge_result(current: SearchResult, candidate: SearchResult) -> None:
 def domain_weight(url: str, profile: ProfileType = "general") -> float:
     """Return ranking multiplier for authoritative vs spam domains based on profile."""
     try:
-        hostname = (urlsplit(url).hostname or "").lower()
+        hostname = _hostname(url)
     except Exception:
         return 1.0
     if hostname.startswith("www."):
@@ -351,7 +360,7 @@ def normalize_sites(sites: list[str] | None) -> list[str]:
 
 
 def _site_matches(url: str, sites: list[str]) -> bool:
-    hostname = (urlsplit(url).hostname or "").lower()
+    hostname = _hostname(url)
     if hostname.startswith("www."):
         hostname = hostname[4:]
     return any(hostname == site or hostname.endswith(f".{site}") for site in sites)

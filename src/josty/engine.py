@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import math
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,7 +26,7 @@ from .cache import (
 )
 from .errors import _classify_probe_error
 from .fanout import Fanout, Plan
-from .fetch import BROWSER_FETCH_HEADERS, download, extract, is_ad_redirect, validate_public_url
+from .fetch import FETCH_HEADERS, download, extract, is_ad_redirect, validate_public_url
 from .models import DiagnoseRun, HostStatus, ProviderStatus, SearchResult, SearchRun
 from .providers import DdgsSearchAdapter, GithubSearchAdapter, MwmblSearchAdapter
 from .ranking import (
@@ -123,11 +124,18 @@ class Josty:
             # (as an earlier revision did) let Josty(max_concurrency=0) bypass the
             # check and build a zero-permit semaphore that hung every search.
             max_search_concurrency = max_concurrency
-        if timeout <= 0 or max_search_concurrency < 1 or max_fetch_concurrency < 1:
+        if (
+            not math.isfinite(timeout)
+            or timeout <= 0
+            or max_search_concurrency < 1
+            or max_fetch_concurrency < 1
+        ):
             raise ValueError("timeout and concurrency limits must be positive")
         if max_query_variants is not None and max_query_variants < 1:
             raise ValueError("max_query_variants must be positive")
-        if run_timeout is not None and run_timeout <= 0:
+        if run_timeout is not None and (
+            not math.isfinite(run_timeout) or run_timeout <= 0
+        ):
             raise ValueError("run_timeout must be positive when set")
         if max_ghosts is not None and max_ghosts < 0:
             raise ValueError("max_ghosts must not be negative")
@@ -411,7 +419,7 @@ class Josty:
         return (await self.search_run(query, **kwargs)).results
 
     async def fetch_content(self, results: list[SearchResult]) -> None:
-        headers = BROWSER_FETCH_HEADERS.copy()
+        headers = FETCH_HEADERS.copy()
         async with httpx.AsyncClient(
             timeout=self.timeout,
             headers=headers,
@@ -525,7 +533,7 @@ class Josty:
             )
         async with self._search_semaphore():
             url = f"https://{host}/"
-            headers = BROWSER_FETCH_HEADERS.copy()
+            headers = FETCH_HEADERS.copy()
             t0 = time.perf_counter()
             try:
                 async with httpx.AsyncClient(

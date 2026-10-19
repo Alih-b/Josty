@@ -138,6 +138,8 @@ Normal searches emit one JSON document on `stdout`. Diagnostics and warnings rou
 - **Best-Effort Availability**: Upstream public engines may throttle (HTTP 429), present anti-bot challenges, or change response formats. Josty isolates failures via circuit breakers and surfaces errors honestly rather than hiding them behind infinite retries.
 - **Not a Search Engine**: Josty does not maintain an index or crawl the web. It is a lightweight client adapter over `ddgs` and Mwmbl's public search API.
 - **No Hidden Query Rewriting**: If a search returns empty, Josty reports `status: "empty"`. The caller decides whether to broaden terms or adjust site filters.
+- **No Proxy Configuration of Its Own**: Josty has no `--proxy` flag. Engine calls made through `ddgs`/primp inherit `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY` from the environment; Mwmbl, GitHub, page fetch and `--diagnose` open direct connections and ignore those variables. On a proxied network, search can work while fetch/diagnose fail.
+- **Honest Fetch Identity**: `--fetch` identifies itself as `josty/<version>` and sends no browser client hints or browser User-Agent. Sites that only serve browsers may refuse it; the failure is reported rather than disguised.
 
 ## Documentation
 
