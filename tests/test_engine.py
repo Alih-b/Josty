@@ -1357,8 +1357,8 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
     assert len(run2.results) == 1
 
 
-def test_fetch_content_browser_headers_and_truncation(monkeypatch):
-    from josty.fetch import BROWSER_FETCH_HEADERS
+def test_fetch_content_identifies_itself_and_truncation(monkeypatch):
+    from josty.fetch import FETCH_HEADERS
 
     captured_headers = {}
 
@@ -1380,9 +1380,10 @@ def test_fetch_content_browser_headers_and_truncation(monkeypatch):
     asyncio.run(engine_capped.fetch_content([item1]))
     assert item1.content is not None
     assert len(item1.content) == 1000
-    assert captured_headers.get("user-agent") == BROWSER_FETCH_HEADERS["User-Agent"]
-    assert captured_headers.get("sec-ch-ua") == BROWSER_FETCH_HEADERS["sec-ch-ua"]
-    assert captured_headers.get("sec-ch-ua-platform") == BROWSER_FETCH_HEADERS["sec-ch-ua-platform"]
+    assert captured_headers.get("user-agent") == FETCH_HEADERS["User-Agent"]
+    # No browser-fingerprint hints: AGENTS.md invariant 6 forbids anti-bot evasion.
+    assert "sec-ch-ua" not in captured_headers
+    assert "sec-fetch-site" not in captured_headers
 
     # 2. Test unlimited when max_content_chars = 0
     engine_unlimited = Josty(max_content_chars=0)
@@ -1390,6 +1391,24 @@ def test_fetch_content_browser_headers_and_truncation(monkeypatch):
     asyncio.run(engine_unlimited.fetch_content([item2]))
     assert item2.content is not None
     assert len(item2.content) > 1000
+
+
+def test_extraction_uses_trafilatura_on_real_html():
+    """Guards the declared lxml_html_clean dependency.
+
+    Without it trafilatura raises ImportError, extract() hides it, and every
+    --fetch silently degrades to the regex stripper.
+    """
+    from josty.fetch import extract
+
+    html = (
+        "<html><body><nav>menu</nav><article><h1>Title</h1><p>"
+        + ("lorem ipsum " * 200)
+        + "</p></article></body></html>"
+    )
+    text, method = extract(html, "https://example.com")
+    assert method == "trafilatura"
+    assert "lorem ipsum" in text
 
 
 def test_max_content_chars_validation():

@@ -24,6 +24,8 @@ classifiers = [
 dependencies = [
   "ddgs>=9.15.0,<10",
   "httpx>=0.28.1,<1",
+  # lxml 6 split lxml.html.clean out; trafilatura's extractor imports it.
+  "lxml_html_clean>=0.4,<1",
   "trafilatura>=2.2.0,<3",
 ]
 
