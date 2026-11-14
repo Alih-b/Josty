@@ -22,6 +22,7 @@ def isolate_test_cache(tmp_path, monkeypatch):
 class TestScenario1RateLimitFloods:
     """Scenario 1: Floods of 429 rate limit errors across multiple engines simultaneously."""
 
+    @pytest.mark.usefixtures("ddgs_google_enabled")
     def test_429_flood_all_backends_trips_to_open(self, monkeypatch):
         """Simultaneous 429 flood on all backends trips circuits and transitions to cool-down."""
         breaker = CircuitBreaker(fail_threshold=3, cool_down_seconds=0.2)
@@ -65,6 +66,7 @@ class TestScenario1RateLimitFloods:
             assert p.error_kind == "skipped"
             assert "cool-down" in (p.error or "")
 
+    @pytest.mark.usefixtures("ddgs_google_enabled")
     def test_429_flood_surviving_engine_clean_fusion(self, monkeypatch):
         """When 2 of 3 backends throttle (429), surviving engine cleanly fuses without exception."""
         breaker = CircuitBreaker(fail_threshold=3, cool_down_seconds=0.5)
@@ -353,6 +355,7 @@ class TestScenario3HalfOpenFlappingBackends:
         assert "skipped: engine in cool-down until" in skip_msg
         assert cb.get_state("engine_x")["backoff_remaining"] > 0.08
 
+    @pytest.mark.usefixtures("ddgs_google_enabled")
     def test_multi_engine_flapping_continuous_agent_workload(self, monkeypatch):
         """Agent query workload with 1 healthy, 1 flapping (fail/success), 1 down engine."""
         flip_state = False

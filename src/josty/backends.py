@@ -6,22 +6,6 @@ from .status import SearchCategory
 
 try:
     from ddgs.engines import ENGINES as _DDGS_ENGINES
-    try:
-        # Re-register Google when an installed ddgs dropped it from its engine
-        # table (9.15.0 deprecation). This mutates the ddgs global engine map
-        # for the whole process — deliberate, since josty is the process's
-        # search layer. Any layout change upstream is swallowed: registration
-        # is best-effort, never a startup failure.
-        from ddgs.engines.google import Google as _GoogleEngine
-
-        if (
-            _DDGS_ENGINES is not None
-            and "text" in _DDGS_ENGINES
-            and "google" not in _DDGS_ENGINES["text"]
-        ):
-            _DDGS_ENGINES["text"]["google"] = _GoogleEngine
-    except Exception:
-        pass
 except Exception:
     _DDGS_ENGINES = None
 

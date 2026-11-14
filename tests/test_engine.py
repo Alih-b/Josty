@@ -416,6 +416,7 @@ def test_duplicate_engine_names_within_a_group_are_deduped(monkeypatch):
     assert seen_backends == ["duckduckgo"]
 
 
+@pytest.mark.usefixtures("ddgs_google_enabled")
 def test_group_backends_fan_out_per_engine_and_stay_group_fused(monkeypatch):
     seen_backends = []
 
@@ -729,6 +730,7 @@ def test_github_is_opt_in_and_fused_once(monkeypatch):
     assert combined.results[1].score == round(1.2 * round(1 / 61, 6), 6)
 
 
+@pytest.mark.usefixtures("ddgs_google_enabled")
 def test_diagnose_probes_each_backend_group_host_with_bare_get(monkeypatch):
     seen = []
 
@@ -814,6 +816,7 @@ def test_diagnose_200_is_not_challenged(monkeypatch):
     assert entry["challenged"] is False
 
 
+@pytest.mark.usefixtures("ddgs_google_enabled")
 def test_diagnose_classifies_blocked_hosts(monkeypatch):
     hosts_to_exc = {
         "www.google.com": httpx.ReadTimeout("timed out"),
@@ -864,6 +867,18 @@ def test_diagnose_reports_unavailable_engine_as_skipped_without_probing(monkeypa
     assert by_provider["mystery"]["error_kind"] == "skipped"
     assert "not enabled in the installed ddgs" in by_provider["mystery"]["error"]
     assert payload["status"] == "failed"
+
+
+def test_engine_available_follows_installed_ddgs_registry():
+    """An engine ddgs disables is reported skipped; josty never re-enables it."""
+    from ddgs.engines import ENGINES
+    from ddgs.engines.google import Google
+
+    available, message = _engine_available("text", "google")
+    assert available is ("google" in ENGINES["text"])
+    assert available is not Google.disabled
+    if not available:
+        assert "not enabled in the installed ddgs" in message
 
 
 def test_diagnose_probes_grokipedia_and_wikipedia_hosts(monkeypatch):
