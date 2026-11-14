@@ -765,6 +765,7 @@ class TestTier4RealWorldScenarios:
             if "--cache-stats" not in cmd and "--clear-cache" not in cmd:
                 assert data.get("schema_version") == SCHEMA_VERSION
 
+    @pytest.mark.usefixtures("ddgs_google_enabled")
     def test_default_multi_engine_group_attribution_invariant(self, monkeypatch):
         """Verify RRF attribution on default backend groups without 2x discrepancy.
 

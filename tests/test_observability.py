@@ -47,6 +47,7 @@ def test_coverage_fields_distinguish_brave_only_complete():
     assert payload["fetch"]["status"] == "skipped"
 
 
+@pytest.mark.usefixtures("ddgs_google_enabled")
 @pytest.mark.parametrize("fetch", [False, True])
 @pytest.mark.parametrize("category", ["text", "news"])
 def test_all_empty_search_has_distinct_status(monkeypatch, fetch, category):

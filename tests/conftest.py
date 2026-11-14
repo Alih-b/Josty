@@ -25,3 +25,17 @@ def _stub_mwmbl_network(monkeypatch: pytest.MonkeyPatch) -> None:
         return {"results": []}
 
     monkeypatch.setattr(MwmblSearchAdapter, "_request", empty_request)
+
+
+@pytest.fixture
+def ddgs_google_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Enable Google in the ddgs text registry for one test.
+
+    josty follows the installed ddgs registry, and upstream disables Google in
+    some releases. A test that fans out to Google opts in here instead of
+    depending on which ddgs is installed.
+    """
+    from ddgs.engines import ENGINES
+    from ddgs.engines.google import Google
+
+    monkeypatch.setitem(ENGINES["text"], "google", Google)
