@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
+from .fetch import text_quote
 from .status import DIAGNOSE_NOTE, SCHEMA_VERSION, ErrorKind, SearchStatus
 
 
@@ -39,6 +41,25 @@ class SearchResult:
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    def quote(self, phrase: str) -> Quote | None:
+        """A citable span for an exact phrase of the stored page text (#107).
+
+        None when the page was not fetched or the text does not contain the
+        phrase: never a fuzzy near-match.
+        """
+        text = self.content
+        if not text:
+            return None
+        selector = text_quote(text, phrase)
+        if selector is None:
+            return None
+        return Quote(
+            url=self.fetched_url or self.url,
+            fetched_at=self.fetched_at,
+            sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            selector=selector,
+        )
 
     def fetch_dict(self) -> dict[str, Any]:
         """The per-item fetch envelope, one definition for every stdin shape."""
@@ -76,6 +97,26 @@ class SearchResult:
             for r in rows
             if isinstance(r, dict) and r.get("url")
         ]
+
+
+@dataclass(frozen=True)
+class Quote:
+    """A citable span of a fetched page (#107).
+
+    A snippet or bounded page text lets an agent claim a page said something,
+    and nothing later can check that claim. A quote pins the exact phrase with
+    32 characters of context on each side (a W3C TextQuoteSelector) and the
+    hash of the stored text, so a later re-fetch can show whether the page
+    drifted. It is honest about the extracted text, not about the DOM.
+    """
+
+    url: str
+    fetched_at: str | None
+    sha256: str
+    selector: dict[str, str]
+
+    def dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 @dataclass

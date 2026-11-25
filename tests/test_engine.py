@@ -1581,6 +1581,91 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
     assert len(run2.results) == 1
 
 
+def _stored(text: str) -> SearchResult:
+    """A result whose stored page text is exactly ``text``."""
+    item = result("https://example.org/page")
+    item.content = text
+    item.fetched_at = "2026-11-26T00:00:00+00:00"
+    return item
+
+
+def test_quote_is_an_exact_span_of_the_stored_text():
+    """#107: prefix + exact + suffix is a substring of the text the page stored."""
+    import hashlib
+
+    text = "Intro. " + "a" * 40 + " Keep the connection pool limits modest. " + "b" * 40
+
+    quote = _stored(text).quote("connection pool limits")
+
+    assert quote is not None
+    selector = quote.selector
+    assert selector["type"] == "TextQuoteSelector"
+    assert selector["exact"] == "connection pool limits"
+    assert len(selector["prefix"]) == len(selector["suffix"]) == 32
+    assert selector["prefix"] + selector["exact"] + selector["suffix"] in text
+    assert quote.url == "https://example.org/page"
+    assert quote.fetched_at == "2026-11-26T00:00:00+00:00"
+    assert quote.sha256 == hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def test_quote_near_the_start_of_a_text_keeps_its_prefix_short():
+    quote = _stored("connection pool limits rule everything").quote("connection pool limits")
+
+    assert quote.selector["prefix"] == ""
+    assert quote.selector["suffix"] == " rule everything"
+
+
+def test_quote_is_none_rather_than_a_near_match():
+    assert _stored("connection pooling limits").quote("connection pool limits") is None
+    assert _stored("some text").quote("") is None
+    # Never fetched: there is no stored text to cite.
+    assert result("https://example.org/x").quote("anything") is None
+
+
+def test_quote_hash_proves_whether_the_page_drifted():
+    """#107: the hash is of the stored text; a mutated copy no longer matches."""
+    import hashlib
+
+    text = "Body paragraph content"
+    quote = _stored(text).quote("paragraph")
+
+    assert quote.sha256 == hashlib.sha256(text.encode("utf-8")).hexdigest()
+    mutated = text.replace("paragraph", "sentence")
+    assert quote.sha256 != hashlib.sha256(mutated.encode("utf-8")).hexdigest()
+    assert quote.dict() == {
+        "url": "https://example.org/page",
+        "fetched_at": "2026-11-26T00:00:00+00:00",
+        "sha256": quote.sha256,
+        "selector": {
+            "type": "TextQuoteSelector",
+            "exact": "paragraph",
+            "prefix": "Body ",
+            "suffix": " content",
+        },
+    }
+
+
+def test_quote_follows_the_fetch_path(monkeypatch):
+    import hashlib
+
+    async def fake_download(self, client, url):
+        page = "<html><body><p>Keep the connection pool limits modest.</p></body></html>"
+        return page, url
+
+    monkeypatch.setattr(Josty, "_download", fake_download)
+    item = result("https://example.org/pool")
+    asyncio.run(Josty(enable_cache=False).fetch_content([item]))
+
+    quote = item.quote("connection pool limits")
+
+    assert quote is not None
+    assert quote.url == "https://example.org/pool"
+    assert quote.fetched_at == item.fetched_at
+    assert quote.sha256 == hashlib.sha256(item.content.encode("utf-8")).hexdigest()
+    span = quote.selector
+    assert span["prefix"] + span["exact"] + span["suffix"] in item.content
+
+
 def test_fetch_content_identifies_itself_and_truncation(monkeypatch):
     from josty.fetch import FETCH_HEADERS
 
