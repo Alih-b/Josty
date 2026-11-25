@@ -881,6 +881,53 @@ def test_engine_available_follows_installed_ddgs_registry():
         assert "not enabled in the installed ddgs" in message
 
 
+def test_disabled_ddgs_engines_josty_intends_to_call_are_registered():
+    """ddgs ships yandex and bing disabled; josty registers those two, not Google."""
+    from ddgs import DDGS
+    from ddgs.engines import ENGINES
+    from ddgs.engines.bing import Bing
+    from ddgs.engines.google import Google
+    from ddgs.engines.yandex import Yandex
+
+    assert ENGINES["text"]["yandex"] is Yandex
+    assert ENGINES["text"]["bing"] is Bing
+    assert _engine_available("text", "yandex") == (True, None)
+    assert _engine_available("text", "bing") == (True, None)
+    # ddgs itself resolves the name to that class instead of falling back to "auto".
+    assert [type(engine) for engine in DDGS()._get_engines("text", "yandex")] == [Yandex]
+    # An allow-list: Google stays exactly as ddgs shipped it.
+    assert ("google" in ENGINES["text"]) is (not Google.disabled)
+    if Google.disabled:
+        assert _engine_available("text", "google") == (
+            False,
+            "skipped: engine 'google' is not enabled in the installed ddgs",
+        )
+
+
+def test_registered_yandex_engine_is_called_instead_of_skipped(monkeypatch):
+    calls: list[str] = []
+
+    class RecordingDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            calls.append(kwargs.get("backend"))
+            return [{"title": "Yandex hit", "href": "https://example.org/yandex-1"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", RecordingDDGS)
+
+    run = asyncio.run(
+        Josty(backends=("yandex",), enable_cache=False).search_run("query", limit=5)
+    )
+
+    assert calls == ["yandex"]
+    assert run.providers[0].provider == "yandex"
+    assert run.providers[0].ok is True
+    assert run.providers[0].error_kind is None
+    assert [result.url for result in run.results] == ["https://example.org/yandex-1"]
+
+
 def test_diagnose_probes_grokipedia_and_wikipedia_hosts(monkeypatch):
     grok_ok, _ = _engine_available("text", "grokipedia")
     wiki_ok, _ = _engine_available("text", "wikipedia")
