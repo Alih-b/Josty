@@ -98,9 +98,13 @@ class Josty:
     # Shared by the CLI flag default and the library constructor so both entry
     # points cap extracted Markdown at the same per-page size (#59).
     DEFAULT_MAX_CONTENT_CHARS = 8000
-    DEFAULT_BREAKER_FAIL_THRESHOLD = 3
+    # One failure opens a circuit (#105): an engine that just refused is left
+    # alone for 180 s, doubled per consecutive trip up to a day, and the open
+    # circuit is remembered in the cache DB for the next process.
+    DEFAULT_BREAKER_FAIL_THRESHOLD = 1
     DEFAULT_BREAKER_WINDOW_SECONDS = 60
-    DEFAULT_BREAKER_COOL_DOWN_SECONDS = 30
+    DEFAULT_BREAKER_COOL_DOWN_SECONDS = 180
+    DEFAULT_BREAKER_MAX_COOL_DOWN_SECONDS = 24 * 60 * 60
 
     def __init__(
         self,
@@ -123,9 +127,10 @@ class Josty:
         cache_db: Path | str | None = None,
         cache_max_bytes: int = CACHE_MAX_BYTES,
         breaker: CircuitBreaker | None = None,
-        breaker_fail_threshold: int = 3,
-        breaker_window_seconds: float = 60,
-        breaker_cool_down_seconds: float = 30,
+        breaker_fail_threshold: int = DEFAULT_BREAKER_FAIL_THRESHOLD,
+        breaker_window_seconds: float = DEFAULT_BREAKER_WINDOW_SECONDS,
+        breaker_cool_down_seconds: float = DEFAULT_BREAKER_COOL_DOWN_SECONDS,
+        breaker_max_cool_down_seconds: float = DEFAULT_BREAKER_MAX_COOL_DOWN_SECONDS,
     ):
         if max_concurrency is not None:
             # Deprecated alias, applied before validation. Applying it afterwards
@@ -188,7 +193,15 @@ class Josty:
                 fail_threshold=breaker_fail_threshold,
                 window_seconds=breaker_window_seconds,
                 cool_down_seconds=breaker_cool_down_seconds,
+                max_cool_down_seconds=breaker_max_cool_down_seconds,
+                memory=self.cache,
             )
+            if self.cache is not None:
+                # A circuit another process left open is still open here (#105).
+                for backend, (until_utc, trips) in self.cache.open_circuits(
+                    self.breaker.window_seconds
+                ).items():
+                    self.breaker.restore(backend, until_utc, trips, "search")
 
     def clear_cache(self) -> None:
         if self.cache:

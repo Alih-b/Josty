@@ -16,6 +16,16 @@ from josty.providers import MwmblSearchAdapter, WikipediaSearchAdapter
 
 
 @pytest.fixture(autouse=True)
+def _isolate_cache_dir(tmp_path, monkeypatch):
+    """Every test gets its own cache DB.
+
+    Since #105 the breaker remembers open circuits there: a trip in one test
+    must not suspend an engine in another, and no test may touch the user's.
+    """
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+
+
+@pytest.fixture(autouse=True)
 def _stub_mwmbl_network(monkeypatch: pytest.MonkeyPatch) -> None:
     """Answer every Mwmbl call locally with an empty result set."""
 

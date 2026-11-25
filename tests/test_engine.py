@@ -2062,15 +2062,15 @@ def test_news_day_timelimit_cache_row_uses_floor_ttl(tmp_path, monkeypatch):
     assert any(abs(row[1] - 21600.0) < 1.0 for row in rows)
 
 
-def test_breaker_state_stays_process_local(tmp_path):
-    """Breaker state is in-process by contract: a second engine sharing the cache
-    database starts closed, and clearing the cache does not touch throttling."""
-    db_file = tmp_path / "shared_cache.db"
-    engine_a = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
+def test_breaker_state_is_shared_through_the_cache_db_and_nowhere_else(tmp_path):
+    """#105: an open circuit outlives the process through the cache DB only.
 
-    allowed, msg = engine_a.breaker.status("duckduckgo")
-    assert allowed is True
-    assert msg is None
+    A second engine on the same database inherits it. One without a cache, or
+    one started after the cache was cleared, starts closed.
+    """
+    db_file = tmp_path / "shared_cache.db"
+    knobs = {"breaker_fail_threshold": 2, "breaker_cool_down_seconds": 30.0}
+    engine_a = Josty(cache_db=db_file, **knobs)
 
     engine_a.breaker.record_failure("duckduckgo")
     engine_a.breaker.record_failure("duckduckgo")
@@ -2078,8 +2078,14 @@ def test_breaker_state_stays_process_local(tmp_path):
     assert allowed is False
     assert "cool-down" in msg
 
-    engine_b = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
+    engine_b = Josty(cache_db=db_file, **knobs)
     allowed, msg = engine_b.breaker.status("duckduckgo")
-    assert allowed is True
-    assert msg is None
-    assert msg is None
+    assert allowed is False
+    assert "cool-down" in msg
+
+    uncached = Josty(enable_cache=False, **knobs)
+    assert uncached.breaker.status("duckduckgo") == (True, None)
+
+    engine_b.clear_cache()
+    engine_c = Josty(cache_db=db_file, **knobs)
+    assert engine_c.breaker.status("duckduckgo") == (True, None)
