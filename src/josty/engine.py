@@ -638,11 +638,6 @@ class Josty:
     #: these, the expired answer to the same query beats an empty page (#104).
     UNANSWERED_KINDS = frozenset({"rate_limited", "blocked", "network", "filtered", "geo"})
 
-    @classmethod
-    def _unanswered(cls, run: SearchRun) -> bool:
-        """True when a result-less run failed to get an answer, rather than getting none."""
-        return any(provider.error_kind in cls.UNANSWERED_KINDS for provider in run.providers)
-
     async def _serve_stale(
         self, cache_key: str, fresh: SearchRun, *, fetch: bool
     ) -> SearchRun | None:
@@ -833,7 +828,8 @@ class Josty:
             **fanout.accounting(),
         )
         _stamp_fetch_stats(run, requested=fetch)
-        if cache_key and not run.results and self._unanswered(run):
+        unanswered = any(p.error_kind in self.UNANSWERED_KINDS for p in run.providers)
+        if cache_key and not run.results and unanswered:
             # No engine answered, but this query was answered before (#104).
             stale = await self._serve_stale(cache_key, run, fetch=fetch)
             if stale is not None:

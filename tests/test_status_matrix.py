@@ -3,15 +3,13 @@
 Live yield is egress noise; whether a status is true is not. Each row below is
 one (stubbed wire, outcome) pair pushed through the real branch pipeline -- the
 same path a live call takes (_finish, _classify_search_error, ProviderStatus) --
-with no network. test_the_matrix_table_is_pinned renders the whole matrix, so a
-change in any answer shows up as a one-line diff.
+with no network.
 """
 
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any
 
 import pytest
 from ddgs.exceptions import DDGSException, TimeoutException
@@ -166,46 +164,3 @@ def test_a_hit_with_30pct_refused_sub_requests_is_not_a_clean_success() -> None:
     assert status.http_status == 503
     # It answered: the refusals are telemetry on a hit, not a failure.
     assert status.error_kind is None
-
-
-def _fmt(value: Any, spec: str = "") -> str:
-    return "-" if value is None else format(value, spec)
-
-
-def render_matrix() -> str:
-    """The whole matrix as one deterministic table; the pinned test compares to it."""
-    lines = [f"{'case':<34} {'http':>4} {'body_bytes':>10} {'refusal':>7}  {'ok':<5} kind"]
-    for case in MATRIX:
-        status = asyncio.run(_status_for(case))
-        lines.append(
-            f"{case.name:<34} {_fmt(status.http_status):>4} "
-            f"{_fmt(status.body_bytes):>10} {_fmt(status.refusal_rate, '.3f'):>7}  "
-            f"{str(status.ok):<5} {_fmt(status.error_kind)}"
-        )
-    return "\n".join(lines)
-
-
-# The answers, as a table. A change here is a change in what callers are told;
-# it must be one of the deliberate changes, never a side effect.
-PINNED_TABLE = """\
-case                               http body_bytes refusal  ok    kind
-200_with_rows                       200      40000   0.000  True  -
-200_zero_rows_small_page            200       2048   0.000  True  empty
-200_zero_rows_large_unparsed        200     145218   0.000  False parse
-200_zero_rows_block_page            200      86370   0.000  False blocked
-200_zero_rows_captcha_page          200       5505   0.000  False blocked
-202_challenge_status                202          0   1.000  False blocked
-403_forbidden                       403          0   1.000  False blocked
-429_rate_limited                    429          0   1.000  False rate_limited
-503_unavailable                     503          0   1.000  False blocked
-500_server_error                    500          0   1.000  False network
-404_endpoint_moved                  404          0   1.000  False parse
-timeout                               -          -       -  False network
-sinkholed_resolve                     -          -       -  False filtered
-ordinary_address_no_response          -          -       -  False network
-geo_403                             403        512   1.000  False geo
-bing_like_10_rows_30pct_refused     503       4000   0.300  True  -"""
-
-
-def test_the_matrix_table_is_pinned() -> None:
-    assert render_matrix() == PINNED_TABLE

@@ -51,10 +51,8 @@ def _yahoo_variant_rows(body: str) -> list[dict[str, Any]]:
     Fitted to the capture, never invented. Ads and the AI and knowledge modules
     carry no /RU= redirect and are dropped.
     """
-    try:
-        import lxml.html
-    except ImportError:  # pragma: no cover - lxml is a ddgs dependency
-        return []
+    import lxml.html
+
     try:
         document = lxml.html.fromstring(body)
     except Exception:
@@ -93,15 +91,10 @@ class _WireTap:
     def install(self, ddgs: Any, call: SearchCall) -> None:
         """Tap every engine the call will use. Never raises: no seam, no tap."""
         try:
-            get_engines = getattr(ddgs, "_get_engines", None)
-            if get_engines is None:
-                return
-            for engine in get_engines(call.category, call.backend):
-                http_client = getattr(engine, "http_client", None)
-                request = getattr(http_client, "request", None)
-                if request is not None:
-                    http_client.request = self._recording(request)
+            for engine in ddgs._get_engines(call.category, call.backend):
+                engine.http_client.request = self._recording(engine.http_client.request)
         except Exception:
+            # No seam (the suite's doubles) or a ddgs that moved it: no tap.
             return
 
     def _recording(self, request: Callable[..., Any]) -> Callable[..., Any]:
