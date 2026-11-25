@@ -133,7 +133,7 @@ async def scenario_sites_and_variants() -> dict:
         run = await engine.research_run(
             "probe variants",
             limit=5,
-            mode="oss",
+            mode="exact",
             max_query_variants=2,
             sites=["example.org"],
         )

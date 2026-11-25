@@ -6,7 +6,7 @@ from typing import Literal
 
 from ._version import __version__
 
-SearchMode = Literal["plain", "exact", "oss"]
+SearchMode = Literal["plain", "exact"]
 SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]

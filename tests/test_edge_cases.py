@@ -753,14 +753,9 @@ class TestExpand:
     def test_exact_mode_quotes(self):
         assert Josty.expand("foo bar", mode="exact") == ["foo bar", '"foo bar"']
 
-    def test_oss_mode_three_variants(self):
-        assert Josty.expand("foo", mode="oss") == [
-            "foo", '"foo"', "foo open source", "foo self-hosted"
-        ]
-
     def test_max_query_variants_caps(self):
-        # 4 oss variants, cap at 2
-        assert Josty.expand("foo", mode="oss", max_query_variants=2) == ["foo", '"foo"']
+        # 2 exact variants, cap at 1
+        assert Josty.expand("foo", mode="exact", max_query_variants=1) == ["foo"]
 
     def test_max_query_variants_with_sites(self):
         # 2 sites x 2 variants = 4, cap at 3

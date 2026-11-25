@@ -46,6 +46,16 @@ def test_main_without_query_or_diagnose_fails(monkeypatch):
     assert exit_info.value.code == 2
 
 
+def test_mode_oss_is_an_argparse_error(monkeypatch, capsys):
+    """#98: the mode is removed, not deprecated; argparse owns the exit code."""
+    monkeypatch.setattr("sys.argv", ["josty", "term", "--mode", "oss"])
+    with pytest.raises(SystemExit) as exit_info:
+        main()
+    assert exit_info.value.code == 2
+    # stdout stays pure JSON: the usage error goes to stderr.
+    assert capsys.readouterr().out == ""
+
+
 def test_main_clear_cache(monkeypatch, capsys):
     cleared = False
 

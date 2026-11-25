@@ -254,15 +254,15 @@ class Josty:
         query = query.strip()
         if not query:
             raise ValueError("query must not be empty")
-        if mode not in ("plain", "exact", "oss"):
+        # No "oss" mode: its fixed suffixes quadrupled the calls per engine and
+        # nothing measured showed they helped (#98). Josty does not rewrite queries.
+        if mode not in ("plain", "exact"):
             raise ValueError(f"unsupported search mode: {mode}")
         if max_query_variants is not None and max_query_variants < 1:
             raise ValueError("max_query_variants must be positive")
         variants = [query]
         if mode == "exact":
             variants.append(f'"{query}"')
-        elif mode == "oss":
-            variants.extend((f'"{query}"', f"{query} open source", f"{query} self-hosted"))
         normalized_sites = normalize_sites(sites)
         if normalized_sites:
             variants = [

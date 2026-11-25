@@ -99,12 +99,12 @@ def test_query_modes_are_explicit():
         "agent search",
         '"agent search"',
     ]
-    assert Josty.expand("agent search", mode="oss") == [
-        "agent search",
-        '"agent search"',
-        "agent search open source",
-        "agent search self-hosted",
-    ]
+
+
+def test_oss_mode_is_rejected_not_silently_rewritten():
+    """#98: fixed suffixes quadrupled the calls per engine; nothing showed they help."""
+    with pytest.raises(ValueError, match="unsupported search mode: oss"):
+        Josty.expand("foo", mode="oss")  # type: ignore[arg-type]
 
 
 def test_site_filters_scope_every_variant():
@@ -1396,13 +1396,6 @@ def test_expand_with_max_query_variants_truncation_and_validation():
     with pytest.raises(ValueError, match="max_query_variants must be positive"):
         Josty.expand("test", max_query_variants=-1)
 
-    # OSS mode generates 4 variants by default; cap at 2
-    uncapped = Josty.expand("test query", mode="oss")
-    assert len(uncapped) == 4
-    capped = Josty.expand("test query", mode="oss", max_query_variants=2)
-    assert capped == uncapped[:2]
-    assert len(capped) == 2
-
     # Multi-site exact generates 4 variants (2 sites x 2 variants); cap at 3
     multi_site = Josty.expand(
         "test query", sites=["github.com", "gitlab.com"], mode="exact"
@@ -1443,13 +1436,13 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
 
     engine = Josty(backends=("duckduckgo",), enable_cache=True)
 
-    # Mode oss with 2 sites creates 8 variants uncapped; cap at 2
+    # Exact mode with 2 sites creates 4 variants uncapped; cap at 2
     queries_seen.clear()
     run1 = asyncio.run(
         engine.search_run(
             "my query",
             sites=["github.com", "gitlab.com"],
-            mode="oss",
+            mode="exact",
             max_query_variants=2,
         )
     )
@@ -1462,7 +1455,7 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
         engine.search_run(
             "my query",
             sites=["github.com", "gitlab.com"],
-            mode="oss",
+            mode="exact",
             max_query_variants=3,
         )
     )
@@ -1646,7 +1639,15 @@ def test_empty_variants_do_not_clear_rate_limit_failures(monkeypatch):
     monkeypatch.setattr("josty.engine.DDGS", FlipDDGS)
     breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
     engine = Josty(backends=("duckduckgo",), enable_cache=False, breaker=breaker)
-    asyncio.run(engine.search_run("document indexing", mode="oss", limit=5))
+    # Four variants (exact x 2 sites) so the 429 / empty alternation trips twice.
+    asyncio.run(
+        engine.search_run(
+            "document indexing",
+            sites=["github.com", "gitlab.com"],
+            mode="exact",
+            limit=5,
+        )
+    )
     allowed, message = breaker.status("duckduckgo", "search")
     assert allowed is False
     assert message is not None
