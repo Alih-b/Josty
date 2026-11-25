@@ -20,7 +20,7 @@ import socket
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, unquote_plus, urlsplit
 
 import httpx
 
@@ -33,6 +33,46 @@ from .status import SearchCategory
 if TYPE_CHECKING:
     from .fanout import _FanoutLedger
     from .lease import LeasePool
+
+
+#: Yahoo's second results markup (#100). Captured 2026-11-26 through ddgs's own
+#: Yahoo engine: one query flips between two pages. ddgs 9.16.1 reads only the
+#: first (div.relsrch items with a div.Title); the other carries section.s-algo
+#: items with a div.compTitle and a div.compText.
+_YAHOO_VARIANT_ITEMS = "//section[contains(@class, 's-algo')]"
+_YAHOO_VARIANT_TITLE = ".//div[contains(@class, 'compTitle')]//h3[1]//text()"
+_YAHOO_VARIANT_LINKS = ".//div[contains(@class, 'compTitle')]//a/@href"
+_YAHOO_VARIANT_TEXT = ".//div[contains(@class, 'compText')]"
+
+
+def _yahoo_variant_rows(body: str) -> list[dict[str, Any]]:
+    """Rows from Yahoo's second markup; empty when the page has none.
+
+    Fitted to the capture, never invented. Ads and the AI and knowledge modules
+    carry no /RU= redirect and are dropped.
+    """
+    try:
+        import lxml.html
+    except ImportError:  # pragma: no cover - lxml is a ddgs dependency
+        return []
+    try:
+        document = lxml.html.fromstring(body)
+    except Exception:
+        return []
+    rows: list[dict[str, Any]] = []
+    for item in document.xpath(_YAHOO_VARIANT_ITEMS):
+        parts = item.xpath(_YAHOO_VARIANT_TITLE)
+        title = " ".join(part.strip() for part in parts if part.strip())
+        link = next((href for href in item.xpath(_YAHOO_VARIANT_LINKS) if "/RU=" in href), None)
+        if not link or not title:
+            continue
+        url = unquote_plus(link.split("/RU=", 1)[1].split("/RK=", 1)[0].split("/RS=", 1)[0])
+        if not url.startswith(("http://", "https://")) or "bing.com/aclick" in url:
+            continue
+        snippets = item.xpath(_YAHOO_VARIANT_TEXT)
+        text = " ".join(snippets[0].itertext()) if snippets else ""
+        rows.append({"title": title, "href": url, "body": re.sub(r"\s+", " ", text).strip()})
+    return rows
 
 
 class _WireTap:
@@ -85,6 +125,9 @@ class _WireTap:
                         status == 200 and _is_challenge_page(text),
                     )
                 )
+                if status == 200:
+                    # Kept only so an adapter can re-parse a page it has (#100).
+                    self.facts.body = text
             return response
 
         return tapped
@@ -195,7 +238,16 @@ class DdgsSearchAdapter:
             # The one request site: counted immediately before the call so the
             # ledger measures calls issued, not tasks scheduled.
             ledger.record()
-            rows = method(call.query, **kwargs)
+            try:
+                rows = method(call.query, **kwargs)
+            except Exception:
+                # ddgs parses one of Yahoo's two markups; the other is read from
+                # the bytes the tap already holds (#100). Not a retry.
+                if call.backend != "yahoo" or not tap.facts.body:
+                    raise
+                rows = _yahoo_variant_rows(tap.facts.body)
+                if not rows:
+                    raise
             results = []
             rank = 1
             for row in rows:

@@ -170,6 +170,9 @@ class WireFacts:
     host: str | None = None
     #: Addresses the host resolved to when nothing came back; empty otherwise.
     resolved: tuple[str, ...] = ()
+    #: Text of the last 200 body, kept only so an adapter can re-parse a page it
+    #: already fetched (#100). Never serialized.
+    body: str | None = None
 
     @property
     def http_status(self) -> int | None:
