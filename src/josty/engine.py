@@ -52,9 +52,12 @@ class Josty:
     """Small, bounded metasearch querying backend groups in parallel with
     group-level RRF fusion and safe text extraction."""
 
+    #: No `google` here: the pinned ddgs disables it, so listing it only made
+    #: every default run `degraded` (#97). An explicit `backends=("google",)` is
+    #: still honoured and reported `skipped` while ddgs keeps it disabled.
     DEFAULT_BACKENDS = (
         "brave,duckduckgo",
-        "google,mojeek,startpage",
+        "mojeek,startpage",
         "yahoo",
         "mwmbl",
     )

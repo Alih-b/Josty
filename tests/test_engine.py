@@ -983,7 +983,7 @@ def test_diagnose_scopes_probes_to_category_and_github_opt_in(monkeypatch):
     text = asyncio.run(Josty().diagnose_run()).dict()
     text_providers = {entry["provider"] for entry in text["providers"]}
     assert "github-api" not in text_providers
-    assert all(p in text_providers for p in ("brave", "google", "yahoo"))
+    assert all(p in text_providers for p in ("brave", "mojeek", "yahoo"))
 
     news = asyncio.run(Josty().diagnose_run(category="news")).dict()
     news_providers = {entry["provider"] for entry in news["providers"]}
@@ -992,6 +992,57 @@ def test_diagnose_scopes_probes_to_category_and_github_opt_in(monkeypatch):
     got = asyncio.run(Josty().diagnose_run(include_github=True)).dict()
     got_providers = {entry["provider"] for entry in got["providers"]}
     assert "github-api" in got_providers
+
+
+def test_default_roster_omits_google_which_the_pinned_ddgs_disables():
+    """#97: a default engine ddgs skips made every default run `degraded`."""
+    names = [name for group in Josty.DEFAULT_BACKENDS for name in group.split(",")]
+
+    assert "google" not in names
+    assert names == ["brave", "duckduckgo", "mojeek", "startpage", "yahoo", "mwmbl"]
+    # The roster and the installed registry agree: nothing in it can be skipped.
+    for name in names:
+        if name not in Josty.NATIVE_BACKENDS:
+            assert _engine_available("text", name) == (True, None)
+
+
+def test_default_run_reports_complete_and_empty_once_nothing_is_skipped(monkeypatch):
+    """Every engine answering is `complete`; every engine empty is `empty`."""
+    rows: list[dict] = [{"title": "Hit", "href": "https://example.org/hit"}]
+
+    class FixedDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            return rows
+
+    monkeypatch.setattr("josty.engine.DDGS", FixedDDGS)
+    engine = Josty(enable_cache=False)
+
+    answered = asyncio.run(engine.search_run("query", limit=5))
+    assert answered.status == "complete"
+    assert all(provider.ok for provider in answered.providers)
+
+    rows.clear()
+    nothing = asyncio.run(engine.search_run("query", limit=5))
+    assert nothing.status == "empty"
+    assert nothing.results == []
+
+
+def test_explicit_google_request_is_skipped_not_silently_dropped(monkeypatch):
+    from ddgs.engines.google import Google
+
+    if not Google.disabled:
+        pytest.skip("this ddgs enables Google")
+
+    run = asyncio.run(
+        Josty(backends=("google",), enable_cache=False).search_run("query", limit=5)
+    )
+
+    assert [provider.provider for provider in run.providers] == ["google"]
+    assert run.providers[0].ok is False
+    assert run.providers[0].error_kind == "skipped"
 
 
 def test_domain_weights_boost_and_penalize_with_subdomains_and_profiles():
