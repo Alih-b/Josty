@@ -1192,6 +1192,124 @@ def test_search_cache_migrates_legacy_schema(tmp_path):
     assert last_accessed > 0
 
 
+def _expire_rows(cache: SearchCache, seconds: float = 500.0) -> None:
+    """Move every cached row into the past, as if its TTL had run out."""
+    with sqlite3.connect(cache.db_path) as conn:
+        conn.execute(
+            "UPDATE search_cache SET created_at = created_at - ?, expires_at = expires_at - ?",
+            (seconds, seconds),
+        )
+
+
+class _AnsweringDDGS:
+    def __init__(self, **kwargs):
+        pass
+
+    def text(self, query, **kwargs):
+        return [{"title": "Answer", "href": "https://example.org/answer", "body": "then"}]
+
+
+class _BlockedDDGS:
+    def __init__(self, **kwargs):
+        pass
+
+    def text(self, query, **kwargs):
+        from ddgs.exceptions import RatelimitException
+
+        raise RatelimitException("429")
+
+
+def _answered_once_then(monkeypatch, tmp_path, second_ddgs):
+    """Answer a query, let the row expire, then ask again through ``second_ddgs``."""
+    monkeypatch.setattr("josty.engine.DDGS", _AnsweringDDGS)
+    engine = Josty(backends=("duckduckgo",), cache_db=tmp_path / "stale.db", cache_ttl=60)
+    first = asyncio.run(engine.search_run("q", limit=5))
+    assert [item.url for item in first.results] == ["https://example.org/answer"]
+    _expire_rows(engine.cache)
+    monkeypatch.setattr("josty.engine.DDGS", second_ddgs)
+    return engine, asyncio.run(engine.search_run("q", limit=5))
+
+
+def test_expired_row_stays_in_the_table_after_a_miss(tmp_path):
+    """#104: expiry is not eviction; overflow pruning is what removes it."""
+    cache = SearchCache(tmp_path / "keep.db", default_ttl=60.0)
+    key = SearchCache.hash_key("query")
+    cache.set(key, {"query": "query"})
+    _expire_rows(cache)
+
+    assert cache.get(key) is None
+    assert cache.stats()["rows"] == 1
+    stale = cache.get_stale(key)
+    assert stale is not None and stale[0] == {"query": "query"}
+    assert stale[1] > 60
+
+    cache.max_rows = 1
+    cache.set(SearchCache.hash_key("other"), {"query": "other"})
+    assert cache.get_stale(key) is None
+
+
+def test_blocked_run_serves_the_expired_answer_marked_stale(tmp_path, monkeypatch):
+    """#104: every engine refused, but Josty answered this query earlier."""
+    engine, second = _answered_once_then(monkeypatch, tmp_path, _BlockedDDGS)
+
+    assert second.stale is True
+    assert second.age_seconds > 60  # older than the row's TTL
+    assert [item.url for item in second.results] == ["https://example.org/answer"]
+    # Today's statuses, not the ones from when the answer was fresh.
+    assert [provider.error_kind for provider in second.providers] == ["rate_limited"]
+    assert second.status == "degraded"
+    assert second.cached is False
+    payload = second.dict()
+    assert payload["stale"] is True
+    assert payload["age_seconds"] == second.age_seconds
+    # The refused run did not overwrite the row it was served from.
+    assert engine.cache.get_stale(_row_key(engine.cache)) is not None
+
+
+def _row_key(cache: SearchCache) -> str:
+    with sqlite3.connect(cache.db_path) as conn:
+        return conn.execute("SELECT key FROM search_cache").fetchone()[0]
+
+
+def test_genuine_empty_run_never_serves_a_stale_answer(tmp_path, monkeypatch):
+    class EmptyDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            return []
+
+    _, second = _answered_once_then(monkeypatch, tmp_path, EmptyDDGS)
+
+    assert second.results == []
+    assert second.stale is False
+    assert second.status == "empty"
+    assert "stale" not in second.dict()
+
+
+def test_fresh_success_overwrites_the_row_as_before(tmp_path, monkeypatch):
+    engine, second = _answered_once_then(monkeypatch, tmp_path, _AnsweringDDGS)
+
+    assert second.stale is False
+    assert "stale" not in second.dict()
+    assert [item.url for item in second.results] == ["https://example.org/answer"]
+    # The row is fresh again, so the next run is an ordinary cache hit.
+    monkeypatch.setattr("josty.engine.DDGS", _BlockedDDGS)
+    third = asyncio.run(engine.search_run("q", limit=5))
+    assert third.cached is True
+    assert third.stale is False
+    assert len(third.results) == 1
+
+
+def test_stale_run_survives_the_cache_roundtrip(tmp_path, monkeypatch):
+    _, second = _answered_once_then(monkeypatch, tmp_path, _BlockedDDGS)
+
+    restored = _search_run_from_dict(second.dict())
+
+    assert (restored.stale, restored.age_seconds) == (True, second.age_seconds)
+    assert [item.url for item in restored.results] == ["https://example.org/answer"]
+
+
 def test_search_cache_ttl_expiration(tmp_path):
     cache_file = tmp_path / "test_cache_ttl.db"
     cache = SearchCache(cache_file, default_ttl=0.01)

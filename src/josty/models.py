@@ -228,6 +228,10 @@ class SearchRun:
     fetch_attempted: int = 0
     fetch_ok: int = 0
     fetch_failed: int = 0
+    #: True when the rows are an expired cached answer, served because no engine
+    #: answered this run (#104). The providers are always this run's own.
+    stale: bool = False
+    age_seconds: float | None = None
 
     @property
     def provider_count(self) -> int:
@@ -327,4 +331,8 @@ class SearchRun:
         }
         if self.run_at is not None:
             payload["run_at"] = self.run_at
+        if self.stale:
+            # Only on a stale run: every other payload stays the 1.0 envelope.
+            payload["stale"] = True
+            payload["age_seconds"] = self.age_seconds
         return payload

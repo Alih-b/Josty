@@ -634,6 +634,45 @@ class Josty:
         statuses = await asyncio.gather(*(self._probe_host(name, host) for name, host in targets))
         return DiagnoseRun(providers=[*statuses, *skipped])
 
+    #: Provider kinds that mean no answer arrived. With zero results and one of
+    #: these, the expired answer to the same query beats an empty page (#104).
+    UNANSWERED_KINDS = frozenset({"rate_limited", "blocked", "network", "filtered", "geo"})
+
+    @classmethod
+    def _unanswered(cls, run: SearchRun) -> bool:
+        """True when a result-less run failed to get an answer, rather than getting none."""
+        return any(provider.error_kind in cls.UNANSWERED_KINDS for provider in run.providers)
+
+    async def _serve_stale(
+        self, cache_key: str, fresh: SearchRun, *, fetch: bool
+    ) -> SearchRun | None:
+        """Put the expired cached rows on ``fresh``, marked stale (#104).
+
+        The providers, the accounting and the statuses stay this run's, so the
+        caller sees both what was found earlier and why nothing is fresh. A
+        genuine empty run never gets here, and rows are never merged.
+        """
+        if self.cache is None:
+            return None
+        stale = self.cache.get_stale(cache_key)
+        if stale is None:
+            return None
+        payload, age_seconds = stale
+        try:
+            old = _search_run_from_dict(payload)
+        except Exception:
+            return None
+        if not old.results:
+            return None
+        fresh.results = old.results
+        fresh.stale = True
+        fresh.age_seconds = age_seconds
+        if fetch and any(result.content is None for result in fresh.results):
+            # The cached payload is SERP-only; rehydrate page content on demand.
+            await self.fetch_content(fresh.results)
+            _stamp_fetch_stats(fresh, requested=True)
+        return fresh
+
     async def research_run(
         self,
         query: str,
@@ -794,6 +833,11 @@ class Josty:
             **fanout.accounting(),
         )
         _stamp_fetch_stats(run, requested=fetch)
+        if cache_key and not run.results and self._unanswered(run):
+            # No engine answered, but this query was answered before (#104).
+            stale = await self._serve_stale(cache_key, run, fetch=fetch)
+            if stale is not None:
+                return stale
         if (
             cache_key
             and self.enable_cache
