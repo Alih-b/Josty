@@ -13,7 +13,6 @@ import pytest
 
 from josty.branch import IssueContext, SearchCall
 from josty.fanout import _FanoutLedger
-from josty.models import SearchResult
 from josty.providers import MwmblSearchAdapter
 
 BODY = {
@@ -160,8 +159,8 @@ def test_issue_drops_a_row_whose_url_is_not_a_usable_string(monkeypatch, url):
     assert outcome.results == []
 
 
-def test_the_default_roster_queries_mwmbl_but_keeps_primary_results(monkeypatch):
-    """Pins the integration the adapter alone cannot: roster, dispatch, fallback."""
+def test_the_default_roster_queries_mwmbl_and_fuses_its_rows(monkeypatch):
+    """Pins the integration the adapter alone cannot: roster, dispatch, fusion."""
     from josty import Josty
 
     class FakeDDGS:
@@ -188,9 +187,9 @@ def test_the_default_roster_queries_mwmbl_but_keeps_primary_results(monkeypatch)
     assert run.request_count == 6
     assert run.scheduled_count == 6
     assert run.shed_count == 0
-    # A primary engine answered, so the fallback source's rows are not fused:
-    # the order above it is exactly what it would be without the source.
-    assert "mwmbl" not in {source for r in run.results for source in r.sources}
+    # Its rows fuse like any other engine's (#105): an index that answered
+    # counts, so there is nothing to gain from asking it and dropping the answer.
+    assert "mwmbl" in {source for r in run.results for source in r.sources}
 
 
 def test_mwmbl_rows_answer_a_run_the_primary_engines_left_empty(monkeypatch):
@@ -221,23 +220,6 @@ def test_mwmbl_rows_answer_a_run_the_primary_engines_left_empty(monkeypatch):
     ]
     assert all(r.sources == ["mwmbl"] for r in run.results)
     assert run.request_count == 6
-
-
-def test_prefer_primary_drops_a_fallback_list_only_when_a_primary_has_rows():
-    from josty.ranking import prefer_primary
-
-    def item(url: str, source: str) -> SearchResult:
-        return SearchResult(title="t", url=url, sources=[source])
-
-    primary = [item("https://example.com/a", "yahoo")]
-    fallback = [item("https://example.org/b", "mwmbl")]
-
-    assert prefer_primary([primary, fallback], frozenset({"mwmbl"})) == [primary]
-    assert prefer_primary([fallback], frozenset({"mwmbl"})) == [fallback]
-    assert prefer_primary([primary], frozenset({"mwmbl"})) == [primary]
-    assert prefer_primary([], frozenset({"mwmbl"})) == []
-    # No fallback configured: nothing is ever dropped.
-    assert prefer_primary([primary, fallback], frozenset()) == [primary, fallback]
 
 
 @pytest.mark.parametrize("field", ["title", "content", "extract"])

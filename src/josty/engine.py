@@ -37,7 +37,6 @@ from .providers import (
 from .ranking import (
     _site_matches,
     normalize_sites,
-    prefer_primary,
     rrf,
 )
 from .status import (
@@ -72,11 +71,6 @@ class Josty:
     #: registry. They bypass the registry availability gate in ``diagnose_run``;
     #: the adapter's own ``precheck`` decides whether a call may be attempted.
     NATIVE_BACKENDS = frozenset({"mwmbl", "wikipedia"})
-
-    #: Sources that only answer a run the primary engines left empty. They are
-    #: queried every run, but their rows are fused only when no primary list has
-    #: results (see ``ranking.prefer_primary``).
-    FALLBACK_BACKENDS = frozenset({"mwmbl"})
 
     BACKEND_HOSTS = {
         "bing": "www.bing.com",
@@ -824,10 +818,7 @@ class Josty:
             # the pool, so the run reports the ghosts instead of hiding them.
             await fanout.close()
         results = self._filter_sites(
-            rrf(
-                prefer_primary(lists, self.FALLBACK_BACKENDS),
-                profile=effective_profile,
-            ),
+            rrf(lists, profile=effective_profile),
             normalized_sites,
         )[:limit]
         if fetch:
