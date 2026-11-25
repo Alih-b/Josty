@@ -14,6 +14,19 @@ from .ranking import canonical
 from .status import ErrorKind
 
 
+class ProviderError(Exception):
+    """A failure whose kind the adapter knows without any classification.
+
+    A native source sees things the exception types cannot say: Wikipedia's
+    ``list=search`` API reporting hits and returning no rows is a parse
+    problem, not "nothing found" (#102). ``error_kind`` is final.
+    """
+
+    def __init__(self, error_kind: ErrorKind, message: str) -> None:
+        super().__init__(message)
+        self.error_kind = error_kind
+
+
 def _classify_probe_error(exc: Exception) -> str:
     if isinstance(exc, httpx.TimeoutException):
         return "timeout"
@@ -259,6 +272,8 @@ def _classify_search_error(
     ``filtered`` whatever ddgs wrote, and a zero-row call is whatever the status
     said. Without facts the message alone decides, as before.
     """
+    if isinstance(exc, ProviderError):
+        return exc.error_kind
     if facts is not None and _is_filtered(facts):
         return "filtered"
     if isinstance(exc, TimeoutException):

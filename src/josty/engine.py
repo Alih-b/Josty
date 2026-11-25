@@ -28,7 +28,12 @@ from .errors import _classify_probe_error
 from .fanout import Fanout, Plan
 from .fetch import FETCH_HEADERS, download, extract, is_ad_redirect, validate_public_url
 from .models import DiagnoseRun, HostStatus, ProviderStatus, SearchResult, SearchRun
-from .providers import DdgsSearchAdapter, GithubSearchAdapter, MwmblSearchAdapter
+from .providers import (
+    DdgsSearchAdapter,
+    GithubSearchAdapter,
+    MwmblSearchAdapter,
+    WikipediaSearchAdapter,
+)
 from .ranking import (
     _site_matches,
     normalize_sites,
@@ -66,7 +71,7 @@ class Josty:
     #: Backends Josty calls itself instead of through the installed ``ddgs``
     #: registry. They bypass the registry availability gate in ``diagnose_run``;
     #: the adapter's own ``precheck`` decides whether a call may be attempted.
-    NATIVE_BACKENDS = frozenset({"mwmbl"})
+    NATIVE_BACKENDS = frozenset({"mwmbl", "wikipedia"})
 
     #: Sources that only answer a run the primary engines left empty. They are
     #: queried every run, but their rows are fused only when no primary list has
@@ -368,6 +373,12 @@ class Josty:
             return await fanout.runner().run(
                 call,
                 MwmblSearchAdapter(timeout=self.timeout, user_agent=USER_AGENT),
+            )
+        if call.backend == "wikipedia":
+            # Same shape as mwmbl: a native source admitted like any other (#102).
+            return await fanout.runner().run(
+                call,
+                WikipediaSearchAdapter(timeout=self.timeout, user_agent=USER_AGENT),
             )
         if call.backend == "github-api":
             return await self.github_run(call.query, call.limit, fanout=fanout)

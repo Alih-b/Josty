@@ -14,16 +14,18 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import html
+import re
 import socket
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 import httpx
 
 from .branch import IssueContext, IssueOutcome, SearchCall
-from .errors import _is_challenge_page
+from .errors import ProviderError, _is_challenge_page
 from .fetch import is_ad_redirect
 from .models import SearchResult, WireFacts, WireResponse
 from .status import SearchCategory
@@ -317,6 +319,126 @@ class MwmblSearchAdapter:
                 rank += 1
                 if rank > call.limit:
                     break
+            latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+            return IssueOutcome(results, latency_ms, None)
+        except Exception as exc:
+            latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+            return IssueOutcome([], latency_ms, exc)
+
+
+#: Wikipedia's ``list=search`` API: keyless JSON, a full-text search. ddgs reaches
+#: the wiki through ``action=opensearch`` instead, which matches title prefixes
+#: with ``limit=1``.
+WIKIPEDIA_SEARCH_URL = "https://en.wikipedia.org/w/api.php"
+_WIKI_TITLE_URL = "https://en.wikipedia.org/wiki/"
+_SEARCHMATCH_TAG_RE = re.compile(r"<[^>]*>")
+
+
+class WikipediaSearchAdapter:
+    """English Wikipedia's keyless ``list=search`` API.
+
+    ddgs asks ``action=opensearch``, which matches title prefixes only: "python
+    asyncio timeout" is a miss of that index and reads as "not found".
+    ``list=search`` is a full-text search, and ``searchinfo.totalhits`` settles
+    what an empty page means: 0 is a real miss, a positive count with no rows is
+    a parse problem. The API takes no date, region or safe-search parameter, so
+    :meth:`precheck` refuses a call whose filter it cannot honour.
+    """
+
+    provider: str = "wikipedia"
+
+    def __init__(self, *, timeout: float, user_agent: str) -> None:
+        self._timeout = timeout
+        self._user_agent = user_agent
+
+    def precheck(self, call: SearchCall) -> str | None:
+        """Refuse a call whose filter this API cannot honour, or None to proceed."""
+        if call.category != "text":
+            return "skipped: wikipedia serves web search only, not news"
+        if call.timelimit is not None:
+            return "skipped: wikipedia does not support time-limited search"
+        if call.region is not None:
+            return "skipped: wikipedia is English-only and ignores region selection"
+        if call.safesearch == "on":
+            return "skipped: wikipedia has no safe-search filter"
+        return None
+
+    async def _request(self, client: httpx.AsyncClient, query: str) -> object:
+        """The one wire call; the single test seam for this source."""
+        response = await client.get(
+            WIKIPEDIA_SEARCH_URL,
+            params={
+                "action": "query",
+                "list": "search",
+                "format": "json",
+                "srlimit": 10,
+                "srsearch": query,
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def _fetch(self, query: str, budget: float, headers: dict[str, str]) -> object:
+        async with httpx.AsyncClient(
+            timeout=budget, headers=headers, follow_redirects=False, trust_env=False
+        ) as client:
+            return await self._request(client, query)
+
+    async def issue(self, call: SearchCall, ctx: IssueContext) -> IssueOutcome:
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": self._user_agent,
+        }
+        t0 = time.perf_counter()
+        try:
+            # The one request site: counted immediately before the call so the
+            # ledger measures calls issued, not tasks scheduled.
+            ctx.ledger.record()
+            body = await asyncio.wait_for(
+                self._fetch(call.query, min(self._timeout, ctx.budget), headers),
+                timeout=ctx.budget,
+            )
+            # Every field that reaches the models is checked: a shape variant
+            # must not raise on the path to stdout.
+            page = body.get("query") if isinstance(body, dict) else None
+            page = page if isinstance(page, dict) else {}
+            info = page.get("searchinfo")
+            total = info.get("totalhits") if isinstance(info, dict) else None
+            rows = page.get("search")
+            results = []
+            rank = 1
+            for row in rows if isinstance(rows, list) else []:
+                title = row.get("title") if isinstance(row, dict) else None
+                if not isinstance(title, str) or not title:
+                    continue
+                snippet = row.get("snippet")
+                if isinstance(snippet, str):
+                    # The API highlights the match with span tags and escapes
+                    # entities; a snippet is plain text.
+                    snippet = html.unescape(_SEARCHMATCH_TAG_RE.sub("", snippet))
+                else:
+                    snippet = ""
+                results.append(
+                    SearchResult(
+                        title=title,
+                        # What the API's own links leave unescaped, besides "/".
+                        url=_WIKI_TITLE_URL
+                        + quote(title.replace(" ", "_"), safe="/!" + "'()*,:;=@&"),
+                        snippet=snippet,
+                        sources=["wikipedia"],
+                        engine_ranks={"wikipedia": rank},
+                    )
+                )
+                rank += 1
+                if rank > call.limit:
+                    break
+            if not results and total != 0:
+                # searchinfo.totalhits settles what the empty page means: 0 is a
+                # certified miss; anything else, including "absent", is not.
+                raise ProviderError(
+                    "parse",
+                    f"wikipedia: searchinfo.totalhits={total!r} but no rows returned",
+                )
             latency_ms = round((time.perf_counter() - t0) * 1000, 2)
             return IssueOutcome(results, latency_ms, None)
         except Exception as exc:
