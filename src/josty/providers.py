@@ -14,20 +14,88 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import socket
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 import httpx
 
 from .branch import IssueContext, IssueOutcome, SearchCall
+from .errors import _is_challenge_page
 from .fetch import is_ad_redirect
-from .models import SearchResult
+from .models import SearchResult, WireFacts, WireResponse
 from .status import SearchCategory
 
 if TYPE_CHECKING:
     from .fanout import _FanoutLedger
     from .lease import LeasePool
+
+
+class _WireTap:
+    """Records what the engines behind one ddgs call actually got back (#99).
+
+    ddgs answers every non-200 with ``None`` and a flat "No results found.". The
+    tap wraps the HTTP client of each engine the call will use, so the status,
+    the body size and whether the body is an interstitial survive to
+    classification. It is installed on the call's own engine instances (Josty
+    builds a fresh DDGS client per call), so nothing here is shared between
+    threads. Every seam it touches is private to ddgs and pinned by a compat
+    test; a client without the seam (the suite's doubles) is simply not tapped.
+    """
+
+    def __init__(self) -> None:
+        self.facts = WireFacts()
+
+    def install(self, ddgs: Any, call: SearchCall) -> None:
+        """Tap every engine the call will use. Never raises: no seam, no tap."""
+        try:
+            get_engines = getattr(ddgs, "_get_engines", None)
+            if get_engines is None:
+                return
+            for engine in get_engines(call.category, call.backend):
+                http_client = getattr(engine, "http_client", None)
+                request = getattr(http_client, "request", None)
+                if request is not None:
+                    http_client.request = self._recording(request)
+        except Exception:
+            return
+
+    def _recording(self, request: Callable[..., Any]) -> Callable[..., Any]:
+        """A drop-in for ``HttpClient.request`` that notes what comes back."""
+
+        def tapped(*args: Any, **kwargs: Any) -> Any:
+            url = args[1] if len(args) > 1 else kwargs.get("url")
+            host = urlsplit(str(url)).hostname if url else None
+            if host and self.facts.host is None:
+                self.facts.host = host
+            response = request(*args, **kwargs)
+            status = getattr(response, "status_code", None)
+            if isinstance(status, int):
+                body = getattr(response, "text", None)
+                size = getattr(response, "content", None)
+                text = body if isinstance(body, str) else ""
+                self.facts.responses.append(
+                    WireResponse(
+                        status,
+                        len(size) if isinstance(size, (bytes, bytearray)) else len(text),
+                        status == 200 and _is_challenge_page(text),
+                    )
+                )
+            return response
+
+        return tapped
+
+    def note_silence(self) -> WireFacts:
+        """Explain a call that got no HTTP response: where did its host resolve?"""
+        if self.facts.host and not self.facts.responses:
+            try:
+                infos = socket.getaddrinfo(self.facts.host, 443, type=socket.SOCK_STREAM)
+            except OSError:
+                infos = []
+            self.facts.resolved = tuple(dict.fromkeys(info[4][0] for info in infos))
+        return self.facts
 
 
 class DdgsSearchAdapter:
@@ -59,7 +127,7 @@ class DdgsSearchAdapter:
         lease_id = ctx.lease.lease_id if ctx.lease is not None else None
         t_start = time.perf_counter()
         try:
-            results, latency_ms, exc = await asyncio.wait_for(
+            results, latency_ms, exc, wire = await asyncio.wait_for(
                 asyncio.get_running_loop().run_in_executor(
                     ctx.executor,
                     functools.partial(
@@ -81,7 +149,7 @@ class DdgsSearchAdapter:
             # finally, and that release is idempotent.
             latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
             return IssueOutcome([], latency_ms, exc, lease_retained=True)
-        return IssueOutcome(results, latency_ms, exc)
+        return IssueOutcome(results, latency_ms, exc, wire=wire)
 
     def _worker(
         self,
@@ -90,14 +158,18 @@ class DdgsSearchAdapter:
         ledger: _FanoutLedger,
         pool: LeasePool | None,
         lease_id: int | None,
-    ) -> tuple[list[SearchResult], float, Exception | None]:
+    ) -> tuple[list[SearchResult], float, Exception | None, WireFacts | None]:
         """One blocking engine call, run on a worker thread.
+
+        The fourth element is what the wire said (#99), or None when the client
+        offers no seam to tap.
 
         Always retires its own lease, including on the exception path. The release
         is idempotent, so returning *after* the arbiter already reaped this lease
         as a ghost is a safe no-op rather than a double free.
         """
         t0 = time.perf_counter()
+        tap = _WireTap()
         try:
             # A fresh DDGS client per call is deliberate, not waste:
             # ddgs engine instances carry a shared cached_property lxml
@@ -106,6 +178,8 @@ class DdgsSearchAdapter:
             # engine parse HTML on one parser — the same C-level
             # corruption class already fixed for trafilatura extraction.
             ddgs = self._client_factory(timeout=self._timeout)
+            # See what the engines get back; ddgs itself will not say (#99).
+            tap.install(ddgs, call)
             method = ddgs.news if call.category == "news" else ddgs.text
             kwargs: dict[str, Any] = {
                 "backend": call.backend,
@@ -137,9 +211,11 @@ class DdgsSearchAdapter:
                         )
                     )
                     rank += 1
-            return results, round((time.perf_counter() - t0) * 1000, 2), None
+            latency = round((time.perf_counter() - t0) * 1000, 2)
+            return results, latency, None, tap.facts
         except Exception as exc:
-            return [], round((time.perf_counter() - t0) * 1000, 2), exc
+            latency = round((time.perf_counter() - t0) * 1000, 2)
+            return [], latency, exc, tap.note_silence()
         finally:
             if pool is not None and lease_id is not None:
                 pool.release(lease_id)

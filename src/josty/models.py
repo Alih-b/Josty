@@ -91,9 +91,69 @@ class ProviderStatus:
     circuit_state: str | None = None
     failures: int | None = None
     backoff_remaining: float | None = None
+    # What the wire said (#99), when Josty could see it. None when no HTTP
+    # response was observed: a timeout, a refused call, or a source without a tap.
+    http_status: int | None = None
+    body_bytes: int | None = None
+    #: Share of the engine's wire-reaching calls (all its variants) that got a
+    #: non-200. ddgs issues one HTTP request per call, so calls and sub-requests
+    #: coincide. None when no call reached the wire.
+    refusal_rate: float | None = None
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class WireResponse:
+    """One HTTP response an adapter observed behind a provider call."""
+
+    status_code: int
+    body_bytes: int
+    #: True when a 200 body is an interstitial (captcha, Anubis, Cloudflare).
+    challenged: bool = False
+
+
+@dataclass
+class WireFacts:
+    """What the HTTP exchange behind one provider call actually said (#99).
+
+    ddgs answers every non-200 with ``None`` and a flat "No results found.", so
+    a 429, a block page and a genuine miss were indistinguishable. An adapter
+    that can see the wire fills this in; :mod:`josty.errors` reads it.
+    """
+
+    #: Every HTTP response of the call, in wire order.
+    responses: list[WireResponse] = field(default_factory=list)
+    #: Host the call asked, once its first request went out.
+    host: str | None = None
+    #: Addresses the host resolved to when nothing came back; empty otherwise.
+    resolved: tuple[str, ...] = ()
+
+    @property
+    def http_status(self) -> int | None:
+        """The first non-200 of the call, else the first response's status."""
+        refused = [
+            response.status_code
+            for response in self.responses
+            if response.status_code != 200
+        ]
+        if refused:
+            return refused[0]
+        return self.responses[0].status_code if self.responses else None
+
+    @property
+    def body_bytes(self) -> int | None:
+        """Size of the largest body of the call."""
+        return max((response.body_bytes for response in self.responses), default=None)
+
+    @property
+    def refusal_rate(self) -> float | None:
+        """Share of the call's HTTP sub-requests that were not a 200."""
+        if not self.responses:
+            return None
+        refused = sum(1 for response in self.responses if response.status_code != 200)
+        return round(refused / len(self.responses), 3)
 
 
 @dataclass

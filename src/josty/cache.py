@@ -399,6 +399,16 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         cs = p.get("circuit_state")
         if cs not in ("closed", "open", "half-open"):
             cs = "closed" if cs is not None else None
+        # Wire evidence (#99) is additive: a row cached before it carries no such
+        # key and reads back as None, same as a call that never saw a response.
+        wire: dict[str, Any] = {}
+        for key, cast in (("http_status", int), ("body_bytes", int), ("refusal_rate", float)):
+            try:
+                wire[key] = cast(p[key]) if p.get(key) is not None else None
+            except (ValueError, TypeError):
+                wire[key] = None
+        if wire["refusal_rate"] is not None and not math.isfinite(wire["refusal_rate"]):
+            wire["refusal_rate"] = None
         providers.append(
             ProviderStatus(
                 provider=str(p.get("provider", "")),
@@ -411,6 +421,7 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
                 circuit_state=cs,
                 failures=fails,
                 backoff_remaining=bo,
+                **wire,
             )
         )
 

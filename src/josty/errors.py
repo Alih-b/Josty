@@ -9,7 +9,7 @@ import ssl
 import httpx
 from ddgs.exceptions import DDGSException, RatelimitException, TimeoutException
 
-from .models import ProviderStatus, SearchResult
+from .models import ProviderStatus, SearchResult, WireFacts
 from .ranking import canonical
 from .status import ErrorKind
 
@@ -63,10 +63,52 @@ _ERROR_KIND_SEVERITY: dict[str | None, int] = {
     "unknown": 2,
     "parse": 3,
     "network": 4,
+    "filtered": 4,
     "rate_limited": 5,
     "blocked": 5,
+    "geo": 5,
 }
-_FAILURE_ERROR_KINDS = frozenset({"unknown", "parse", "network", "rate_limited", "blocked"})
+_FAILURE_ERROR_KINDS = frozenset(
+    {"unknown", "parse", "network", "filtered", "rate_limited", "blocked", "geo"}
+)
+
+# -- wire evidence (#99) ---------------------------------------------------------
+# ddgs answers every non-200 with None and a flat "No results found.", so the
+# status itself decides what a zero-row call was. 503 sits with the blocks: an
+# engine behind an anti-bot wall says "service unavailable" to a client it
+# refuses, not to one it cannot serve.
+_BLOCKED_HTTP_STATUSES = frozenset({202, 401, 403, 503})
+#: A 200 body larger than this that parsed to zero rows is a parser miss, not an
+#: index miss: a real "nothing found" page is small (Yahoo's second markup
+#: variant arrives at 145 KB).
+_PARSE_BODY_BYTES = 100_000
+# Addresses a public search host only resolves to when a carrier's DNS filter
+# answers for it; the connection then dies before any HTTP response (the
+# Iran-direct Startpage route, 2026-11-26). Extend only from a capture.
+_FILTER_SINKHOLES = frozenset({"10.10.34.36", "2001:4188:2:600:10:10:34:36"})
+# Hosts whose 403 is a country decision, established by a two-egress probe
+# (HN Algolia: 403 from Iran direct, 8/10 answered through a GB VPN). One 403
+# alone is never read as geo: Google's is a wall for everyone.
+_GEO_BLOCKED_HOSTS = frozenset({"hn.algolia.com"})
+# An interstitial is recognised by its title or by challenge-specific markup.
+# A bare "captcha" or "challenge" substring is not evidence: real result pages
+# carry both words in snippets and script names.
+_CHALLENGE_TITLE_RE = re.compile(
+    r"<title[^>]*>[^<]*(?:captcha|just a moment|attention required|access denied|"
+    r"blocked|forbidden|are you human|not a bot|security check|one more step|"
+    r"verifying (?:your|you are))[^<]*</title>",
+    re.IGNORECASE,
+)
+_CHALLENGE_MARKUP_RE = re.compile(
+    r"g-recaptcha|h-captcha|hcaptcha\.com|cf-chl|cf-turnstile|challenge-platform"
+    r"|anubis_puzzle|anubis_challenge",
+    re.IGNORECASE,
+)
+
+
+def _is_challenge_page(body: str) -> bool:
+    """True when a 200 body is an interstitial (captcha, Anubis, Cloudflare)."""
+    return bool(_CHALLENGE_TITLE_RE.search(body) or _CHALLENGE_MARKUP_RE.search(body))
 
 
 def _aggregate_engine_status(
@@ -118,6 +160,20 @@ def _aggregate_engine_status(
     # from per-variant snapshots (they run concurrently, so snapshot order is
     # not recency): Fanout.search (fanout.py) stamps them from a fresh
     # breaker.get_state() after the gather.
+    # Wire evidence (#99). The witness is the refused variant that set error_kind,
+    # else the largest answered body, so http_status/body_bytes always belong to
+    # the status a reader sees. refusal_rate is the share of the engine's
+    # wire-reaching calls that got a non-200.
+    seen = [status for status in statuses if status.http_status is not None]
+    witnesses = [status for status in failures if status.http_status is not None]
+    if witnesses:
+        witness = max(
+            witnesses, key=lambda status: _ERROR_KIND_SEVERITY.get(status.error_kind, -1)
+        )
+    elif seen:
+        witness = max(seen, key=lambda status: status.body_bytes or 0)
+    else:
+        witness = None
     return ProviderStatus(
         provider,
         query,
@@ -126,10 +182,69 @@ def _aggregate_engine_status(
         error=error,
         error_kind=error_kind,
         latency_ms=latency_ms,
+        http_status=witness.http_status if witness else None,
+        body_bytes=witness.body_bytes if witness else None,
+        refusal_rate=(
+            round(sum(1 for status in seen if status.http_status != 200) / len(seen), 3)
+            if seen
+            else None
+        ),
     )
 
 
-def _classify_search_error(exc: BaseException) -> ErrorKind:
+def _is_filtered(facts: WireFacts) -> bool:
+    """True when nothing came back and the host resolved into a filter sinkhole.
+
+    A block page that arrives over HTTP is ``blocked``, never ``filtered``: the
+    host answered, so the path to it is open.
+    """
+    return not facts.responses and bool(set(facts.resolved) & _FILTER_SINKHOLES)
+
+
+def _zero_row_kind(facts: WireFacts) -> ErrorKind | None:
+    """Kind of a call that parsed no rows, judged by what the wire said.
+
+    None when the wire has nothing to say (no HTTP response was observed).
+    """
+    if not facts.responses:
+        return None
+    codes = {response.status_code for response in facts.responses}
+    if 429 in codes:
+        return "rate_limited"
+    if codes & _BLOCKED_HTTP_STATUSES:
+        if 403 in codes and facts.host in _GEO_BLOCKED_HOSTS:
+            return "geo"
+        return "blocked"
+    if any(500 <= code < 600 for code in codes):
+        return "network"
+    if codes - {200}:
+        return "parse"
+    if any(response.challenged for response in facts.responses):
+        return "blocked"
+    if (facts.body_bytes or 0) > _PARSE_BODY_BYTES:
+        return "parse"
+    return "empty"
+
+
+def _describe_failure(exc: BaseException, facts: WireFacts | None, kind: ErrorKind) -> str:
+    """The failure text: ddgs's exception, prefixed by what the wire said."""
+    base = f"{type(exc).__name__}: {exc}"
+    if facts is None:
+        return base
+    if kind == "filtered":
+        where = ", ".join(facts.resolved)
+        return f"no HTTP response from {facts.host}; resolved to {where} ({base})"
+    if facts.http_status is not None:
+        return (
+            f"HTTP {facts.http_status} from {facts.host} ({facts.body_bytes} bytes), "
+            f"0 rows parsed ({base})"
+        )
+    return base
+
+
+def _classify_search_error(
+    exc: BaseException, facts: WireFacts | None = None
+) -> ErrorKind:
     """Map a ddgs-side (or GitHub-API) exception to an error_kind category.
 
     Status codes are classified first. Message tokens are word-boundary matched
@@ -138,7 +253,14 @@ def _classify_search_error(exc: BaseException) -> ErrorKind:
     backend must not be treated as throttling. ddgs 9.15.0 wraps engine
     exceptions in a flat ``DDGSException`` whose ``str`` contains the original
     exception's repr but does not chain ``__cause__``/``__context__``.
+
+    ``facts`` is what the adapter saw on the wire (#99). It outranks the message
+    tokens where it can: a host that resolved into a filter sinkhole is
+    ``filtered`` whatever ddgs wrote, and a zero-row call is whatever the status
+    said. Without facts the message alone decides, as before.
     """
+    if facts is not None and _is_filtered(facts):
+        return "filtered"
     if isinstance(exc, TimeoutException):
         return "network"
     if isinstance(exc, RatelimitException):
@@ -159,7 +281,9 @@ def _classify_search_error(exc: BaseException) -> ErrorKind:
     if isinstance(exc, DDGSException):
         text = str(exc).lower()
         if _EMPTY_RESULTS_MESSAGE in text:
-            return "empty"
+            if facts is None:
+                return "empty"
+            return _zero_row_kind(facts) or "empty"
         if _RATE_LIMIT_TOKEN_RE.search(text):
             return "rate_limited"
         if _BLOCKED_TOKEN_RE.search(text):
