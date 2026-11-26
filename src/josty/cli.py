@@ -93,6 +93,12 @@ def parser() -> argparse.ArgumentParser:
         default=Josty.DEFAULT_MAX_CONTENT_CHARS,
         help="cap extracted markdown length per page (default: %(default)d, 0 for unlimited)",
     )
+    command.add_argument(
+        "--allow-fake-ip",
+        action="store_true",
+        help="let page fetch reach 198.18.0.0/15, the fake-IP range of proxy and VPN "
+        "clients (same as JOSTY_ALLOW_FAKE_IP=1); everything else stays blocked",
+    )
     return command
 
 
@@ -122,6 +128,12 @@ def fetch_parser() -> argparse.ArgumentParser:
         default=None,
         help="max number of results to fetch",
     )
+    cmd.add_argument(
+        "--allow-fake-ip",
+        action="store_true",
+        help="let page fetch reach 198.18.0.0/15, the fake-IP range of proxy and VPN "
+        "clients (same as JOSTY_ALLOW_FAKE_IP=1); everything else stays blocked",
+    )
     return cmd
 
 
@@ -135,6 +147,7 @@ async def run_fetch(args: argparse.Namespace) -> dict | list:
         max_fetch_concurrency=args.fetch_concurrency,
         max_content_chars=args.max_content_chars,
         enable_cache=False,
+        allow_fake_ip=True if args.allow_fake_ip else None,
     )
 
     if raw_input.startswith("{"):
@@ -238,6 +251,7 @@ async def run(args: argparse.Namespace) -> dict | list | SearchRun:
         max_query_variants=args.max_query_variants,
         profile=args.profile,
         enable_cache=not args.no_cache,
+        allow_fake_ip=True if args.allow_fake_ip else None,
     )
     if args.diagnose:
         return (

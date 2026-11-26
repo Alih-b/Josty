@@ -53,6 +53,7 @@ python3 -m pip install --user josty
 | `--max-query-variants <n>` | Positive integer | Caps query variant fanout across mode and site combinations. |
 | `--fetch` | Boolean flag | Download and extract bounded text using Trafilatura for top results. |
 | `--max-content-chars <n>` | Default: 8000 | Caps extracted markdown length per page (0 disables cap). |
+| `--allow-fake-ip` | Boolean flag | Let page fetch reach `198.18.0.0/15`, the fake-IP range of proxy and VPN clients (same as `JOSTY_ALLOW_FAKE_IP=1`). Everything else non-public stays blocked. |
 | `--profile <p>` | `general`, `dev` | Multiplier boosting authoritative technical and documentation domains. |
 | `--category <c>` | `text`, `news` | Text search or news search via `DDGS.news()`. |
 | `--time-limit <t>` | `d`, `w`, `m`, `y` | Restrict results by publication timeframe. |
