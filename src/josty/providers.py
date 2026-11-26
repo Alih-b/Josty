@@ -56,10 +56,8 @@ def _yahoo_variant_rows(body: str) -> list[dict[str, Any]]:
     Fitted to the capture, never invented. Ads and the AI and knowledge modules
     carry no /RU= redirect and are dropped.
     """
-    try:
-        import lxml.html
-    except ImportError:  # pragma: no cover - lxml is a ddgs dependency
-        return []
+    import lxml.html
+
     try:
         document = lxml.html.fromstring(body)
     except Exception:
@@ -111,15 +109,10 @@ class _WireTap:
     def install(self, ddgs: Any, call: SearchCall) -> None:
         """Tap every engine the call will use. Never raises: no seam, no tap."""
         try:
-            get_engines = getattr(ddgs, "_get_engines", None)
-            if get_engines is None:
-                return
-            for engine in get_engines(call.category, call.backend):
-                http_client = getattr(engine, "http_client", None)
-                request = getattr(http_client, "request", None)
-                if request is not None:
-                    http_client.request = self._recording(request)
+            for engine in ddgs._get_engines(call.category, call.backend):
+                engine.http_client.request = self._recording(engine.http_client.request)
         except Exception:
+            # No seam (the suite's doubles) or a ddgs that moved it: no tap.
             return
 
     def _recording(self, request: Callable[..., Any]) -> Callable[..., Any]:
@@ -338,17 +331,21 @@ class MwmblSearchAdapter:
     def precheck(self, call: SearchCall) -> str | None:
         """Refuse a call whose filter this API cannot honour, or None to proceed."""
         if call.category != "text":
-            return "skipped: mwmbl serves web search only, not news"
+            return "not applicable: mwmbl serves web search only, not news"
         if call.timelimit is not None:
-            return "skipped: mwmbl does not support time-limited search"
+            return "not applicable: mwmbl does not support time-limited search"
         if call.region is not None:
-            return "skipped: mwmbl does not support region selection"
+            return "not applicable: mwmbl does not support region selection"
         if call.safesearch == "on":
             # "on" is a strict request. At the permissive "moderate" default this
             # source is no different from the installed duckduckgo, yahoo,
             # grokipedia and wikipedia engines, which take no safe-search
             # parameter either and are queried anyway.
-            return "skipped: mwmbl has no safe-search filter"
+            return "not applicable: mwmbl has no safe-search filter"
+        if call.query.startswith("site:"):
+            # The API has no site: operator. Asked anyway, it reports "nothing on
+            # that site", which is not something it looked at.
+            return "not applicable: mwmbl cannot honour a site: filter"
         return None
 
     async def _request(self, client: httpx.AsyncClient, query: str) -> object:
@@ -445,13 +442,17 @@ class WikipediaSearchAdapter:
     def precheck(self, call: SearchCall) -> str | None:
         """Refuse a call whose filter this API cannot honour, or None to proceed."""
         if call.category != "text":
-            return "skipped: wikipedia serves web search only, not news"
+            return "not applicable: wikipedia serves web search only, not news"
         if call.timelimit is not None:
-            return "skipped: wikipedia does not support time-limited search"
+            return "not applicable: wikipedia does not support time-limited search"
         if call.region is not None:
-            return "skipped: wikipedia is English-only and ignores region selection"
+            return "not applicable: wikipedia is English-only and ignores region selection"
         if call.safesearch == "on":
-            return "skipped: wikipedia has no safe-search filter"
+            return "not applicable: wikipedia has no safe-search filter"
+        if call.query.startswith("site:"):
+            # Full-text search has no site: operator; an empty answer would claim
+            # "nothing on that site", which is not something it looked at.
+            return "not applicable: wikipedia cannot honour a site: filter"
         return None
 
     async def _request(self, client: httpx.AsyncClient, query: str, limit: int) -> object:

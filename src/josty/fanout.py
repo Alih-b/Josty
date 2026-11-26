@@ -78,6 +78,8 @@ class Fanout:
         self._headroom = headroom
         self._clock = clock
         self._ledger = _FanoutLedger()
+        #: Engines the walk never asked (#105): reported, never issued, never failures.
+        self.untried: list[str] = []
         self._pool = LeasePool(
             capacity,
             lease_seconds=search_timeout + headroom,

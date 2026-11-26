@@ -7,7 +7,14 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
 from .fetch import text_quote
-from .status import DIAGNOSE_NOTE, SCHEMA_VERSION, ErrorKind, SearchStatus
+from .status import (
+    DIAGNOSE_NOTE,
+    PROBLEM_TYPE_BASE,
+    SCHEMA_VERSION,
+    ErrorKind,
+    SearchStatus,
+    index_of,
+)
 
 
 @dataclass
@@ -247,6 +254,19 @@ class DiagnoseRun:
         }
 
 
+@dataclass(frozen=True)
+class Absence:
+    """What a run without rows knows (#106).
+
+    ``novalue``: an engine answered and had nothing, so the index was asked.
+    ``somevalue``: no engine answered, so the page may exist unseen.
+    """
+
+    kind: Literal["novalue", "somevalue"]
+    asked: list[str]
+    answered: list[str]
+
+
 @dataclass
 class SearchRun:
     query: str
@@ -276,6 +296,11 @@ class SearchRun:
     #: answered this run (#104). The providers are always this run's own.
     stale: bool = False
     age_seconds: float | None = None
+    #: Engines the walk never asked (#105). Not failures: they were never issued.
+    untried: list[str] = field(default_factory=list)
+    #: The run's maker and its parameters, so more() can issue one more step
+    #: (#106). Never serialized.
+    _maker: Any = field(default=None, repr=False, compare=False)
 
     @property
     def provider_count(self) -> int:
@@ -315,8 +340,11 @@ class SearchRun:
         # A provider is a failed branch when its call failed outright, or when it
         # answered but an aggregated query variant failed (ok=true with a failure
         # error_kind). "empty" is a successful empty branch, not a failure.
+        # "not_applicable" is a source that cannot honour the call's filter (#105):
+        # never asked, so never a loss, unlike a skip by an open circuit.
         search_partial = any(
-            not provider.ok or provider.error_kind not in (None, "empty")
+            (not provider.ok and provider.error_kind != "not_applicable")
+            or provider.error_kind not in (None, "empty", "not_applicable")
             for provider in self.providers
         )
         # Fetch is a separate phase: a total extraction miss must not look like
@@ -341,6 +369,95 @@ class SearchRun:
         if not self.results:
             return SearchStatus.EMPTY
         return SearchStatus.COMPLETE
+
+    def __repr__(self) -> str:
+        """The agent's view (#108): a header, what did not answer, the top rows.
+
+        No JSON. At most two lines before the result lines, and one result line
+        per row, so the length follows --limit.
+        """
+        indexes = sorted({index_of(name) for result in self.results for name in result.sources})
+        header = f"{self.query} · {len(self.results)} results"
+        if indexes:
+            plural = "es" if len(indexes) != 1 else ""
+            header += f" · {len(indexes)} index{plural} ({', '.join(indexes)})"
+        if self.untried:
+            header += f" · {len(self.untried)} untried"
+        lines = [header]
+        silent = [
+            f"{p.provider} {p.error_kind}" + (f" {p.http_status}" if p.http_status else "")
+            for p in self.providers
+            if not p.ok
+        ]
+        if silent:
+            lines.append("no answer: " + ", ".join(silent))
+        for number, result in enumerate(self.results, 1):
+            found_by = len({index_of(name) for name in result.sources})
+            title = (result.title or result.url).replace("\n", " ")[:60]
+            lines.append(f"{number:>2} {'✓' * found_by} {title}   {', '.join(result.sources)}")
+        return "\n".join(lines)
+
+    def why(self, engine: str) -> dict[str, Any] | None:
+        """Why an engine did not contribute, as an RFC 9457 problem (#106).
+
+        None when it answered, or when the run never heard of it. The type ends
+        in a stable fragment per kind (#rate-limited, #blocked, #untried);
+        status is the HTTP status the wire saw, when it saw one.
+        """
+        if engine in self.untried:
+            kind, detail, status = "untried", "not asked: the walk stopped first", None
+        else:
+            provider = next((p for p in self.providers if p.provider == engine), None)
+            if provider is None or provider.ok:
+                return None
+            kind = provider.error_kind or "unknown"
+            detail, status = provider.error, provider.http_status
+        problem: dict[str, Any] = {
+            "type": f"{PROBLEM_TYPE_BASE}#{kind.replace('_', '-')}",
+            "title": "Engine did not answer",
+            "engine": engine,
+        }
+        if status is not None:
+            problem["status"] = status
+        if detail:
+            problem["detail"] = detail
+        return problem
+
+    def only(self, source: str) -> list[SearchResult]:
+        """Rows one source found: an engine's name, or the index it serves."""
+        return [
+            result
+            for result in self.results
+            if any(name == source or index_of(name) == source for name in result.sources)
+        ]
+
+    def agree(self, indexes: int = 2) -> list[SearchResult]:
+        """Rows that at least n distinct search indexes found. Usually few."""
+        return [
+            result
+            for result in self.results
+            if len({index_of(name) for name in result.sources}) >= indexes
+        ]
+
+    @property
+    def absent(self) -> Absence | None:
+        """Why there are no rows (#106); None when there are."""
+        if self.results:
+            return None
+        answered = [provider.provider for provider in self.providers if provider.ok]
+        asked = [provider.provider for provider in self.providers]
+        return Absence("novalue" if answered else "somevalue", asked, answered)
+
+    async def more(self) -> SearchRun | None:
+        """Ask the next engine the walk left out (#106).
+
+        This run is left as it is; the answer is a run of its own, carrying the
+        engines still untried. None when nothing is untried, or for a run that
+        came back from the cache.
+        """
+        if self._maker is None or not self.untried:
+            return None
+        return await self._maker[0]._more_of(self, self._maker[1])
 
     def dict(self) -> dict[str, Any]:
         payload = {
@@ -372,6 +489,7 @@ class SearchRun:
             },
             "providers": [provider.dict() for provider in self.providers],
             "results": [result.dict() for result in self.results],
+            "untried": list(self.untried),
         }
         if self.run_at is not None:
             payload["run_at"] = self.run_at

@@ -7,7 +7,7 @@ import sys
 
 from ._version import __version__
 from .engine import Josty
-from .models import SearchResult
+from .models import SearchResult, SearchRun
 from .status import SearchStatus
 
 
@@ -27,6 +27,13 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument("--limit", type=int, default=10)
     command.add_argument("--site", action="append", dest="sites", help="add a site: filter")
     command.add_argument("--mode", choices=("plain", "exact"), default="plain")
+    command.add_argument(
+        "--format",
+        choices=("json", "brief", "strip"),
+        default="json",
+        help="json (default): the envelope on stdout; brief: the agent's text view on "
+        "stdout; strip: the envelope on stdout plus one line per engine on stderr",
+    )
     command.add_argument("--category", choices=("text", "news"), default="text")
     command.add_argument("--region", help="DDGS region code, for example us-en or de-de")
     command.add_argument(
@@ -200,7 +207,29 @@ async def run_fetch(args: argparse.Namespace) -> dict | list:
     return [item.fetch_dict() for item in items]
 
 
-async def run(args: argparse.Namespace) -> dict | list:
+def _engine_strip(run: SearchRun) -> str:
+    """One line per engine, for a terminal (#108). Never written to stdout."""
+    lines = []
+    for provider in run.providers:
+        remaining = provider.backoff_remaining or 0.0
+        countdown = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
+        cooling = f"   cooling {countdown}" if remaining else ""
+        if provider.ok:
+            state = f"✓ {provider.result_count}"
+        elif provider.error_kind == "not_applicable":
+            state = "· n/a"
+        elif provider.error_kind == "skipped":
+            state = "✗ skipped"
+        else:
+            seen = provider.http_status if provider.http_status is not None else provider.error_kind
+            state = f"✗ {seen}"
+        latency = f"{provider.latency_ms / 1000:.1f}s" if provider.latency_ms is not None else ""
+        lines.append(f"{provider.provider:<11} {state}{cooling}   {latency}")
+    lines.extend(f"{engine:<11} · untried" for engine in run.untried)
+    return "\n".join(lines)
+
+
+async def run(args: argparse.Namespace) -> dict | list | SearchRun:
     engine = Josty(
         github_token=os.getenv("GITHUB_TOKEN"),
         max_search_concurrency=args.search_concurrency,
@@ -228,7 +257,10 @@ async def run(args: argparse.Namespace) -> dict | list:
         profile=args.profile,
         max_query_variants=args.max_query_variants,
     )
-    return [item.dict() for item in search.results] if args.results_only else search.dict()
+    if args.results_only:
+        return [item.dict() for item in search.results]
+    # brief and strip read the run itself (#108); everything else gets the envelope.
+    return search if args.format != "json" else search.dict()
 
 
 def _sanitize_json(value: object) -> object:
@@ -284,28 +316,38 @@ def main(argv: list[str] | None = None) -> None:
         )
     if args.diagnose and args.results_only:
         command.error("--results-only cannot be combined with --diagnose")
+    if args.format != "json" and (args.results_only or args.diagnose):
+        command.error(
+            "--format brief|strip needs a search envelope: not with --results-only"
+        )
     try:
         payload = asyncio.run(run(args))
         # allow_nan=False keeps stdout strictly RFC-8259 JSON. Non-finite
         # floats are sanitized to null first so one bad field degrades in-band
         # instead of exiting 2 for the whole query.
-        print(
-            json.dumps(
-                _sanitize_json(payload),
-                ensure_ascii=False,
-                indent=2,
-                allow_nan=False,
+        # Only --format brief replaces stdout with text; --format strip adds its
+        # lines to stderr (#108). Everything else is the envelope.
+        envelope = payload.dict() if isinstance(payload, SearchRun) else payload
+        if isinstance(payload, SearchRun) and args.format == "strip":
+            print(_engine_strip(payload), file=sys.stderr)
+        if isinstance(payload, SearchRun) and args.format == "brief":
+            print(repr(payload))
+        else:
+            print(
+                json.dumps(
+                    _sanitize_json(envelope),
+                    ensure_ascii=False,
+                    indent=2,
+                    allow_nan=False,
+                )
             )
-        )
         # Exit-code contract (#42): only a search envelope that failed outright
         # exits 1. complete/degraded/empty searches exit 0 so callers read the
-        # in-band status; JSON stays on stdout in every search case. Diagnose is
-        # a transport probe with its own status and keeps exit 0.
-        if (
-            not args.diagnose
-            and isinstance(payload, dict)
-            and payload.get("status") == SearchStatus.FAILED
-        ):
+        # in-band status; JSON stays on stdout in every search case unless
+        # --format brief is given. Diagnose is a transport probe with its own
+        # status and keeps exit 0.
+        status = envelope.get("status") if isinstance(envelope, dict) else None
+        if not args.diagnose and status == SearchStatus.FAILED:
             raise SystemExit(1)
     except (ValueError, KeyboardInterrupt) as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)

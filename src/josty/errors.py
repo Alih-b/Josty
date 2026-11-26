@@ -73,6 +73,7 @@ _ERROR_KIND_SEVERITY: dict[str | None, int] = {
     None: -1,
     "empty": 0,
     "skipped": 1,
+    "not_applicable": 1,
     "unknown": 2,
     "parse": 3,
     "network": 4,
@@ -171,7 +172,9 @@ def _aggregate_engine_status(
         error_kind = "empty"
         error = None
     else:
-        error_kind = "skipped"
+        # No variant ran: keep why, a cool-down skip or a filter the source
+        # cannot honour alike.
+        error_kind = statuses[0].error_kind or "skipped"
         error = next((status.error for status in statuses if status.error), None)
     latencies = [s.latency_ms for s in statuses if s.latency_ms is not None]
     # Worst-case across concurrent query variants, not a representative sample.
@@ -182,21 +185,13 @@ def _aggregate_engine_status(
     # from per-variant snapshots (they run concurrently, so snapshot order is
     # not recency): Fanout.search (fanout.py) stamps them from a fresh
     # breaker.get_state() after the gather.
-    # Wire evidence (#99). The witness is the refused variant that set error_kind,
-    # else the largest answered body, so http_status/body_bytes always belong to
-    # the status a reader sees. refusal_rate is the mean of the variants' own
-    # rates, each the share of that call's HTTP sub-requests that got a non-200.
+    # Wire evidence (#99). http_status/body_bytes come from the first refused
+    # variant, else the first that reached the wire; refusal_rate is the mean of
+    # the variants' own rates, each the share of that call's HTTP sub-requests
+    # that got a non-200.
     seen = [status for status in statuses if status.http_status is not None]
     rates = [status.refusal_rate for status in seen if status.refusal_rate is not None]
-    witnesses = [status for status in failures if status.http_status is not None]
-    if witnesses:
-        witness = max(
-            witnesses, key=lambda status: _ERROR_KIND_SEVERITY.get(status.error_kind, -1)
-        )
-    elif seen:
-        witness = max(seen, key=lambda status: status.body_bytes or 0)
-    else:
-        witness = None
+    witness = next((s for s in failures if s.http_status is not None), seen[0] if seen else None)
     return ProviderStatus(
         provider,
         query,
@@ -209,15 +204,6 @@ def _aggregate_engine_status(
         body_bytes=witness.body_bytes if witness else None,
         refusal_rate=round(sum(rates) / len(rates), 3) if rates else None,
     )
-
-
-def _is_filtered(facts: WireFacts) -> bool:
-    """True when nothing came back and the host resolved into a filter sinkhole.
-
-    A block page that arrives over HTTP is ``blocked``, never ``filtered``: the
-    host answered, so the path to it is open.
-    """
-    return not facts.responses and bool(set(facts.resolved) & _FILTER_SINKHOLES)
 
 
 def _zero_row_kind(facts: WireFacts) -> ErrorKind | None:
@@ -254,10 +240,8 @@ def _describe_failure(exc: BaseException, facts: WireFacts | None, kind: ErrorKi
         where = ", ".join(facts.resolved)
         return f"no HTTP response from {facts.host}; resolved to {where} ({base})"
     if facts.http_status is not None:
-        return (
-            f"HTTP {facts.http_status} from {facts.host} ({facts.body_bytes} bytes), "
-            f"0 rows parsed ({base})"
-        )
+        detail = f"HTTP {facts.http_status} from {facts.host} ({facts.body_bytes} bytes)"
+        return f"{detail}, 0 rows parsed ({base})"
     return base
 
 
@@ -280,7 +264,7 @@ def _classify_search_error(
     """
     if isinstance(exc, ProviderError):
         return exc.error_kind
-    if facts is not None and _is_filtered(facts):
+    if facts is not None and not facts.responses and set(facts.resolved) & _FILTER_SINKHOLES:
         return "filtered"
     if isinstance(exc, TimeoutException):
         return "network"

@@ -37,19 +37,22 @@ from .providers import (
 from .ranking import (
     _site_matches,
     normalize_sites,
-    prefer_primary,
     rrf,
 )
 from .status import (
     CHALLENGED_HTTP_STATUSES,
     SEARCH_THREAD_TIMEOUT_HEADROOM,
+    SIDE_SOURCES,
     USER_AGENT,
+    WANT_INDEXES,
     ProfileType,
     SafeSearch,
     SearchCategory,
     SearchMode,
     SearchStatus,
     TimeLimit,
+    engine_walk_order,
+    index_of,
 )
 
 
@@ -61,6 +64,8 @@ class Josty:
     #: every default run `degraded` (#97). An explicit `backends=("google",)` is
     #: still honoured and reported `skipped` while ddgs keeps it disabled.
     DEFAULT_BACKENDS = (
+        # First in the walk: 10/10 on both Iran routes, median 586 ms (#101, #105).
+        "yandex",
         "brave,duckduckgo",
         "mojeek,startpage",
         "yahoo",
@@ -72,11 +77,6 @@ class Josty:
     #: registry. They bypass the registry availability gate in ``diagnose_run``;
     #: the adapter's own ``precheck`` decides whether a call may be attempted.
     NATIVE_BACKENDS = frozenset({"mwmbl", "wikipedia"})
-
-    #: Sources that only answer a run the primary engines left empty. They are
-    #: queried every run, but their rows are fused only when no primary list has
-    #: results (see ``ranking.prefer_primary``).
-    FALLBACK_BACKENDS = frozenset({"mwmbl"})
 
     BACKEND_HOSTS = {
         "bing": "www.bing.com",
@@ -98,9 +98,13 @@ class Josty:
     # Shared by the CLI flag default and the library constructor so both entry
     # points cap extracted Markdown at the same per-page size (#59).
     DEFAULT_MAX_CONTENT_CHARS = 8000
-    DEFAULT_BREAKER_FAIL_THRESHOLD = 3
+    # One failure opens a circuit (#105): an engine that just refused is left
+    # alone for 180 s, doubled per consecutive trip up to a day, and the open
+    # circuit is remembered in the cache DB for the next process.
+    DEFAULT_BREAKER_FAIL_THRESHOLD = 1
     DEFAULT_BREAKER_WINDOW_SECONDS = 60
-    DEFAULT_BREAKER_COOL_DOWN_SECONDS = 30
+    DEFAULT_BREAKER_COOL_DOWN_SECONDS = 180
+    DEFAULT_BREAKER_MAX_COOL_DOWN_SECONDS = 24 * 60 * 60
 
     def __init__(
         self,
@@ -123,9 +127,10 @@ class Josty:
         cache_db: Path | str | None = None,
         cache_max_bytes: int = CACHE_MAX_BYTES,
         breaker: CircuitBreaker | None = None,
-        breaker_fail_threshold: int = 3,
-        breaker_window_seconds: float = 60,
-        breaker_cool_down_seconds: float = 30,
+        breaker_fail_threshold: int = DEFAULT_BREAKER_FAIL_THRESHOLD,
+        breaker_window_seconds: float = DEFAULT_BREAKER_WINDOW_SECONDS,
+        breaker_cool_down_seconds: float = DEFAULT_BREAKER_COOL_DOWN_SECONDS,
+        breaker_max_cool_down_seconds: float = DEFAULT_BREAKER_MAX_COOL_DOWN_SECONDS,
     ):
         if max_concurrency is not None:
             # Deprecated alias, applied before validation. Applying it afterwards
@@ -188,7 +193,15 @@ class Josty:
                 fail_threshold=breaker_fail_threshold,
                 window_seconds=breaker_window_seconds,
                 cool_down_seconds=breaker_cool_down_seconds,
+                max_cool_down_seconds=breaker_max_cool_down_seconds,
+                memory=self.cache,
             )
+            if self.cache is not None:
+                # A circuit another process left open is still open here (#105).
+                for backend, (until_utc, trips) in self.cache.open_circuits(
+                    self.breaker.window_seconds
+                ).items():
+                    self.breaker.restore(backend, until_utc, trips, "search")
 
     def clear_cache(self) -> None:
         if self.cache:
@@ -326,6 +339,7 @@ class Josty:
         region: str | None,
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
+        engines: tuple[str, ...] | None = None,
     ) -> tuple[list[list[SearchResult]], list[ProviderStatus]]:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
@@ -335,28 +349,47 @@ class Josty:
             raise ValueError(f"unsupported safe-search mode: {safesearch}")
         if timelimit not in (None, "d", "w", "m", "y"):
             raise ValueError(f"unsupported time limit: {timelimit}")
-        # An engine listed in multiple groups is queried once, in its first
-        # group: one call and one status per engine, contract-wide. Plans are
-        # engine-major then variant, and Fanout re-groups them in plan order.
-        plans = [
-            Plan(
-                group_index=group_index,
-                call=SearchCall(
-                    query=variant,
-                    backend=engine,
-                    limit=limit,
-                    category=category,
-                    region=region,
-                    safesearch=safesearch,
-                    timelimit=timelimit,
-                ),
+        # One call and one status per engine, contract-wide. The walk (#105) asks
+        # the engines in a measured order, one at a time, and stops once enough
+        # distinct search indexes have answered. Every variant of one engine
+        # still goes out together, through the run's one pool, ledger and
+        # deadline. An engine the walk never asks is listed, not failed.
+        group_of = {
+            engine: group
+            for group, engine in self._engine_specs(category)
+            if engines is None or engine in engines
+        }
+        lists: list[tuple[int, list[SearchResult]]] = []
+        statuses: list[ProviderStatus] = []
+        answered: set[str] = set()
+        for engine in engine_walk_order(group_of):
+            if len(answered) >= WANT_INDEXES:
+                fanout.untried.append(engine)
+                continue
+            plans = [
+                Plan(
+                    group_index=group_of[engine],
+                    call=SearchCall(
+                        query=variant,
+                        backend=engine,
+                        limit=limit,
+                        category=category,
+                        region=region,
+                        safesearch=safesearch,
+                        timelimit=timelimit,
+                    ),
+                )
+                for variant in queries
+            ]
+            group_lists, group_statuses = await fanout.search(
+                plans, functools.partial(self._invoke_plan, fanout=fanout)
             )
-            for group_index, engine in self._engine_specs(category)
-            for variant in queries
-        ]
-        return await fanout.search(
-            plans, functools.partial(self._invoke_plan, fanout=fanout)
-        )
+            lists.extend((group_of[engine], items) for items in group_lists)
+            statuses.extend(group_statuses)
+            if group_statuses[0].result_count > 0 and engine not in SIDE_SOURCES:
+                answered.add(index_of(engine))
+        # Fusion order is the roster's group order, not the walk's.
+        return [items for _, items in sorted(lists, key=lambda pair: pair[0])], statuses
 
     async def _invoke_plan(
         self, plan: Plan, *, fanout: Fanout
@@ -638,11 +671,6 @@ class Josty:
     #: these, the expired answer to the same query beats an empty page (#104).
     UNANSWERED_KINDS = frozenset({"rate_limited", "blocked", "network", "filtered", "geo"})
 
-    @classmethod
-    def _unanswered(cls, run: SearchRun) -> bool:
-        """True when a result-less run failed to get an answer, rather than getting none."""
-        return any(provider.error_kind in cls.UNANSWERED_KINDS for provider in run.providers)
-
     async def _serve_stale(
         self, cache_key: str, fresh: SearchRun, *, fetch: bool
     ) -> SearchRun | None:
@@ -672,6 +700,24 @@ class Josty:
             await self.fetch_content(fresh.results)
             _stamp_fetch_stats(fresh, requested=True)
         return fresh
+
+    def _new_fanout(self) -> Fanout:
+        """One Fanout per run: its own pool, worker pool, ledger and deadline.
+
+        Per-run rather than per-instance, so a worker that never returns cannot
+        shed a later run; dedicated rather than shared, so trafilatura extraction
+        never queues behind search workers. Sized to the cap because admission
+        guarantees held + ghosts <= capacity, so a submission is never queued.
+        """
+        return Fanout(
+            capacity=self.max_search_concurrency,
+            search_timeout=self.timeout,
+            headroom=SEARCH_THREAD_TIMEOUT_HEADROOM,
+            max_ghosts=self.max_ghosts,
+            semaphore=self._search_semaphore(),
+            breaker=self.breaker,
+            run_timeout=self.run_timeout,
+        )
 
     async def research_run(
         self,
@@ -749,21 +795,7 @@ class Josty:
                 except Exception:
                     self.cache.delete(cache_key)
 
-        # One Fanout per run owns the admission pool, the dedicated worker pool,
-        # the ledger and the deadline. Per-run rather than per-instance, so a
-        # worker that never returns cannot shed a later run; dedicated rather
-        # than shared, so trafilatura extraction never queues behind search
-        # workers. Sized to the cap because admission guarantees held + ghosts
-        # <= capacity, so a submission is never queued.
-        fanout = Fanout(
-            capacity=self.max_search_concurrency,
-            search_timeout=self.timeout,
-            headroom=SEARCH_THREAD_TIMEOUT_HEADROOM,
-            max_ghosts=self.max_ghosts,
-            semaphore=self._search_semaphore(),
-            breaker=self.breaker,
-            run_timeout=self.run_timeout,
-        )
+        fanout = self._new_fanout()
         try:
             web_task = self._search_parts(
                 queries,
@@ -816,10 +848,7 @@ class Josty:
             # the pool, so the run reports the ghosts instead of hiding them.
             await fanout.close()
         results = self._filter_sites(
-            rrf(
-                prefer_primary(lists, self.FALLBACK_BACKENDS),
-                profile=effective_profile,
-            ),
+            rrf(lists, profile=effective_profile),
             normalized_sites,
         )[:limit]
         if fetch:
@@ -830,10 +859,32 @@ class Josty:
             providers=providers,
             run_at=datetime.now(timezone.utc).isoformat(),
             query_variant_count=variant_count,
+            untried=fanout.untried,
             **fanout.accounting(),
         )
+        run._maker = (
+            self,
+            {
+                "query": query,
+                "sites": normalized_sites,
+                "mode": mode,
+                "limit": limit,
+                "category": category,
+                "region": region,
+                "safesearch": safesearch,
+                "timelimit": timelimit,
+                "profile": effective_profile,
+                "max_query_variants": effective_max_variants,
+            },
+        )
         _stamp_fetch_stats(run, requested=fetch)
-        if cache_key and not run.results and self._unanswered(run):
+        # An engine in cool-down was not asked (#105): that is no answer either.
+        unanswered = any(
+            p.error_kind in self.UNANSWERED_KINDS
+            or (p.error_kind == "skipped" and p.circuit_state == "open")
+            for p in run.providers
+        )
+        if cache_key and not run.results and unanswered:
             # No engine answered, but this query was answered before (#104).
             stale = await self._serve_stale(cache_key, run, fetch=fetch)
             if stale is not None:
@@ -851,6 +902,43 @@ class Josty:
                 cache_key, payload, ttl=_ttl_for(category, timelimit, self.cache.default_ttl)
             )
         return run
+
+    async def _more_of(self, run: SearchRun, p: dict[str, Any]) -> SearchRun:
+        """One more engine for a run: the first it lists as untried (#106).
+
+        Nothing is cached and run is not touched. The answer is a run of its own
+        that carries the engines still untried, so the caller can go on.
+        """
+        engine, *rest = run.untried
+        queries = self.expand(
+            p["query"], p["sites"], p["mode"], max_query_variants=p["max_query_variants"]
+        )
+        fanout = self._new_fanout()
+        try:
+            lists, providers = await self._search_parts(
+                queries,
+                fanout=fanout,
+                limit=p["limit"],
+                category=p["category"],
+                region=p["region"],
+                safesearch=p["safesearch"],
+                timelimit=p["timelimit"],
+                engines=(engine,),
+            )
+        finally:
+            await fanout.close()
+        results = self._filter_sites(rrf(lists, profile=p["profile"]), p["sites"])[: p["limit"]]
+        more = SearchRun(
+            query=p["query"],
+            results=results,
+            providers=providers,
+            run_at=datetime.now(timezone.utc).isoformat(),
+            query_variant_count=len(queries),
+            untried=rest,
+            **fanout.accounting(),
+        )
+        more._maker = (self, p)
+        return more
 
     async def research(self, query: str, **kwargs: Any) -> list[SearchResult]:
         return (await self.research_run(query, **kwargs)).results

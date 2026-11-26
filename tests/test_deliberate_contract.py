@@ -236,13 +236,16 @@ class _TwoItemGithubResponse:
 def test_busy_pool_admits_every_branch(monkeypatch):
     """DELIBERATE: admission-order-under-saturation.
 
-    Six engines answer in 250ms and the GitHub reply takes 300ms, so all seven
-    branches want admission at once against a six-slot pool. In the base revision
-    GitHub takes its lease *before* waiting for a concurrency slot, so it holds
-    capacity a web engine needed: 6 issued, 1 shed, ``degraded``. Here every
-    branch takes its slot first and only then its lease: 7 issued, 0 shed,
-    ``complete``. The ordering test in ``test_fanout_leases`` watches the order
-    itself; this one pins the outcome the change set claims for it.
+    Both query variants of the first engine and the GitHub reply want admission
+    at once against a two-slot pool. In the base revision GitHub takes its lease
+    *before* waiting for a concurrency slot, so it holds capacity a web engine
+    needed: one shed, ``degraded``. Here every branch takes its slot first and
+    only then its lease: nothing shed, ``complete``. The ordering test in
+    ``test_fanout_leases`` watches the order itself; this one pins the outcome.
+
+    Since the walk (#105) asks one engine at a time, the seven-way contention of
+    the first setup cannot arise. The variants of one engine still go out
+    together, so the contention is made with two of them plus GitHub.
     """
     monkeypatch.setattr(eng, "DDGS", _SaturatingDDGS)
     monkeypatch.setattr(eng, "_engine_available", lambda category, backend: (True, None))
@@ -258,11 +261,15 @@ def test_busy_pool_admits_every_branch(monkeypatch):
     engine = Josty(
         backends=("brave,duckduckgo", "google,mojeek,startpage", "yahoo"),
         enable_cache=False,
+        max_search_concurrency=2,
     )
-    run = asyncio.run(engine.research_run("busy pool", limit=5, include_github=True))
+    run = asyncio.run(
+        engine.research_run("busy pool", limit=5, include_github=True, mode="exact")
+    )
 
     assert run.status == "complete", [p.error for p in run.providers if not p.ok]
-    assert run.request_count == 7
+    # brave's two variants, GitHub, then duckduckgo's two: the walk stops there.
+    assert run.request_count == 5
     assert run.shed_count == 0
 
 

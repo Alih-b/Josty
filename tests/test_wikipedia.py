@@ -94,7 +94,7 @@ def test_precheck_allows_only_a_plain_text_query():
 def test_precheck_skips_a_filter_the_source_cannot_honour(overrides):
     adapter = WikipediaSearchAdapter(timeout=8, user_agent="test-agent")
     reason = adapter.precheck(_call(**overrides))
-    assert reason is not None and reason.startswith("skipped:")
+    assert reason is not None and reason.startswith("not applicable:")
 
 
 # Captured at import, before the autouse stub in conftest replaces the method.
@@ -247,15 +247,16 @@ def test_positive_totalhits_without_rows_fails_as_parse(monkeypatch):
 
 
 @pytest.mark.parametrize("overrides", [{"timelimit": "w"}, {"region": "de-de"}])
-def test_a_filter_it_cannot_honour_is_skipped_without_a_call(overrides):
+def test_a_filter_it_cannot_honour_is_not_applicable_without_a_call(overrides):
     run = asyncio.run(
         Josty(backends=("wikipedia",), enable_cache=False).search_run("q", **overrides)
     )
 
     provider = run.providers[0]
-    assert provider.error_kind == "skipped"
-    assert provider.error.startswith("skipped:")
+    assert provider.error_kind == "not_applicable"
+    assert provider.error.startswith("not applicable:")
     assert run.request_count == 0
+    assert run.partial is False
 
 
 def test_wikipedia_is_a_native_source_and_never_goes_through_ddgs(monkeypatch):

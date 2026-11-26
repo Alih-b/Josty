@@ -85,7 +85,8 @@ class TestTier1FeatureCoverage:
         mock_ddgs = MockDDGSEngine()
         monkeypatch.setattr("josty.engine.DDGS", mock_ddgs)
 
-        backends = ("brave", "duckduckgo", "mojeek")
+        # bing and yahoo are one index, so the walk asks brave as well (#105).
+        backends = ("bing", "yahoo", "brave")
         engine = Josty(backends=backends, timeout=2.0)
         run = asyncio.run(engine.search_run("test consensus query", limit=5))
 
@@ -218,7 +219,7 @@ class TestTier1FeatureCoverage:
         text. (pytest emits warnings to stderr by default; nothing may leak to
         stdout instead.)
         """
-        mock_ddgs = MockDDGSEngine({"brave": RatelimitException("429 Too Many Requests")}
+        mock_ddgs = MockDDGSEngine({"yandex": RatelimitException("429 Too Many Requests")}
         )
         monkeypatch.setattr("josty.engine.DDGS", mock_ddgs)
         monkeypatch.setattr("sys.argv", ["josty", "resilience query"])
@@ -234,9 +235,9 @@ class TestTier1FeatureCoverage:
 
         # The backend failure is reported in-band (JSON providers), never on
         # stdout as diagnostics.
-        brave = next(p for p in payload["providers"] if p["provider"] == "brave")
-        assert brave["ok"] is False
-        assert brave["error_kind"] == "rate_limited"
+        failing = next(p for p in payload["providers"] if p["provider"] == "yandex")
+        assert failing["ok"] is False
+        assert failing["error_kind"] == "rate_limited"
 
     def test_news_category_uses_news_method(self, monkeypatch):
         """News search calls DDGS.news() rather than .text()."""
@@ -787,7 +788,7 @@ class TestTier4RealWorldScenarios:
                     "body": "Brave snippet 2",
                 },
             ],
-            "duckduckgo": [
+            "bing": [
                 {
                     "title": "DDG Hit 1",
                     "href": "https://example.com/shared",
@@ -799,7 +800,7 @@ class TestTier4RealWorldScenarios:
                     "body": "DDG snippet 2",
                 },
             ],
-            "google": [
+            "yahoo": [
                 {
                     "title": "Google Hit 1",
                     "href": "https://example.com/shared",
@@ -810,14 +811,14 @@ class TestTier4RealWorldScenarios:
         mock_ddgs = MockDDGSEngine(backend_responses)
         monkeypatch.setattr("josty.engine.DDGS", mock_ddgs)
 
-        engine = Josty(backends=("brave,duckduckgo", "google"))
+        engine = Josty(backends=("brave,bing", "yahoo"))
         run = asyncio.run(engine.search_run("group invariant test", limit=5))
         assert len(run.results) >= 3
 
         shared_item = next(r for r in run.results if r.url == "https://example.com/shared")
         assert "brave" in shared_item.sources
-        assert "duckduckgo" in shared_item.sources
-        assert "google" in shared_item.sources
+        assert "bing" in shared_item.sources
+        assert "yahoo" in shared_item.sources
         # Every engine that discovered the item contributes — none dropped.
         assert set(shared_item.rank_contributions) == set(shared_item.engine_ranks)
 
@@ -839,5 +840,5 @@ class TestTier4RealWorldScenarios:
         # Position-vs-rank trap: the ddg-only item sits at merged position 3 but
         # engine rank 2 — its contribution must come from the RANK.
         ddg_only = next(r for r in run.results if r.url == "https://example.com/ddg-only")
-        assert ddg_only.engine_ranks == {"duckduckgo": 2}
-        assert ddg_only.rank_contributions == {"duckduckgo": round(1.0 / 62, 6)}
+        assert ddg_only.engine_ranks == {"bing": 2}
+        assert ddg_only.rank_contributions == {"bing": round(1.0 / 62, 6)}

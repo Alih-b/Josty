@@ -100,6 +100,16 @@ class SearchCache:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_expires_at ON search_cache(expires_at);"
             )
+            # The breaker's memory (#105): one row per engine whose circuit is open.
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS breaker_state (
+                    backend TEXT PRIMARY KEY,
+                    until_utc REAL NOT NULL,
+                    trips INTEGER NOT NULL
+                )
+                """
+            )
 
     @staticmethod
     def hash_key(query: str, **kwargs: Any) -> str:
@@ -260,6 +270,7 @@ class SearchCache:
             return
         with suppress(Exception), self._get_conn() as conn:
             conn.execute("DELETE FROM search_cache;")
+            conn.execute("DELETE FROM breaker_state;")
 
     def delete(self, key: str) -> None:
         """Evict a specific cache entry (e.g. on corruption or invalidation)."""
@@ -267,6 +278,44 @@ class SearchCache:
             return
         with suppress(Exception), self._get_conn() as conn:
             conn.execute("DELETE FROM search_cache WHERE key = ?", (key,))
+
+    def note_trip(self, backend: str, until_utc: float, trips: int) -> None:
+        """Remember an open circuit for the next process (#105). Never raises."""
+        if self.disabled:
+            return
+        with suppress(Exception), self._get_conn() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO breaker_state (backend, until_utc, trips) VALUES (?, ?, ?)",
+                (backend, until_utc, trips),
+            )
+
+    def forget_trip(self, backend: str) -> None:
+        """The engine answered again: nothing is left to remember (#105)."""
+        if self.disabled:
+            return
+        with suppress(Exception), self._get_conn() as conn:
+            conn.execute("DELETE FROM breaker_state WHERE backend = ?", (backend,))
+
+    def open_circuits(self, keep_seconds: float) -> dict[str, tuple[float, int]]:
+        """What earlier processes learned: ``(until_utc, trips)`` per engine (#105).
+
+        A row outlives its deadline by ``keep_seconds`` so a failure soon after
+        still counts as the next consecutive trip; past that it has decayed.
+        """
+        if self.disabled:
+            return {}
+        try:
+            with self._get_conn() as conn:
+                conn.execute(
+                    "DELETE FROM breaker_state WHERE until_utc + ? <= ?",
+                    (keep_seconds, time.time()),
+                )
+                rows = conn.execute(
+                    "SELECT backend, until_utc, trips FROM breaker_state"
+                ).fetchall()
+                return {str(backend): (float(until), int(trips)) for backend, until, trips in rows}
+        except Exception:
+            return {}
 
 _FETCH_ONLY_FIELDS = ("content", "extraction_method", "fetched_url", "fetched_at", "fetch_error")
 
@@ -471,6 +520,11 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
             return None
         return number if math.isfinite(number) else None
 
+    def _as_str_list(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        return [str(item) for item in value]
+
     fetch_raw = payload.get("fetch")
     if not isinstance(fetch_raw, dict):
         fetch_raw = {}
@@ -488,4 +542,5 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         fetch_failed=_as_int(fetch_raw.get("failed")),
         stale=bool(payload.get("stale", False)),
         age_seconds=_as_opt_float(payload.get("age_seconds")),
+        untried=_as_str_list(payload.get("untried")),
     )

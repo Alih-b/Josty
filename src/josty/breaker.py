@@ -5,7 +5,10 @@ from __future__ import annotations
 import threading
 import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .cache import SearchCache
 
 
 def _cool_down_message(remaining_seconds: float) -> str:
@@ -30,10 +33,11 @@ class CircuitBreaker:
       to CLOSED and clears failure history and consecutive trips. Failure trips
       back to OPEN. Concurrent callers skip until the probe completes.
 
-    State is process-local by design: it is never written to disk. A shared file
-    would have to reconcile wall-clock cool-downs with per-process monotonic
-    time and would let one process's trip throttle its siblings, so
-    cross-restart politeness stays the caller's business.
+    State lives in the process and counts down on its own monotonic clock. A
+    caller that wants a trip to outlive the process hands in a ``memory`` (the
+    cache DB): every trip is noted there as a wall-clock deadline, and
+    ``restore`` takes those deadlines over at start-up, so the next process
+    leaves an engine that just blocked alone (#105).
 
     ``error_class`` exists for contract compatibility: ``"rate_limit"`` and
     ``"search"`` are aliases sharing one failure namespace, and the default
@@ -46,12 +50,19 @@ class CircuitBreaker:
         fail_threshold: int = 3,
         window_seconds: float = 60.0,
         cool_down_seconds: float = 30.0,
+        max_cool_down_seconds: float | None = None,
+        memory: SearchCache | None = None,
     ):
         if fail_threshold < 1 or window_seconds <= 0 or cool_down_seconds <= 0:
             raise ValueError("breaker thresholds must be positive")
+        cap = cool_down_seconds * 2**6 if max_cool_down_seconds is None else max_cool_down_seconds
+        if cap < cool_down_seconds:
+            raise ValueError("max_cool_down_seconds must not be below cool_down_seconds")
         self.fail_threshold = int(fail_threshold)
         self.window_seconds = float(window_seconds)
         self.cool_down_seconds = float(cool_down_seconds)
+        self.max_cool_down_seconds = float(cap)
+        self._memory = memory
         self._state: dict[tuple[str, str], str] = {}
         self._failures: dict[tuple[str, str], list[float]] = {}
         self._open_until: dict[tuple[str, str], float] = {}
@@ -87,20 +98,27 @@ class CircuitBreaker:
         prev = self._consecutive_trips.get(key, 0)
         last = self._last_trip_at.get(key, 0.0)
         if prev and last:
-            last_backoff = self.cool_down_seconds * (2 ** min(prev - 1, 6))
+            last_backoff = self._backoff_for(prev)
             if now - last > last_backoff + self.window_seconds:
                 return 0
         return prev
+
+    def _backoff_for(self, trips: int) -> float:
+        """How long the n-th consecutive trip stays open: doubled each time, capped."""
+        return min(self.cool_down_seconds * 2 ** max(trips - 1, 0), self.max_cool_down_seconds)
 
     def _trip_locked(self, key: tuple[str, str], now: float) -> None:
         trips = self._decay_trips_locked(key, now) + 1
         self._consecutive_trips[key] = trips
         self._last_trip_at[key] = now
-        backoff = self.cool_down_seconds * (2 ** min(trips - 1, 6))
+        backoff = self._backoff_for(trips)
         self._open_until[key] = now + backoff
         self._state[key] = "open"
         self._probe_inflight.pop(key, None)
         self._register_key(key)
+        if self._memory is not None:
+            # Wall-clock on that side; the next process counts it down on its own.
+            self._memory.note_trip(key[0], time.time() + backoff, trips)
 
     def status(self, backend: str, error_class: str = "rate_limit") -> tuple[bool, str | None]:
         """Return ``(allowed, skip_message)`` for a backend/error pair.
@@ -131,6 +149,28 @@ class CircuitBreaker:
         key = self._key(backend, error_class)
         with self._lock:
             self._probe_inflight.pop(key, None)
+
+    def restore(
+        self, backend: str, until_utc: float, trips: int, error_class: str = "rate_limit"
+    ) -> None:
+        """Take over what another process learned about an engine (#105).
+
+        A deadline still in the future re-opens the circuit. A passed one keeps
+        only the trip count, so the next failure still doubles the cool-down.
+        """
+        if trips < 1:
+            return
+        key = self._key(backend, error_class)
+        with self._lock:
+            self._register_key(key)
+            now = time.monotonic()
+            remaining = until_utc - time.time()
+            # The trip happened one back-off before its deadline.
+            self._last_trip_at[key] = now + remaining - self._backoff_for(trips)
+            self._consecutive_trips[key] = int(trips)
+            if remaining > 0:
+                self._state[key] = "open"
+                self._open_until[key] = now + remaining
 
     def record_failure(self, backend: str, error_class: str = "rate_limit") -> None:
         """Record a failure event for backend/error_class within sliding window."""
@@ -164,6 +204,8 @@ class CircuitBreaker:
             self._register_key(key)
             self._state[key] = "closed"
             self._failures[key] = []
+            if self._memory is not None and self._consecutive_trips.get(key):
+                self._memory.forget_trip(key[0])
             self._open_until[key] = 0.0
             self._consecutive_trips[key] = 0
             self._probe_inflight.pop(key, None)

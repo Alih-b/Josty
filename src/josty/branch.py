@@ -199,12 +199,15 @@ class BranchRunner:
             pool.note_scheduled()
         reason = adapter.precheck(call)
         if reason is not None:
+            # "not applicable" is a source that cannot honour the call's filter
+            # (#105): never asked, so no loss. Anything else is a skip.
+            kind: ErrorKind = "not_applicable" if reason.startswith("not applicable") else "skipped"
             return [], self._status(
                 call,
                 adapter.provider,
                 ok=False,
                 error=reason,
-                error_kind="skipped",
+                error_kind=kind,
                 latency_ms=None,
             )
         allowed, skip_message = self._breaker.status(call.backend, "search")

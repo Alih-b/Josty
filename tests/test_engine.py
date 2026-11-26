@@ -435,14 +435,15 @@ def test_group_backends_fan_out_per_engine_and_stay_group_fused(monkeypatch):
             ]
 
     monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    # bing and yahoo are one index, so the walk asks brave as well (#105).
     run = asyncio.run(
-        Josty(backends=("duckduckgo,brave", "google")).search_run("query", limit=5)
+        Josty(backends=("bing,yahoo", "brave")).search_run("query", limit=5)
     )
-    assert sorted(seen_backends) == ["brave", "duckduckgo", "google"]
-    assert {status.provider for status in run.providers} == {"duckduckgo", "brave", "google"}
+    assert seen_backends == ["bing", "yahoo", "brave"]
+    assert {status.provider for status in run.providers} == {"bing", "yahoo", "brave"}
     assert all(status.ok for status in run.providers)
     assert len(run.results) == 1
-    assert run.results[0].sources == ["duckduckgo", "brave", "google"]
+    assert run.results[0].sources == ["bing", "yahoo", "brave"]
 
 
 def test_provider_status_is_one_entry_per_engine_across_variants(monkeypatch):
@@ -999,7 +1000,15 @@ def test_default_roster_omits_google_which_the_pinned_ddgs_disables():
     names = [name for group in Josty.DEFAULT_BACKENDS for name in group.split(",")]
 
     assert "google" not in names
-    assert names == ["brave", "duckduckgo", "mojeek", "startpage", "yahoo", "mwmbl"]
+    assert names == [
+        "yandex",
+        "brave",
+        "duckduckgo",
+        "mojeek",
+        "startpage",
+        "yahoo",
+        "mwmbl",
+    ]
     # The roster and the installed registry agree: nothing in it can be skipped.
     for name in names:
         if name not in Josty.NATIVE_BACKENDS:
@@ -1192,6 +1201,37 @@ def test_search_cache_migrates_legacy_schema(tmp_path):
     assert last_accessed > 0
 
 
+def test_repr_is_the_agents_view_not_json():
+    """#108: a header, what did not answer, one line per result; no JSON."""
+    results = [
+        SearchResult(
+            "Python httpx docs", "https://www.python-httpx.org/", "", sources=["yahoo", "mwmbl"]
+        ),
+        SearchResult("GitHub discussion", "https://github.com/encode/httpx", "", sources=["yahoo"]),
+    ]
+    providers = [
+        ProviderStatus("yahoo", "httpx pool timeout", True, 2, latency_ms=800.0),
+        ProviderStatus("mwmbl", "httpx pool timeout", True, 1, latency_ms=300.0),
+        ProviderStatus(
+            "brave", "httpx pool timeout", False, 0, error_kind="rate_limited", http_status=429
+        ),
+    ]
+    run = SearchRun(
+        "httpx pool timeout", results, providers, untried=["mojeek", "startpage"]
+    )
+
+    text = repr(run)
+
+    assert text.splitlines() == [
+        "httpx pool timeout · 2 results · 2 indexes (bing, mwmbl) · 2 untried",
+        "no answer: brave rate_limited 429",
+        " 1 ✓✓ Python httpx docs   yahoo, mwmbl",
+        " 2 ✓ GitHub discussion   yahoo",
+    ]
+    assert "{" not in text and '"' not in text
+    assert str(run) == text
+
+
 def _expire_rows(cache: SearchCache, seconds: float = 500.0) -> None:
     """Move every cached row into the past, as if its TTL had run out."""
     with sqlite3.connect(cache.db_path) as conn:
@@ -1308,6 +1348,41 @@ def test_stale_run_survives_the_cache_roundtrip(tmp_path, monkeypatch):
 
     assert (restored.stale, restored.age_seconds) == (True, second.age_seconds)
     assert [item.url for item in restored.results] == ["https://example.org/answer"]
+
+
+def test_an_engine_in_cool_down_still_gets_the_stale_answer(tmp_path, monkeypatch):
+    """A later process skips a suspended engine (#105); that is no answer (#104)."""
+    cache_db = tmp_path / "stale.db"
+
+    def process(ddgs):
+        monkeypatch.setattr("josty.engine.DDGS", ddgs)
+        return Josty(backends=("duckduckgo",), cache_db=cache_db, cache_ttl=60)
+
+    answered = asyncio.run(process(_AnsweringDDGS).search_run("q", limit=5))
+    assert [item.url for item in answered.results] == ["https://example.org/answer"]
+    _expire_rows(SearchCache(cache_db, default_ttl=60))
+    refused = asyncio.run(process(_BlockedDDGS).search_run("q", limit=5))
+    assert refused.stale is True
+
+    class NeverAsked:
+        calls = 0
+
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            NeverAsked.calls += 1
+            raise AssertionError("a suspended engine must not be asked")
+
+    later = asyncio.run(process(NeverAsked).search_run("q", limit=5))
+
+    assert NeverAsked.calls == 0
+    provider = later.providers[0]
+    assert (provider.error_kind, provider.circuit_state) == ("skipped", "open")
+    assert later.stale is True
+    assert [item.url for item in later.results] == ["https://example.org/answer"]
+    assert later.status == "degraded"
+    assert later.age_seconds > 60
 
 
 def test_search_cache_ttl_expiration(tmp_path):
@@ -2062,15 +2137,15 @@ def test_news_day_timelimit_cache_row_uses_floor_ttl(tmp_path, monkeypatch):
     assert any(abs(row[1] - 21600.0) < 1.0 for row in rows)
 
 
-def test_breaker_state_stays_process_local(tmp_path):
-    """Breaker state is in-process by contract: a second engine sharing the cache
-    database starts closed, and clearing the cache does not touch throttling."""
-    db_file = tmp_path / "shared_cache.db"
-    engine_a = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
+def test_breaker_state_is_shared_through_the_cache_db_and_nowhere_else(tmp_path):
+    """#105: an open circuit outlives the process through the cache DB only.
 
-    allowed, msg = engine_a.breaker.status("duckduckgo")
-    assert allowed is True
-    assert msg is None
+    A second engine on the same database inherits it. One without a cache, or
+    one started after the cache was cleared, starts closed.
+    """
+    db_file = tmp_path / "shared_cache.db"
+    knobs = {"breaker_fail_threshold": 2, "breaker_cool_down_seconds": 30.0}
+    engine_a = Josty(cache_db=db_file, **knobs)
 
     engine_a.breaker.record_failure("duckduckgo")
     engine_a.breaker.record_failure("duckduckgo")
@@ -2078,8 +2153,14 @@ def test_breaker_state_stays_process_local(tmp_path):
     assert allowed is False
     assert "cool-down" in msg
 
-    engine_b = Josty(cache_db=db_file, breaker_fail_threshold=2, breaker_cool_down_seconds=30.0)
+    engine_b = Josty(cache_db=db_file, **knobs)
     allowed, msg = engine_b.breaker.status("duckduckgo")
-    assert allowed is True
-    assert msg is None
-    assert msg is None
+    assert allowed is False
+    assert "cool-down" in msg
+
+    uncached = Josty(enable_cache=False, **knobs)
+    assert uncached.breaker.status("duckduckgo") == (True, None)
+
+    engine_b.clear_cache()
+    engine_c = Josty(cache_db=db_file, **knobs)
+    assert engine_c.breaker.status("duckduckgo") == (True, None)

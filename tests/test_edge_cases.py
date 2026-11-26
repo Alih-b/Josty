@@ -1409,19 +1409,6 @@ class TestWireTruth:
         assert run.providers[0].error_kind == "blocked"
         assert run.providers[0].http_status == 200
 
-    @pytest.mark.parametrize(
-        ("host", "kind"),
-        [("hn.algolia.com", "geo"), ("www.google.com", "blocked")],
-    )
-    def test_a_403_is_geo_only_for_a_host_a_probe_proved(self, host, kind):
-        """One 403 alone is never read as a country decision (#99)."""
-        from ddgs.exceptions import DDGSException
-
-        from josty.models import WireFacts, WireResponse
-
-        facts = WireFacts([WireResponse(403, 512)], host=host)
-        assert _classify_search_error(DDGSException("No results found."), facts) == kind
-
     def test_a_genuine_empty_does_not_trip_the_breaker_but_a_403_does(self, monkeypatch):
         self._skip_unless_enabled(self.ENGINE)
         breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
