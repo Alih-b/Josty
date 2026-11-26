@@ -1532,6 +1532,29 @@ class TestWireTruth:
         assert callable(engines[0].http_client.request)
         assert {"status_code", "content", "text"} <= set(Response.__slots__)
 
+    def test_the_query_echoed_in_a_page_title_is_not_a_block_page(self, monkeypatch):
+        """A zero-row page whose title repeats the query ("nginx 403 forbidden")."""
+        page = (
+            b"<html><head><title>nginx 403 forbidden - Search Results</title></head>"
+            b"<body><p>no hits here</p></body></html>"
+        )
+        monkeypatch.setattr(
+            "josty.engine.DDGS",
+            self._wire(self.ENGINE, lambda: _wire_response(200, page)),
+        )
+
+        def search(query):
+            return asyncio.run(
+                Josty(backends=(self.ENGINE,), enable_cache=False).search_run(query, limit=5)
+            )
+
+        echoed = search("nginx 403 forbidden")
+        other = search("q")
+
+        # The same page. Only when the title merely repeats the query is it no wall.
+        assert (echoed.providers[0].ok, echoed.providers[0].error_kind) == (True, "empty")
+        assert (other.providers[0].ok, other.providers[0].error_kind) == (False, "blocked")
+
     def test_wire_evidence_survives_the_cache_roundtrip(self):
         from josty.cache import _search_run_from_dict
         from josty.models import ProviderStatus
