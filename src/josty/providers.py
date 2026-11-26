@@ -224,7 +224,14 @@ class DdgsSearchAdapter:
             # lease is retained here -- the ghost releases it in its own
             # finally, and that release is idempotent.
             latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
-            return IssueOutcome([], latency_ms, exc, lease_retained=True)
+            unissued = (
+                ctx.pool is not None
+                and lease_id is not None
+                and ctx.pool.shed_unissued(lease_id)
+            )
+            # unissued: the worker never reached its call site, so this is a local
+            # deadline, not a wall. The branch reports it shed (#121).
+            return IssueOutcome([], latency_ms, exc, lease_retained=True, unissued=unissued)
         return IssueOutcome(results, latency_ms, exc, wire=wire)
 
     def _worker(
@@ -267,8 +274,10 @@ class DdgsSearchAdapter:
             if call.timelimit:
                 kwargs["timelimit"] = call.timelimit
             # The one request site: counted immediately before the call so the
-            # ledger measures calls issued, not tasks scheduled.
-            ledger.record()
+            # ledger measures calls issued, not tasks scheduled. The pool claim
+            # makes the count and the branch's deadline check exclusive (#121).
+            if pool is None or lease_id is None or pool.claim_issue(lease_id):
+                ledger.record()
             try:
                 rows = method(call.query, **kwargs)
             except Exception:

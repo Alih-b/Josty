@@ -87,6 +87,9 @@ class LeasePool:
         self._shed: dict[str, int] = {}
         self._last_shed: str | None = None
         self._scheduled = 0
+        #: Leases whose call was accounted for, issued or shed. Whichever side
+        #: claims first owns the count, so a late worker cannot double-count (#121).
+        self._accounted: set[int] = set()
 
     # -- read-only views -------------------------------------------------
 
@@ -133,6 +136,33 @@ class LeasePool:
     def note_scheduled(self) -> None:
         """One engine call was proposed to the fanout."""
         self._scheduled += 1
+
+    def claim_issue(self, lease_id: int) -> bool:
+        """Claim a lease's call as issued; False when it was already accounted.
+
+        The worker calls this at its network call site, immediately before
+        ``ledger.record()``, so the two always agree (#121).
+        """
+        with self._lock:
+            if lease_id in self._accounted:
+                return False
+            self._accounted.add(lease_id)
+            return True
+
+    def shed_unissued(self, lease_id: int) -> bool:
+        """Account a call that timed out before its worker claimed it (#121).
+
+        A worker thread that starts after the branch deadline never reaches the
+        ledger, so without this the call would be neither issued nor shed and the
+        fanout identity would break. False when the worker already claimed the
+        call: then it was issued, and the timeout is the engine's.
+        """
+        with self._lock:
+            if lease_id in self._accounted:
+                return False
+            self._accounted.add(lease_id)
+            self._refuse(SHED_DEADLINE)
+            return True
 
     # -- admission -------------------------------------------------------
 
