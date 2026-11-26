@@ -877,7 +877,12 @@ class Josty:
             },
         )
         _stamp_fetch_stats(run, requested=fetch)
-        unanswered = any(p.error_kind in self.UNANSWERED_KINDS for p in run.providers)
+        # An engine in cool-down was not asked (#105): that is no answer either.
+        unanswered = any(
+            p.error_kind in self.UNANSWERED_KINDS
+            or (p.error_kind == "skipped" and p.circuit_state == "open")
+            for p in run.providers
+        )
         if cache_key and not run.results and unanswered:
             # No engine answered, but this query was answered before (#104).
             stale = await self._serve_stale(cache_key, run, fetch=fetch)

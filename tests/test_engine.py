@@ -1350,6 +1350,41 @@ def test_stale_run_survives_the_cache_roundtrip(tmp_path, monkeypatch):
     assert [item.url for item in restored.results] == ["https://example.org/answer"]
 
 
+def test_an_engine_in_cool_down_still_gets_the_stale_answer(tmp_path, monkeypatch):
+    """A later process skips a suspended engine (#105); that is no answer (#104)."""
+    cache_db = tmp_path / "stale.db"
+
+    def process(ddgs):
+        monkeypatch.setattr("josty.engine.DDGS", ddgs)
+        return Josty(backends=("duckduckgo",), cache_db=cache_db, cache_ttl=60)
+
+    answered = asyncio.run(process(_AnsweringDDGS).search_run("q", limit=5))
+    assert [item.url for item in answered.results] == ["https://example.org/answer"]
+    _expire_rows(SearchCache(cache_db, default_ttl=60))
+    refused = asyncio.run(process(_BlockedDDGS).search_run("q", limit=5))
+    assert refused.stale is True
+
+    class NeverAsked:
+        calls = 0
+
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            NeverAsked.calls += 1
+            raise AssertionError("a suspended engine must not be asked")
+
+    later = asyncio.run(process(NeverAsked).search_run("q", limit=5))
+
+    assert NeverAsked.calls == 0
+    provider = later.providers[0]
+    assert (provider.error_kind, provider.circuit_state) == ("skipped", "open")
+    assert later.stale is True
+    assert [item.url for item in later.results] == ["https://example.org/answer"]
+    assert later.status == "degraded"
+    assert later.age_seconds > 60
+
+
 def test_search_cache_ttl_expiration(tmp_path):
     cache_file = tmp_path / "test_cache_ttl.db"
     cache = SearchCache(cache_file, default_ttl=0.01)
