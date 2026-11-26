@@ -114,22 +114,19 @@ def test_more_asks_exactly_one_untried_engine_and_leaves_the_run_alone(monkeypat
 
     monkeypatch.setattr(MwmblSearchAdapter, "_request", mwmbl_rows)
     run = _run(monkeypatch, ("yandex", "mwmbl", "bing", "yahoo"))
-    assert run.untried == ["bing", "yahoo"]
+    # yandex and bing are the two indexes; mwmbl's rows do not count.
+    assert run.untried == ["yahoo"]
     before = (run.request_count, list(run.untried), len(run.results), run.dict())
 
     more = asyncio.run(run.more())
 
-    assert ddgs.calls == ["yandex", "bing"]
-    assert more.request_count == 1
-    assert [source for r in more.results for source in r.sources] == ["bing"]
-    assert [p.provider for p in more.providers] == ["bing"]
-    assert more.untried == ["yahoo"]
-    assert (run.request_count, list(run.untried), len(run.results), run.dict()) == before
-
-    last = asyncio.run(more.more())
     assert ddgs.calls == ["yandex", "bing", "yahoo"]
-    assert last.untried == []
-    assert asyncio.run(last.more()) is None
+    assert more.request_count == 1
+    assert [source for r in more.results for source in r.sources] == ["yahoo"]
+    assert [p.provider for p in more.providers] == ["yahoo"]
+    assert more.untried == []
+    assert (run.request_count, list(run.untried), len(run.results), run.dict()) == before
+    assert asyncio.run(more.more()) is None
 
 
 def test_only_slices_by_engine_or_index_and_agree_counts_distinct_indexes():

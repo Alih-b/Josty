@@ -42,7 +42,7 @@ def _run(backends: tuple[str, ...], **kwargs):
     )
 
 
-def test_the_walk_stops_at_two_indexes_and_fuses_both(monkeypatch):
+def test_the_walk_stops_at_two_indexes_and_fuses_every_answer(monkeypatch):
     ddgs = _Rows()
     _use_ddgs(monkeypatch, ddgs)
 
@@ -53,19 +53,39 @@ def test_the_walk_stops_at_two_indexes_and_fuses_both(monkeypatch):
 
     run = _run(("brave", "yahoo", "mwmbl", "yandex"))
 
-    # yandex first, then mwmbl (native, so not through ddgs). The rest is never asked.
+    # yandex first, then mwmbl (native: its rows fuse, but it is no index that
+    # ends the walk), then yahoo. brave is never asked.
     order = engine_walk_order(["brave", "yahoo", "mwmbl", "yandex"])
     assert order == ["yandex", "mwmbl", "yahoo", "brave"]
-    assert ddgs.calls == ["yandex"]
-    assert run.request_count == 2
-    assert run.untried == ["yahoo", "brave"]
+    assert ddgs.calls == ["yandex", "yahoo"]
+    assert run.request_count == 3
+    assert run.untried == ["brave"]
     assert run.status == "complete"
-    assert sorted({source for r in run.results for source in r.sources}) == ["mwmbl", "yandex"]
-    assert run.dict()["untried"] == ["yahoo", "brave"]
+    sources = sorted({source for r in run.results for source in r.sources})
+    assert sources == ["mwmbl", "yahoo", "yandex"]
+    assert run.dict()["untried"] == ["brave"]
 
     from josty.cache import _search_run_from_dict
 
-    assert _search_run_from_dict(run.dict()).untried == ["yahoo", "brave"]
+    assert _search_run_from_dict(run.dict()).untried == ["brave"]
+
+
+def test_the_default_walk_reaches_a_second_real_index(monkeypatch):
+    """mwmbl is asked and fused, and the walk still goes on to a real second index."""
+    ddgs = _Rows()
+    _use_ddgs(monkeypatch, ddgs)
+
+    async def mwmbl_rows(self, client, query):
+        return MWMBL_ROWS
+
+    monkeypatch.setattr(MwmblSearchAdapter, "_request", mwmbl_rows)
+
+    run = asyncio.run(Josty(enable_cache=False).search_run("q", limit=5))
+
+    assert ddgs.calls == ["yandex", "yahoo"]
+    assert run.request_count == 3
+    assert {source for r in run.results for source in r.sources} == {"yandex", "mwmbl", "yahoo"}
+    assert run.status == "complete"
 
 
 def test_two_engines_on_one_index_do_not_satisfy_the_walk(monkeypatch):

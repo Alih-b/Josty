@@ -183,10 +183,10 @@ def test_the_default_roster_queries_mwmbl_and_fuses_its_rows(monkeypatch):
     run = asyncio.run(Josty(enable_cache=False).search_run("q", limit=5))
 
     assert "mwmbl" in {p.provider for p in run.providers}
-    # The walk (#105) stops at two indexes: yandex answers, then mwmbl. One call
-    # each, no amplification.
-    assert run.request_count == 2
-    assert run.scheduled_count == 2
+    # The walk (#105): yandex answers, mwmbl's rows fuse without counting as an
+    # index, yahoo is the second index. One call each, no amplification.
+    assert run.request_count == 3
+    assert run.scheduled_count == 3
     assert run.shed_count == 0
     # Its rows fuse like any other engine's (#105): an index that answered
     # counts, so there is nothing to gain from asking it and dropping the answer.

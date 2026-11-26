@@ -42,6 +42,7 @@ from .ranking import (
 from .status import (
     CHALLENGED_HTTP_STATUSES,
     SEARCH_THREAD_TIMEOUT_HEADROOM,
+    SIDE_SOURCES,
     USER_AGENT,
     WANT_INDEXES,
     ProfileType,
@@ -385,7 +386,7 @@ class Josty:
             )
             lists.extend((group_of[engine], items) for items in group_lists)
             statuses.extend(group_statuses)
-            if group_statuses[0].result_count > 0:
+            if group_statuses[0].result_count > 0 and engine not in SIDE_SOURCES:
                 answered.add(index_of(engine))
         # Fusion order is the roster's group order, not the walk's.
         return [items for _, items in sorted(lists, key=lambda pair: pair[0])], statuses

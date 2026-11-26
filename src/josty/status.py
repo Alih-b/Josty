@@ -76,6 +76,9 @@ SHARED_INDEX: dict[str, str] = {
 }
 #: How many distinct search indexes a run stops after.
 WANT_INDEXES = 2
+#: Sources whose rows fuse but which never end the walk: mwmbl is a small
+#: index, kept for the rows it adds and not trusted as the second index.
+SIDE_SOURCES: frozenset[str] = frozenset({"mwmbl"})
 
 
 def index_of(engine: str) -> str:
