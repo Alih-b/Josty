@@ -10,7 +10,7 @@ Josty is **not** a search engine, web crawler, or privacy proxy. Keep the footpr
 
 ## Invariants You Must Never Break
 
-1. **Pure JSON on stdout**: Normal CLI output on `stdout` must be parseable JSON only. All warnings, logs, and tracebacks must go to `stderr`.
+1. **Pure JSON on stdout**: Normal CLI output on `stdout` must be parseable JSON only. All warnings, logs, and tracebacks must go to `stderr`. The one exception is an explicit `--format brief` (#108); `--format strip` writes its lines to `stderr` and leaves stdout JSON.
 2. **Hermetic Tests**: Automated tests must never make real network requests. Patch `ddgs.DDGS` using `tests/mock_ddgs.py` or `monkeypatch`. The native Mwmbl adapter is an HTTP source, so its one wire call (`MwmblSearchAdapter._request`) is stubbed suite-wide in `tests/conftest.py`; a test that needs real Mwmbl parsing patches that method itself. Isolate cache paths via temporary directories.
 3. **Exit Code Contract**:
    - Exit `0`: `status` is `complete`, `degraded`, or `empty`; also `--diagnose`, `--cache-stats`, and `--clear-cache`.

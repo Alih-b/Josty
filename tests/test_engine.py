@@ -1201,6 +1201,37 @@ def test_search_cache_migrates_legacy_schema(tmp_path):
     assert last_accessed > 0
 
 
+def test_repr_is_the_agents_view_not_json():
+    """#108: a header, what did not answer, one line per result; no JSON."""
+    results = [
+        SearchResult(
+            "Python httpx docs", "https://www.python-httpx.org/", "", sources=["yahoo", "mwmbl"]
+        ),
+        SearchResult("GitHub discussion", "https://github.com/encode/httpx", "", sources=["yahoo"]),
+    ]
+    providers = [
+        ProviderStatus("yahoo", "httpx pool timeout", True, 2, latency_ms=800.0),
+        ProviderStatus("mwmbl", "httpx pool timeout", True, 1, latency_ms=300.0),
+        ProviderStatus(
+            "brave", "httpx pool timeout", False, 0, error_kind="rate_limited", http_status=429
+        ),
+    ]
+    run = SearchRun(
+        "httpx pool timeout", results, providers, untried=["mojeek", "startpage"]
+    )
+
+    text = repr(run)
+
+    assert text.splitlines() == [
+        "httpx pool timeout · 2 results · 2 indexes (bing, mwmbl) · 2 untried",
+        "no answer: brave rate_limited 429",
+        " 1 ✓✓ Python httpx docs   yahoo, mwmbl",
+        " 2 ✓ GitHub discussion   yahoo",
+    ]
+    assert "{" not in text and '"' not in text
+    assert str(run) == text
+
+
 def _expire_rows(cache: SearchCache, seconds: float = 500.0) -> None:
     """Move every cached row into the past, as if its TTL had run out."""
     with sqlite3.connect(cache.db_path) as conn:

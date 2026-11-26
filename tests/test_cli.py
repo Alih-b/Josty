@@ -5,7 +5,8 @@ import json
 import pytest
 
 from josty.cli import main, parser
-from josty.models import DiagnoseRun
+from josty.models import DiagnoseRun, ProviderStatus, SearchResult, SearchRun
+from josty.status import SCHEMA_VERSION
 
 
 def test_query_defaults_are_explicit():
@@ -345,3 +346,73 @@ def test_search_subcommand_prefix(monkeypatch, capsys):
     main(["search", "test_subcommand"])
     payload = json.loads(capsys.readouterr().out)
     assert payload["query"] == "test_subcommand"
+
+
+def _stub_search(monkeypatch, providers, untried=()):
+    """Make the CLI's run() return a ready SearchRun; nothing touches the network."""
+    run = SearchRun("q", [], list(providers), untried=list(untried))
+
+    async def fake_search(self, *args, **kwargs):
+        return run
+
+    monkeypatch.setattr("josty.engine.Josty.research_run", fake_search)
+    return run
+
+
+def test_format_strip_writes_one_line_per_engine_to_stderr_and_json_to_stdout(monkeypatch, capsys):
+    """#108: the harness's strip never touches stdout."""
+    _stub_search(
+        monkeypatch,
+        [
+            ProviderStatus("yahoo", "q", True, 7, latency_ms=800.0),
+            ProviderStatus(
+                "brave", "q", False, 0, error_kind="rate_limited", http_status=429,
+                backoff_remaining=161.0,
+            ),
+        ],
+        untried=["mojeek"],
+    )
+    monkeypatch.setattr("sys.argv", ["josty", "q", "--format", "strip"])
+
+    main()
+    out, err = capsys.readouterr()
+
+    assert json.loads(out)["schema_version"] == SCHEMA_VERSION
+    lines = err.strip().splitlines()
+    assert [line.split()[0] for line in lines] == ["yahoo", "brave", "mojeek"]
+    assert "✓ 7" in lines[0] and "0.8s" in lines[0]
+    assert "✗ 429" in lines[1] and "cooling 2:41" in lines[1]
+    assert lines[2].endswith("· untried")
+
+
+def test_format_brief_prints_the_agent_view_and_needs_the_envelope(monkeypatch, capsys):
+    run = _stub_search(
+        monkeypatch, [ProviderStatus("yahoo", "q", True, 7, latency_ms=800.0)], untried=["mojeek"]
+    )
+    run.results = [SearchResult("A title", "https://example.org/a", "", sources=["yahoo"])]
+    monkeypatch.setattr("sys.argv", ["josty", "q", "--format", "brief"])
+
+    main()
+    out, err = capsys.readouterr()
+
+    assert out.splitlines() == [
+        "q · 1 results · 1 index (bing) · 1 untried",
+        " 1 ✓ A title   yahoo",
+    ]
+    assert err == ""
+
+    monkeypatch.setattr("sys.argv", ["josty", "q", "--format", "brief", "--results-only"])
+    with pytest.raises(SystemExit) as exit_info:
+        main()
+    assert exit_info.value.code == 2
+
+
+def test_without_format_stdout_is_json_and_stderr_is_empty(monkeypatch, capsys):
+    _stub_search(monkeypatch, [ProviderStatus("yahoo", "q", True, 7, latency_ms=800.0)])
+    monkeypatch.setattr("sys.argv", ["josty", "q"])
+
+    main()
+    out, err = capsys.readouterr()
+
+    assert json.loads(out)["schema_version"] == SCHEMA_VERSION
+    assert err == ""

@@ -367,6 +367,33 @@ class SearchRun:
             return SearchStatus.EMPTY
         return SearchStatus.COMPLETE
 
+    def __repr__(self) -> str:
+        """The agent's view (#108): a header, what did not answer, the top rows.
+
+        No JSON. At most two lines before the result lines, and one result line
+        per row, so the length follows --limit.
+        """
+        indexes = sorted({index_of(name) for result in self.results for name in result.sources})
+        header = f"{self.query} · {len(self.results)} results"
+        if indexes:
+            plural = "es" if len(indexes) != 1 else ""
+            header += f" · {len(indexes)} index{plural} ({', '.join(indexes)})"
+        if self.untried:
+            header += f" · {len(self.untried)} untried"
+        lines = [header]
+        silent = [
+            f"{p.provider} {p.error_kind}" + (f" {p.http_status}" if p.http_status else "")
+            for p in self.providers
+            if not p.ok
+        ]
+        if silent:
+            lines.append("no answer: " + ", ".join(silent))
+        for number, result in enumerate(self.results, 1):
+            found_by = len({index_of(name) for name in result.sources})
+            title = (result.title or result.url).replace("\n", " ")[:60]
+            lines.append(f"{number:>2} {'✓' * found_by} {title}   {', '.join(result.sources)}")
+        return "\n".join(lines)
+
     def why(self, engine: str) -> dict[str, Any] | None:
         """Why an engine did not contribute, as an RFC 9457 problem (#106).
 
