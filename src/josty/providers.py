@@ -365,7 +365,7 @@ class WikipediaSearchAdapter:
             return "skipped: wikipedia has no safe-search filter"
         return None
 
-    async def _request(self, client: httpx.AsyncClient, query: str) -> object:
+    async def _request(self, client: httpx.AsyncClient, query: str, limit: int) -> object:
         """The one wire call; the single test seam for this source."""
         response = await client.get(
             WIKIPEDIA_SEARCH_URL,
@@ -373,18 +373,21 @@ class WikipediaSearchAdapter:
                 "action": "query",
                 "list": "search",
                 "format": "json",
-                "srlimit": 10,
+                # The API's ceiling for a client without a bot flag.
+                "srlimit": min(limit, 500),
                 "srsearch": query,
             },
         )
         response.raise_for_status()
         return response.json()
 
-    async def _fetch(self, query: str, budget: float, headers: dict[str, str]) -> object:
+    async def _fetch(
+        self, query: str, limit: int, budget: float, headers: dict[str, str]
+    ) -> object:
         async with httpx.AsyncClient(
             timeout=budget, headers=headers, follow_redirects=False, trust_env=False
         ) as client:
-            return await self._request(client, query)
+            return await self._request(client, query, limit)
 
     async def issue(self, call: SearchCall, ctx: IssueContext) -> IssueOutcome:
         headers = {
@@ -397,7 +400,7 @@ class WikipediaSearchAdapter:
             # ledger measures calls issued, not tasks scheduled.
             ctx.ledger.record()
             body = await asyncio.wait_for(
-                self._fetch(call.query, min(self._timeout, ctx.budget), headers),
+                self._fetch(call.query, call.limit, min(self._timeout, ctx.budget), headers),
                 timeout=ctx.budget,
             )
             # Every field that reaches the models is checked: a shape variant

@@ -32,7 +32,7 @@ def _stub_wikipedia_network(monkeypatch: pytest.MonkeyPatch) -> None:
     """Answer every Wikipedia call locally with a certified empty page (#102)."""
 
     async def empty_request(
-        self: WikipediaSearchAdapter, client: object, query: str
+        self: WikipediaSearchAdapter, client: object, query: str, limit: int
     ) -> dict:
         return {"query": {"searchinfo": {"totalhits": 0}, "search": []}}
 

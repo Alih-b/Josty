@@ -63,7 +63,7 @@ def _ctx() -> IssueContext:
 
 
 def _patch_body(monkeypatch, body: object) -> None:
-    async def canned(self, client, query):
+    async def canned(self, client, query, limit):
         assert query == "q"
         return body
 
@@ -118,7 +118,7 @@ def test_request_asks_list_search_and_never_opensearch():
 
     adapter = WikipediaSearchAdapter(timeout=8, user_agent="test-agent")
 
-    asyncio.run(_REAL_REQUEST(adapter, FakeClient(), "python asyncio timeout"))
+    asyncio.run(_REAL_REQUEST(adapter, FakeClient(), "python asyncio timeout", 10))
 
     assert asked["url"] == WIKIPEDIA_SEARCH_URL
     params = asked["params"]
@@ -148,6 +148,22 @@ def test_issue_maps_rows_to_canonical_wiki_urls_and_counts_one_call(monkeypatch)
     assert outcome.results[0].snippet == "Asynchronous I/O & events"
     assert [r.engine_ranks for r in outcome.results] == [{"wikipedia": 1}, {"wikipedia": 2}]
     assert all(r.sources == ["wikipedia"] for r in outcome.results)
+
+
+def test_the_call_limit_reaches_the_api(monkeypatch):
+    """A run asking for 25 rows asks Wikipedia for 25, not a fixed 10."""
+    asked: list[int] = []
+
+    async def counted(self, client, query, limit):
+        asked.append(limit)
+        return _page([])
+
+    monkeypatch.setattr(WikipediaSearchAdapter, "_request", counted)
+    adapter = WikipediaSearchAdapter(timeout=8, user_agent="test-agent")
+
+    asyncio.run(adapter.issue(_call(limit=25), _ctx()))
+
+    assert asked == [25]
 
 
 def test_issue_respects_a_small_limit(monkeypatch):
