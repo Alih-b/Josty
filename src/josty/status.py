@@ -6,11 +6,13 @@ from typing import Literal
 
 from ._version import __version__
 
-SearchMode = Literal["plain", "exact", "oss"]
+SearchMode = Literal["plain", "exact"]
 SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]
-ErrorKind = Literal["network", "rate_limited", "blocked", "empty", "parse", "unknown", "skipped"]
+ErrorKind = Literal[
+    "network", "rate_limited", "blocked", "empty", "parse", "unknown", "skipped", "filtered", "geo"
+]
 ProfileType = Literal["general", "dev"]
 
 SCHEMA_VERSION = "1.0"

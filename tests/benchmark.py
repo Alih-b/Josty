@@ -1,32 +1,42 @@
-"""Canonical live benchmark for Josty.
+"""Live status-truth capture for Josty (#103).
 
-Runs 20 fixed factual queries against three runners:
-  - josty  : the project's async wrapper
-  - raw_ddgs     : direct DDGS client, serial per backend
-  - websearch_skill : the websearch-skill CLI subprocess
+Yield depends on the egress and on what each engine does that minute, so this
+benchmark no longer compares live yield against another tool. It measures
+whether the statuses Josty reports are true.
 
-Each query is repeated 8 times with rotating backend groups so no single
-upstream engine sees back-to-back traffic. Results are streamed to a
-per-run JSONL and can be replayed/scored offline by `benchmark_replay.py`.
+For every (query, repeat) it runs one search and records, per engine, what the
+reported error_kind said next to what the wire said at capture time:
+http_statuses_all, body_bytes, page_title and zero_result_kind. The two
+disagreeing is a mislabel, and the mislabel rate is the number this benchmark
+exists for. A run that returns nothing is a data point, not a failed run.
+
+Two kinds of row. "ranking" rows come only from the sources whose answers are
+stable across egresses (two-egress Jaccard of at least 0.9: mwmbl, the
+Wikipedia list=search API and the GitHub API) and double as ranking fixtures.
+"truth" rows come from the scrapers: their outcomes are static across egresses,
+their yield is noise, so they are measured for status truth and nothing else.
+The classification itself is pinned offline by tests/test_status_matrix.py.
+
+Usage: python tests/benchmark.py [repeats]
 
 Outputs (per run):
-  <run_id>/results.jsonl       per (runner, query, repeat) row
-  <run_id>/per_query.csv       wide per-(query, runner) table
-  <run_id>/summary.json        aggregates + failure telemetry
+  <run_id>/results.jsonl   per (query, repeat) row with its truth fields
+  <run_id>/per_query.csv   wide per-query table
+  <run_id>/summary.json    ranking aggregates + the mislabel rate
 """
 
 from __future__ import annotations
 
 import asyncio
+import csv
 import datetime as dt
 import json
+import re
 import statistics
-import subprocess
 import sys
 import time
-from collections.abc import Callable
-from contextlib import suppress
 from pathlib import Path
+from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
 SRC = HERE.parent / "src"
@@ -40,148 +50,173 @@ from benchmark_metrics import (  # noqa: E402
     precision_at_k,
 )
 from benchmark_queries import QUERIES  # noqa: E402
-from ddgs import DDGS  # type: ignore  # noqa: E402
 
 from josty.engine import Josty  # noqa: E402
+from josty.errors import (  # noqa: E402
+    _BLOCKED_HTTP_STATUSES,
+    _PARSE_BODY_BYTES,
+    _is_challenge_page,
+)
+from josty.models import SearchRun  # noqa: E402
+from josty.providers import _WireTap  # noqa: E402
 from josty.ranking import canonical  # noqa: E402
 
 OUT_ROOT = HERE / "benchmark_out"
-OUT_ROOT.mkdir(exist_ok=True)
 RUN_ID = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
 RUN_DIR = OUT_ROOT / RUN_ID
-RUN_DIR.mkdir(parents=True, exist_ok=True)
-
 LIMIT = 10
 TIMEOUT = 8
-REPEATS = 8
+REPEATS = int(sys.argv[1]) if len(sys.argv) > 1 else 3
 INTER_QUERY_SLEEP_S = 4.0
 INTER_REPEAT_SLEEP_S = 1.5
-INTER_RUNNER_SLEEP_S = 0.5
-WEBSEARCH_BIN = "websearch"
 
-# Rotation: 3 backend groups, cycled per query slot, so each upstream
-# engine is hit roughly every 3rd query, not back-to-back.
-ROTATION_SLOTS = (
-    "bing,brave,duckduckgo",
-    "google,mojeek,startpage",
-    "yandex,yahoo",
-)
-
-
-def backends_for_slot(slot_index: int) -> tuple[str, ...]:
-    return (ROTATION_SLOTS[slot_index % len(ROTATION_SLOTS)],)
+# Ranking fixtures: answers stable across egresses (two-egress Jaccard >= 0.9).
+STABLE_SLOTS = ("mwmbl", "wikipedia", "github-api")
+# Status truth only: outcomes are static, yield is egress noise.
+SCRAPER_SLOTS = ("brave,duckduckgo", "mojeek,startpage", "yahoo", "bing,yandex")
 
 
 # --------------------------------------------------------------------------
-# Runners
+# Capture: what the wire said, recorded beside what Josty reported
 # --------------------------------------------------------------------------
 
-
-async def run_josty(query: str, backends: tuple[str, ...]) -> tuple[list[dict], float]:
-    engine = Josty(timeout=TIMEOUT, backends=backends)
-    started = time.perf_counter()
-    run = await engine.search_run(query, limit=LIMIT)
-    wall = time.perf_counter() - started
-    flat = [{"title": r.title, "snippet": r.snippet, "url": r.url} for r in run.results]
-    return flat, wall
+CAPTURE: list[dict] = []
+_TITLE_RE = re.compile(r"<title[^>]*>([^<]*)</title>", re.IGNORECASE)
+_ORIGINAL_RECORDING = _WireTap._recording
 
 
-def run_raw_ddgs(query: str, backends: tuple[str, ...]) -> tuple[list[dict], float]:
-    started = time.perf_counter()
-    flat: list[dict] = []
-    for group in backends:
-        for backend in (b.strip() for b in group.split(",") if b.strip()):
+def _host_of(url: object) -> str | None:
+    return urlsplit(str(url)).hostname if url else None
+
+
+def install_capture() -> None:
+    """See every response the adapter's tap sees, without changing its verdict."""
+
+    def recording(self, request):
+        tapped = _ORIGINAL_RECORDING(self, request)
+
+        def capturing(*args, **kwargs):
+            url = args[1] if len(args) > 1 else kwargs.get("url")
             try:
-                ddgs = DDGS(timeout=TIMEOUT)
-                rows = list(
-                    ddgs.text(
-                        query,
-                        backend=backend,
-                        max_results=LIMIT,
-                        safesearch="moderate",
-                    )
+                response = tapped(*args, **kwargs)
+            except Exception as exc:
+                CAPTURE.append(
+                    {
+                        "host": _host_of(url),
+                        "http_status": None,
+                        "body_bytes": 0,
+                        "page_title": None,
+                        "challenge": False,
+                        "transport_error": type(exc).__name__,
+                    }
                 )
-                for row in rows:
-                    flat.append(
-                        {
-                            "title": row.get("title", ""),
-                            "snippet": row.get("body", ""),
-                            "url": row.get("href") or row.get("url") or "",
-                        }
-                    )
-            except Exception:
-                pass
-    wall = time.perf_counter() - started
-    return flat, wall
+                raise
+            text = getattr(response, "text", "")
+            text = text if isinstance(text, str) else ""
+            size = getattr(response, "content", b"")
+            status = getattr(response, "status_code", None)
+            title = _TITLE_RE.search(text)
+            CAPTURE.append(
+                {
+                    "host": _host_of(url),
+                    "http_status": status if isinstance(status, int) else None,
+                    "body_bytes": (
+                        len(size) if isinstance(size, (bytes, bytearray)) else len(text)
+                    ),
+                    "page_title": title.group(1).strip()[:120] if title else None,
+                    "challenge": bool(text) and _is_challenge_page(text),
+                }
+            )
+            return response
+
+        return capturing
+
+    _WireTap._recording = recording
 
 
-def run_websearch_skill(query: str, backends: tuple[str, ...]) -> tuple[list[dict], float]:
-    """Subprocess websearch search --engines ddgs --json, with the rotated
-    backend group passed via --ddgs-backends so each query slot uses a
-    different set of engines."""
-    started = time.perf_counter()
-    backends_csv = ",".join(
-        b.strip() for group in backends for b in group.split(",") if b.strip()
-    )
-    cmd = [
-        WEBSEARCH_BIN,
-        "search",
-        query,
-        "--engines",
-        "ddgs",
-        "--ddgs-backends",
-        backends_csv,
-        "--json",
-        "--count",
-        str(LIMIT),
-        "--max-results",
-        str(LIMIT),
-        "--safesearch",
-        "moderate",
-    ]
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT * 3)
-    except FileNotFoundError:
-        return [], time.perf_counter() - started
-    except subprocess.TimeoutExpired:
-        return [], time.perf_counter() - started
-    wall = time.perf_counter() - started
-    if proc.returncode != 0 or not proc.stdout.strip():
-        return [], wall
-    try:
-        envelope = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return [], wall
-    data = envelope.get("data") or {}
-    raw_results = data.get("results") or []
-    flat = [
-        {
-            "title": (r.get("title") or ""),
-            "snippet": (r.get("snippet") or r.get("description") or ""),
-            "url": (r.get("url") or r.get("href") or ""),
-        }
-        for r in raw_results
-    ]
-    return flat, wall
+def _expected_kind(facts: list[dict]) -> str | None:
+    """What a zero-row engine must report, judged from the capture alone."""
+    if not facts:
+        return None  # nothing observed (native source, no request): no verdict
+    codes = {fact["http_status"] for fact in facts}
+    if None in codes:
+        return None  # a transport failure is filtered or network; not this oracle's call
+    if 429 in codes:
+        return "rate_limited"
+    if codes & _BLOCKED_HTTP_STATUSES:
+        return "blocked"
+    if any(500 <= code < 600 for code in codes):
+        return "network"
+    if codes - {200}:
+        return "parse"
+    if any(fact["challenge"] for fact in facts):
+        return "blocked"
+    if max(fact["body_bytes"] for fact in facts) > _PARSE_BODY_BYTES:
+        return "parse"
+    return "empty"
 
 
-RUNNERS: dict[str, Callable] = {
-    "josty": run_josty,
-    "raw_ddgs": run_raw_ddgs,
-    "websearch_skill": run_websearch_skill,
-}
+def _zero_result_kind(facts: list[dict]) -> str | None:
+    """The capture's own name for why an engine returned no rows."""
+    if not facts:
+        return None
+    codes = [fact["http_status"] for fact in facts]
+    if None in codes:
+        return "no_response"
+    refused = [code for code in codes if code != 200]
+    if refused:
+        return f"http_{refused[0]}"
+    if any(fact["challenge"] for fact in facts):
+        return "challenge_page"
+    if max(fact["body_bytes"] for fact in facts) > _PARSE_BODY_BYTES:
+        return "large_unparsed"
+    return "small_page"
 
 
-async def _run_async(
-    fn: Callable, query: str, backends: tuple[str, ...]
-) -> tuple[list[dict], float]:
-    if asyncio.iscoroutinefunction(fn):
-        return await fn(query, backends)
-    return fn(query, backends)
+def truth_of(run: SearchRun, seen: list[dict]) -> dict:
+    """Per-engine capture facts beside the reported kind, and the mislabel count."""
+    providers: list[dict] = []
+    judged = mislabels = 0
+    for status in run.providers:
+        # The listed host or a subdomain of it: ddgs's DuckDuckGo text engine
+        # asks html.duckduckgo.com.
+        host = Josty.BACKEND_HOSTS.get(status.provider, "")
+        facts = [
+            fact
+            for fact in seen
+            if host and (fact["host"] == host or str(fact["host"]).endswith("." + host))
+        ]
+        largest = max(facts, key=lambda fact: fact["body_bytes"], default=None)
+        zero_rows = status.result_count == 0
+        expected = _expected_kind(facts) if zero_rows else None
+        if expected is not None:
+            judged += 1
+            mislabels += status.error_kind != expected
+        providers.append(
+            {
+                "provider": status.provider,
+                "ok": status.ok,
+                "error_kind": status.error_kind,
+                "result_count": status.result_count,
+                "reported_http_status": status.http_status,
+                "refusal_rate": status.refusal_rate,
+                "http_statuses_all": [fact["http_status"] for fact in facts] or None,
+                "body_bytes": largest["body_bytes"] if largest else None,
+                "page_title": largest["page_title"] if largest else None,
+                "zero_result_kind": _zero_result_kind(facts) if zero_rows else None,
+                "expected_kind": expected,
+            }
+        )
+    return {
+        "providers": providers,
+        "judged": judged,
+        "mislabels": mislabels,
+        "mislabel": (mislabels > 0) if judged else None,
+    }
 
 
 # --------------------------------------------------------------------------
-# Metric computation
+# Metric computation (ranking fixtures; stable sources only)
 # --------------------------------------------------------------------------
 
 
@@ -200,35 +235,42 @@ def evaluate_query(spec: dict, results: list[dict]) -> dict:
 
 def _count_unique(results: list[dict]) -> int:
     keys: list[str] = []
-    for r in results:
-        with suppress(ValueError):
-            keys.append(canonical(r.get("url", "")))
+    for item in results:
+        try:
+            keys.append(canonical(item.get("url", "")))
+        except ValueError:
+            continue
     return len(set(keys))
 
 
 # --------------------------------------------------------------------------
-# Per-(runner, query) row
+# One (query, repeat) row
 # --------------------------------------------------------------------------
 
 
 async def benchmark_one(
-    spec: dict,
-    runner_name: str,
-    runner_fn: Callable,
-    run_idx: int,
-    backends: tuple[str, ...],
+    spec: dict, run_idx: int, backends: tuple[str, ...], kind: str
 ) -> dict:
     started = time.perf_counter()
+    mark = len(CAPTURE)
     error: str | None = None
+    run: SearchRun | None = None
     try:
-        results, _ = await _run_async(runner_fn, spec["query"], backends)
+        engine = Josty(timeout=TIMEOUT, backends=backends, enable_cache=False)
+        run = await engine.search_run(spec["query"], limit=LIMIT)
     except BaseException as exc:  # noqa: BLE001
-        results = []
         error = f"{type(exc).__name__}: {exc}"
     wall = round(time.perf_counter() - started, 3)
+    results = (
+        [{"title": r.title, "snippet": r.snippet, "url": r.url} for r in run.results]
+        if run is not None
+        else []
+    )
     metrics = evaluate_query(spec, results)
+    truth = truth_of(run, CAPTURE[mark:]) if run is not None else None
     return {
-        "runner": runner_name,
+        "runner": "josty",
+        "kind": kind,  # "ranking" (stable source) or "truth" (scraper group)
         "query_id": spec["id"],
         "run_idx": run_idx,
         "slot_backends": list(backends),
@@ -241,7 +283,20 @@ async def benchmark_one(
         "unique_post_canonical": _count_unique(results),
         "rels": metrics["rels"],
         "error": error,
+        "truth": truth,
     }
+
+
+def _line(row: dict) -> str:
+    truth = row.get("truth") or {"providers": [], "judged": 0, "mislabels": 0}
+    engines = " ".join(
+        f"{p['provider']}:{p['error_kind'] or 'rows'}({p['reported_http_status'] or '-'})"
+        for p in truth["providers"]
+    )
+    return (
+        f"  [{row['query_id']:>20} r{row['run_idx']} {row['wall_clock_seconds']:.1f}s] "
+        f"n={row['result_count']:>2} {engines} | mislabel {truth['mislabels']}/{truth['judged']}"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -250,93 +305,71 @@ async def benchmark_one(
 
 
 async def main() -> None:
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
+    install_capture()
     print(
-        f"[{RUN_ID}] benchmark: {len(QUERIES)} queries × {REPEATS} repeats × "
-        f"{len(RUNNERS)} runners (with backend rotation)"
+        f"[{RUN_ID}] status truth: {len(QUERIES)} queries x {REPEATS} ranking runs "
+        f"on {', '.join(STABLE_SLOTS)}, plus one truth run each on "
+        f"{', '.join(SCRAPER_SLOTS)}"
     )
     print(f"Output: {RUN_DIR}")
 
     jsonl_path = RUN_DIR / "results.jsonl"
-    jsonl_f = jsonl_path.open("w", encoding="utf-8")
     all_rows: list[dict] = []
-
-    # Outer loop: queries. Inner loop: repeats. Inner-inner: runners.
-    for qi, spec in enumerate(QUERIES):
-        backends = backends_for_slot(qi)
-        for repeat in range(REPEATS):
-            line = [f"  [{spec['id']:>20} r{repeat} slot={backends[0][:14]}…]"]
-            for name, fn in RUNNERS.items():
-                try:
-                    row = await benchmark_one(spec, name, fn, repeat, backends)
-                except BaseException as exc:  # noqa: BLE001
-                    row = {
-                        "runner": name,
-                        "query_id": spec["id"],
-                        "run_idx": repeat,
-                        "slot_backends": list(backends),
-                        "wall_clock_seconds": 0.0,
-                        "result_count": 0,
-                        "ndcg_at_10": 0.0,
-                        "mrr": 0.0,
-                        "precision_at_5": 0.0,
-                        "graded_recall_at_10": 0.0,
-                        "unique_post_canonical": 0,
-                        "rels": [],
-                        "error": f"{type(exc).__name__}: {exc}",
-                    }
+    with jsonl_path.open("w", encoding="utf-8") as jsonl_f:
+        for qi, spec in enumerate(QUERIES):
+            stable = (STABLE_SLOTS[qi % len(STABLE_SLOTS)],)
+            scraper = (SCRAPER_SLOTS[qi % len(SCRAPER_SLOTS)],)
+            runs = [(repeat, stable, "ranking") for repeat in range(REPEATS)]
+            runs.append((0, scraper, "truth"))
+            for run_idx, backends, kind in runs:
+                row = await benchmark_one(spec, run_idx, backends, kind)
                 all_rows.append(row)
                 jsonl_f.write(json.dumps(row, ensure_ascii=False) + "\n")
                 jsonl_f.flush()
-                line.append(
-                    f"{name}=({row['ndcg_at_10']:.2f}/{row['mrr']:.2f} "
-                    f"{row['wall_clock_seconds']:.1f}s u{row['unique_post_canonical']})"
-                )
-                await asyncio.sleep(INTER_RUNNER_SLEEP_S)
-            print(" ".join(line), flush=True)
-            await asyncio.sleep(INTER_REPEAT_SLEEP_S)
-        # Sleep between queries to let upstream rate limits reset.
-        await asyncio.sleep(INTER_QUERY_SLEEP_S)
+                print(f"{kind:<7}{_line(row)}", flush=True)
+                await asyncio.sleep(INTER_REPEAT_SLEEP_S)
+            # Let upstream rate limits reset between queries.
+            await asyncio.sleep(INTER_QUERY_SLEEP_S)
 
-    jsonl_f.close()
-
-    # Per-runner aggregates
-    per_runner = _aggregate(all_rows)
+    summary = _aggregate(all_rows)
     with (RUN_DIR / "summary.json").open("w", encoding="utf-8") as f:
-        json.dump(per_runner, f, indent=2, ensure_ascii=False)
+        json.dump(summary, f, indent=2, ensure_ascii=False)
 
-    # Wide CSV
     csv_path = RUN_DIR / "per_query.csv"
-    import csv as _csv
-
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         if all_rows:
-            writer = _csv.DictWriter(f, fieldnames=list(all_rows[0].keys()))
+            writer = csv.DictWriter(f, fieldnames=list(all_rows[0].keys()))
             writer.writeheader()
             writer.writerows(all_rows)
 
-    print("\nPer-runner aggregates:")
-    print(json.dumps(per_runner, indent=2, ensure_ascii=False))
+    rate = summary["mislabel_rate"]
+    print(
+        f"\nMislabel rate: {'no judged engine (no data point)' if rate is None else rate} "
+        f"({summary['mislabels']} of {summary['judged']} zero-row engines)"
+    )
+    print(json.dumps({k: v for k, v in summary.items() if k != "all_runs"}, indent=2))
     print(f"\nWrote {jsonl_path}")
     print(f"Wrote {csv_path}")
     print(f"Wrote {RUN_DIR / 'summary.json'}")
 
 
 def _aggregate(rows: list[dict]) -> dict:
-    by_runner: dict[str, list[dict]] = {}
-    for r in rows:
-        by_runner.setdefault(r["runner"], []).append(r)
-    out: dict[str, dict] = {}
-    for runner, rrows in by_runner.items():
-        successful = [r for r in rrows if r["result_count"] > 0]
-        out[runner] = {
-            "queries": len({r["query_id"] for r in rrows}),
-            "runs": len(rrows),
-            "empty_runs": sum(1 for r in rrows if r["result_count"] == 0),
-            "error_runs": sum(1 for r in rrows if r.get("error")),
-            "all_runs": _stats_view(rrows),
-            "successful_runs_only": _stats_view(successful),
-        }
-    return out
+    # Ranking numbers come from the stable sources only; truth from every row.
+    ranking = [r for r in rows if r.get("kind", "ranking") == "ranking"]
+    judged = sum((r.get("truth") or {}).get("judged", 0) for r in rows)
+    mislabels = sum((r.get("truth") or {}).get("mislabels", 0) for r in rows)
+    return {
+        "queries": len({r["query_id"] for r in ranking}),
+        "runs": len(ranking),
+        "truth_runs": len(rows) - len(ranking),
+        "empty_runs": sum(1 for r in ranking if r["result_count"] == 0),
+        "error_runs": sum(1 for r in rows if r.get("error")),
+        "judged": judged,
+        "mislabels": mislabels,
+        "mislabel_rate": round(mislabels / judged, 4) if judged else None,
+        "all_runs": _stats_view(ranking),
+    }
 
 
 def _stats_view(rrows: list[dict]) -> dict:

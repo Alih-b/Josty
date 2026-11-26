@@ -8,6 +8,18 @@ try:
     from ddgs.engines import ENGINES as _DDGS_ENGINES
 except Exception:
     _DDGS_ENGINES = None
+else:
+    # ddgs builds ENGINES once, at import, and drops every class flagged
+    # ``disabled``; setting the flag afterwards is too late, and ``backend="yandex"``
+    # would silently fall back to ``"auto"``. Register the installed classes here,
+    # before the first DDGS() call. This is an allow-list, not "un-disable
+    # everything": Google stays out on purpose. A ddgs release that drops one of
+    # these classes fails this import loudly, which beats a skip nobody asked for.
+    from ddgs.engines.bing import Bing
+    from ddgs.engines.yandex import Yandex
+
+    _DDGS_ENGINES["text"]["bing"] = Bing
+    _DDGS_ENGINES["text"]["yandex"] = Yandex
 
 _KNOWN_TEXT_ENGINES = frozenset(
     {

@@ -14,20 +14,124 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import html
+import re
+import socket
+import threading
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote, urlsplit
 
 import httpx
 
 from .branch import IssueContext, IssueOutcome, SearchCall
+from .errors import ProviderError, _is_challenge_page
 from .fetch import is_ad_redirect
-from .models import SearchResult
+from .models import SearchResult, WireFacts, WireResponse
 from .status import SearchCategory
 
 if TYPE_CHECKING:
     from .fanout import _FanoutLedger
     from .lease import LeasePool
+
+
+def _json_body(response: httpx.Response, source: str, query: str) -> object:
+    """The body as JSON. HTML in its place is a challenge page or a parse miss."""
+    try:
+        return response.json()
+    except ValueError as exc:
+        kind = "blocked" if _is_challenge_page(response.text, query) else "parse"
+        raise ProviderError(
+            kind, f"{source}: HTTP {response.status_code} body is not JSON"
+        ) from exc
+
+
+class _WireTap:
+    """Records what the engines behind one ddgs call actually got back (#99).
+
+    ddgs answers every non-200 with ``None`` and a flat "No results found.". The
+    tap wraps the HTTP client of each engine the call will use, so the status,
+    the body size and whether the body is an interstitial survive to
+    classification. It is installed on the call's own engine instances (Josty
+    builds a fresh DDGS client per call), so nothing here is shared between
+    threads. Every seam it touches is private to ddgs and pinned by a compat
+    test; a client without the seam (the suite's doubles) is simply not tapped.
+    """
+
+    def __init__(self, query: str | None = None) -> None:
+        self.facts = WireFacts()
+        #: The call's query, so a page title can be read without it (#99).
+        self.query = query
+
+    def install(self, ddgs: Any, call: SearchCall) -> None:
+        """Tap every engine the call will use. Never raises: no seam, no tap."""
+        try:
+            get_engines = getattr(ddgs, "_get_engines", None)
+            if get_engines is None:
+                return
+            for engine in get_engines(call.category, call.backend):
+                http_client = getattr(engine, "http_client", None)
+                request = getattr(http_client, "request", None)
+                if request is not None:
+                    http_client.request = self._recording(request)
+        except Exception:
+            return
+
+    def _recording(self, request: Callable[..., Any]) -> Callable[..., Any]:
+        """A drop-in for ``HttpClient.request`` that notes what comes back."""
+
+        def tapped(*args: Any, **kwargs: Any) -> Any:
+            url = args[1] if len(args) > 1 else kwargs.get("url")
+            host = urlsplit(str(url)).hostname if url else None
+            if host and self.facts.host is None:
+                self.facts.host = host
+            response = request(*args, **kwargs)
+            status = getattr(response, "status_code", None)
+            if isinstance(status, int):
+                body = getattr(response, "text", None)
+                size = getattr(response, "content", None)
+                text = body if isinstance(body, str) else ""
+                self.facts.responses.append(
+                    WireResponse(
+                        status,
+                        len(size) if isinstance(size, (bytes, bytearray)) else len(text),
+                        status == 200 and _is_challenge_page(text, self.query),
+                    )
+                )
+            return response
+
+        return tapped
+
+    def note_silence(self) -> WireFacts:
+        """Explain a call that got no HTTP response: where did its host resolve?
+
+        The lookup runs on a daemon thread and is waited for at most
+        ``_SILENCE_LOOKUP_SECONDS``: a slow resolver must not hold this worker
+        and its lease past the search timeout. A lookup that does not finish
+        in time leaves ``resolved`` empty.
+        """
+        if self.facts.host and not self.facts.responses:
+            found: list[tuple[str, ...]] = []
+            lookup = threading.Thread(
+                target=lambda host=self.facts.host: found.append(_resolve(host)), daemon=True
+            )
+            lookup.start()
+            lookup.join(_SILENCE_LOOKUP_SECONDS)
+            self.facts.resolved = found[0] if found else ()
+        return self.facts
+
+
+#: Ceiling on the after-the-fact DNS lookup of a call that got no response.
+_SILENCE_LOOKUP_SECONDS = 1.0
+
+
+def _resolve(host: str) -> tuple[str, ...]:
+    try:
+        infos = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+    except OSError:
+        return ()
+    return tuple(dict.fromkeys(info[4][0] for info in infos))
 
 
 class DdgsSearchAdapter:
@@ -59,7 +163,7 @@ class DdgsSearchAdapter:
         lease_id = ctx.lease.lease_id if ctx.lease is not None else None
         t_start = time.perf_counter()
         try:
-            results, latency_ms, exc = await asyncio.wait_for(
+            results, latency_ms, exc, wire = await asyncio.wait_for(
                 asyncio.get_running_loop().run_in_executor(
                     ctx.executor,
                     functools.partial(
@@ -81,7 +185,7 @@ class DdgsSearchAdapter:
             # finally, and that release is idempotent.
             latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
             return IssueOutcome([], latency_ms, exc, lease_retained=True)
-        return IssueOutcome(results, latency_ms, exc)
+        return IssueOutcome(results, latency_ms, exc, wire=wire)
 
     def _worker(
         self,
@@ -90,14 +194,18 @@ class DdgsSearchAdapter:
         ledger: _FanoutLedger,
         pool: LeasePool | None,
         lease_id: int | None,
-    ) -> tuple[list[SearchResult], float, Exception | None]:
+    ) -> tuple[list[SearchResult], float, Exception | None, WireFacts | None]:
         """One blocking engine call, run on a worker thread.
+
+        The fourth element is what the wire said (#99), or None when the client
+        offers no seam to tap.
 
         Always retires its own lease, including on the exception path. The release
         is idempotent, so returning *after* the arbiter already reaped this lease
         as a ghost is a safe no-op rather than a double free.
         """
         t0 = time.perf_counter()
+        tap = _WireTap(call.query)
         try:
             # A fresh DDGS client per call is deliberate, not waste:
             # ddgs engine instances carry a shared cached_property lxml
@@ -106,6 +214,8 @@ class DdgsSearchAdapter:
             # engine parse HTML on one parser — the same C-level
             # corruption class already fixed for trafilatura extraction.
             ddgs = self._client_factory(timeout=self._timeout)
+            # See what the engines get back; ddgs itself will not say (#99).
+            tap.install(ddgs, call)
             method = ddgs.news if call.category == "news" else ddgs.text
             kwargs: dict[str, Any] = {
                 "backend": call.backend,
@@ -137,9 +247,11 @@ class DdgsSearchAdapter:
                         )
                     )
                     rank += 1
-            return results, round((time.perf_counter() - t0) * 1000, 2), None
+            latency = round((time.perf_counter() - t0) * 1000, 2)
+            return results, latency, None, tap.facts
         except Exception as exc:
-            return [], round((time.perf_counter() - t0) * 1000, 2), exc
+            latency = round((time.perf_counter() - t0) * 1000, 2)
+            return [], latency, exc, tap.note_silence()
         finally:
             if pool is not None and lease_id is not None:
                 pool.release(lease_id)
@@ -186,7 +298,7 @@ class MwmblSearchAdapter:
         """The one wire call; the single test seam for this source."""
         response = await client.get(MWMBL_SEARCH_URL, params={"q": query})
         response.raise_for_status()
-        return response.json()
+        return _json_body(response, "mwmbl", query)
 
     async def _fetch(self, query: str, budget: float, headers: dict[str, str]) -> object:
         async with httpx.AsyncClient(
@@ -241,6 +353,129 @@ class MwmblSearchAdapter:
                 rank += 1
                 if rank > call.limit:
                     break
+            latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+            return IssueOutcome(results, latency_ms, None)
+        except Exception as exc:
+            latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+            return IssueOutcome([], latency_ms, exc)
+
+
+#: Wikipedia's ``list=search`` API: keyless JSON, a full-text search. ddgs reaches
+#: the wiki through ``action=opensearch`` instead, which matches title prefixes
+#: with ``limit=1``.
+WIKIPEDIA_SEARCH_URL = "https://en.wikipedia.org/w/api.php"
+_WIKI_TITLE_URL = "https://en.wikipedia.org/wiki/"
+_SEARCHMATCH_TAG_RE = re.compile(r"<[^>]*>")
+
+
+class WikipediaSearchAdapter:
+    """English Wikipedia's keyless ``list=search`` API.
+
+    ddgs asks ``action=opensearch``, which matches title prefixes only: "python
+    asyncio timeout" is a miss of that index and reads as "not found".
+    ``list=search`` is a full-text search, and ``searchinfo.totalhits`` settles
+    what an empty page means: 0 is a real miss, a positive count with no rows is
+    a parse problem. The API takes no date, region or safe-search parameter, so
+    :meth:`precheck` refuses a call whose filter it cannot honour.
+    """
+
+    provider: str = "wikipedia"
+
+    def __init__(self, *, timeout: float, user_agent: str) -> None:
+        self._timeout = timeout
+        self._user_agent = user_agent
+
+    def precheck(self, call: SearchCall) -> str | None:
+        """Refuse a call whose filter this API cannot honour, or None to proceed."""
+        if call.category != "text":
+            return "skipped: wikipedia serves web search only, not news"
+        if call.timelimit is not None:
+            return "skipped: wikipedia does not support time-limited search"
+        if call.region is not None:
+            return "skipped: wikipedia is English-only and ignores region selection"
+        if call.safesearch == "on":
+            return "skipped: wikipedia has no safe-search filter"
+        return None
+
+    async def _request(self, client: httpx.AsyncClient, query: str, limit: int) -> object:
+        """The one wire call; the single test seam for this source."""
+        response = await client.get(
+            WIKIPEDIA_SEARCH_URL,
+            params={
+                "action": "query",
+                "list": "search",
+                "format": "json",
+                # The API's ceiling for a client without a bot flag.
+                "srlimit": min(limit, 500),
+                "srsearch": query,
+            },
+        )
+        response.raise_for_status()
+        return _json_body(response, "wikipedia", query)
+
+    async def _fetch(
+        self, query: str, limit: int, budget: float, headers: dict[str, str]
+    ) -> object:
+        async with httpx.AsyncClient(
+            timeout=budget, headers=headers, follow_redirects=False, trust_env=False
+        ) as client:
+            return await self._request(client, query, limit)
+
+    async def issue(self, call: SearchCall, ctx: IssueContext) -> IssueOutcome:
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": self._user_agent,
+        }
+        t0 = time.perf_counter()
+        try:
+            # The one request site: counted immediately before the call so the
+            # ledger measures calls issued, not tasks scheduled.
+            ctx.ledger.record()
+            body = await asyncio.wait_for(
+                self._fetch(call.query, call.limit, min(self._timeout, ctx.budget), headers),
+                timeout=ctx.budget,
+            )
+            # Every field that reaches the models is checked: a shape variant
+            # must not raise on the path to stdout.
+            page = body.get("query") if isinstance(body, dict) else None
+            page = page if isinstance(page, dict) else {}
+            info = page.get("searchinfo")
+            total = info.get("totalhits") if isinstance(info, dict) else None
+            rows = page.get("search")
+            results = []
+            rank = 1
+            for row in rows if isinstance(rows, list) else []:
+                title = row.get("title") if isinstance(row, dict) else None
+                if not isinstance(title, str) or not title:
+                    continue
+                snippet = row.get("snippet")
+                if isinstance(snippet, str):
+                    # The API highlights the match with span tags and escapes
+                    # entities; a snippet is plain text.
+                    snippet = html.unescape(_SEARCHMATCH_TAG_RE.sub("", snippet))
+                else:
+                    snippet = ""
+                results.append(
+                    SearchResult(
+                        title=title,
+                        # What the API's own links leave unescaped, besides "/".
+                        url=_WIKI_TITLE_URL
+                        + quote(title.replace(" ", "_"), safe="/!" + "'()*,:;=@&"),
+                        snippet=snippet,
+                        sources=["wikipedia"],
+                        engine_ranks={"wikipedia": rank},
+                    )
+                )
+                rank += 1
+                if rank > call.limit:
+                    break
+            if not results and total != 0:
+                # searchinfo.totalhits settles what the empty page means: 0 is a
+                # certified miss; anything else, including "absent", is not.
+                raise ProviderError(
+                    "parse",
+                    f"wikipedia: searchinfo.totalhits={total!r} but no rows returned",
+                )
             latency_ms = round((time.perf_counter() - t0) * 1000, 2)
             return IssueOutcome(results, latency_ms, None)
         except Exception as exc:

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
+from .fetch import text_quote
 from .status import DIAGNOSE_NOTE, SCHEMA_VERSION, ErrorKind, SearchStatus
 
 
@@ -39,6 +41,25 @@ class SearchResult:
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    def quote(self, phrase: str) -> Quote | None:
+        """A citable span for an exact phrase of the stored page text (#107).
+
+        None when the page was not fetched or the text does not contain the
+        phrase: never a fuzzy near-match.
+        """
+        text = self.content
+        if not text:
+            return None
+        selector = text_quote(text, phrase)
+        if selector is None:
+            return None
+        return Quote(
+            url=self.fetched_url or self.url,
+            fetched_at=self.fetched_at,
+            sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            selector=selector,
+        )
 
     def fetch_dict(self) -> dict[str, Any]:
         """The per-item fetch envelope, one definition for every stdin shape."""
@@ -78,6 +99,26 @@ class SearchResult:
         ]
 
 
+@dataclass(frozen=True)
+class Quote:
+    """A citable span of a fetched page (#107).
+
+    A snippet or bounded page text lets an agent claim a page said something,
+    and nothing later can check that claim. A quote pins the exact phrase with
+    32 characters of context on each side (a W3C TextQuoteSelector) and the
+    hash of the stored text, so a later re-fetch can show whether the page
+    drifted. It is honest about the extracted text, not about the DOM.
+    """
+
+    url: str
+    fetched_at: str | None
+    sha256: str
+    selector: dict[str, str]
+
+    def dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 @dataclass
 class ProviderStatus:
     provider: str
@@ -91,9 +132,69 @@ class ProviderStatus:
     circuit_state: str | None = None
     failures: int | None = None
     backoff_remaining: float | None = None
+    # What the wire said (#99), when Josty could see it. None when no HTTP
+    # response was observed: a timeout, a refused call, or a source without a tap.
+    http_status: int | None = None
+    body_bytes: int | None = None
+    #: Share of the engine's wire-reaching calls (all its variants) that got a
+    #: non-200. ddgs issues one HTTP request per call, so calls and sub-requests
+    #: coincide. None when no call reached the wire.
+    refusal_rate: float | None = None
 
     def dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class WireResponse:
+    """One HTTP response an adapter observed behind a provider call."""
+
+    status_code: int
+    body_bytes: int
+    #: True when a 200 body is an interstitial (captcha, Anubis, Cloudflare).
+    challenged: bool = False
+
+
+@dataclass
+class WireFacts:
+    """What the HTTP exchange behind one provider call actually said (#99).
+
+    ddgs answers every non-200 with ``None`` and a flat "No results found.", so
+    a 429, a block page and a genuine miss were indistinguishable. An adapter
+    that can see the wire fills this in; :mod:`josty.errors` reads it.
+    """
+
+    #: Every HTTP response of the call, in wire order.
+    responses: list[WireResponse] = field(default_factory=list)
+    #: Host the call asked, once its first request went out.
+    host: str | None = None
+    #: Addresses the host resolved to when nothing came back; empty otherwise.
+    resolved: tuple[str, ...] = ()
+
+    @property
+    def http_status(self) -> int | None:
+        """The first non-200 of the call, else the first response's status."""
+        refused = [
+            response.status_code
+            for response in self.responses
+            if response.status_code != 200
+        ]
+        if refused:
+            return refused[0]
+        return self.responses[0].status_code if self.responses else None
+
+    @property
+    def body_bytes(self) -> int | None:
+        """Size of the largest body of the call."""
+        return max((response.body_bytes for response in self.responses), default=None)
+
+    @property
+    def refusal_rate(self) -> float | None:
+        """Share of the call's HTTP sub-requests that were not a 200."""
+        if not self.responses:
+            return None
+        refused = sum(1 for response in self.responses if response.status_code != 200)
+        return round(refused / len(self.responses), 3)
 
 
 @dataclass
@@ -168,6 +269,10 @@ class SearchRun:
     fetch_attempted: int = 0
     fetch_ok: int = 0
     fetch_failed: int = 0
+    #: True when the rows are an expired cached answer, served because no engine
+    #: answered this run (#104). The providers are always this run's own.
+    stale: bool = False
+    age_seconds: float | None = None
 
     @property
     def provider_count(self) -> int:
@@ -267,4 +372,8 @@ class SearchRun:
         }
         if self.run_at is not None:
             payload["run_at"] = self.run_at
+        if self.stale:
+            # Only on a stale run: every other payload stays the 1.0 envelope.
+            payload["stale"] = True
+            payload["age_seconds"] = self.age_seconds
         return payload

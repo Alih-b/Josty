@@ -28,7 +28,12 @@ from .errors import _classify_probe_error
 from .fanout import Fanout, Plan
 from .fetch import FETCH_HEADERS, download, extract, is_ad_redirect, validate_public_url
 from .models import DiagnoseRun, HostStatus, ProviderStatus, SearchResult, SearchRun
-from .providers import DdgsSearchAdapter, GithubSearchAdapter, MwmblSearchAdapter
+from .providers import (
+    DdgsSearchAdapter,
+    GithubSearchAdapter,
+    MwmblSearchAdapter,
+    WikipediaSearchAdapter,
+)
 from .ranking import (
     _site_matches,
     normalize_sites,
@@ -52,9 +57,12 @@ class Josty:
     """Small, bounded metasearch querying backend groups in parallel with
     group-level RRF fusion and safe text extraction."""
 
+    #: No `google` here: the pinned ddgs disables it, so listing it only made
+    #: every default run `degraded` (#97). An explicit `backends=("google",)` is
+    #: still honoured and reported `skipped` while ddgs keeps it disabled.
     DEFAULT_BACKENDS = (
         "brave,duckduckgo",
-        "google,mojeek,startpage",
+        "mojeek,startpage",
         "yahoo",
         "mwmbl",
     )
@@ -63,7 +71,7 @@ class Josty:
     #: Backends Josty calls itself instead of through the installed ``ddgs``
     #: registry. They bypass the registry availability gate in ``diagnose_run``;
     #: the adapter's own ``precheck`` decides whether a call may be attempted.
-    NATIVE_BACKENDS = frozenset({"mwmbl"})
+    NATIVE_BACKENDS = frozenset({"mwmbl", "wikipedia"})
 
     #: Sources that only answer a run the primary engines left empty. They are
     #: queried every run, but their rows are fused only when no primary list has
@@ -251,15 +259,15 @@ class Josty:
         query = query.strip()
         if not query:
             raise ValueError("query must not be empty")
-        if mode not in ("plain", "exact", "oss"):
+        # No "oss" mode: its fixed suffixes quadrupled the calls per engine and
+        # nothing measured showed they helped (#98). Josty does not rewrite queries.
+        if mode not in ("plain", "exact"):
             raise ValueError(f"unsupported search mode: {mode}")
         if max_query_variants is not None and max_query_variants < 1:
             raise ValueError("max_query_variants must be positive")
         variants = [query]
         if mode == "exact":
             variants.append(f'"{query}"')
-        elif mode == "oss":
-            variants.extend((f'"{query}"', f"{query} open source", f"{query} self-hosted"))
         normalized_sites = normalize_sites(sites)
         if normalized_sites:
             variants = [
@@ -365,6 +373,12 @@ class Josty:
             return await fanout.runner().run(
                 call,
                 MwmblSearchAdapter(timeout=self.timeout, user_agent=USER_AGENT),
+            )
+        if call.backend == "wikipedia":
+            # Same shape as mwmbl: a native source admitted like any other (#102).
+            return await fanout.runner().run(
+                call,
+                WikipediaSearchAdapter(timeout=self.timeout, user_agent=USER_AGENT),
             )
         if call.backend == "github-api":
             return await self.github_run(call.query, call.limit, fanout=fanout)
@@ -620,6 +634,45 @@ class Josty:
         statuses = await asyncio.gather(*(self._probe_host(name, host) for name, host in targets))
         return DiagnoseRun(providers=[*statuses, *skipped])
 
+    #: Provider kinds that mean no answer arrived. With zero results and one of
+    #: these, the expired answer to the same query beats an empty page (#104).
+    UNANSWERED_KINDS = frozenset({"rate_limited", "blocked", "network", "filtered", "geo"})
+
+    @classmethod
+    def _unanswered(cls, run: SearchRun) -> bool:
+        """True when a result-less run failed to get an answer, rather than getting none."""
+        return any(provider.error_kind in cls.UNANSWERED_KINDS for provider in run.providers)
+
+    async def _serve_stale(
+        self, cache_key: str, fresh: SearchRun, *, fetch: bool
+    ) -> SearchRun | None:
+        """Put the expired cached rows on ``fresh``, marked stale (#104).
+
+        The providers, the accounting and the statuses stay this run's, so the
+        caller sees both what was found earlier and why nothing is fresh. A
+        genuine empty run never gets here, and rows are never merged.
+        """
+        if self.cache is None:
+            return None
+        stale = self.cache.get_stale(cache_key)
+        if stale is None:
+            return None
+        payload, age_seconds = stale
+        try:
+            old = _search_run_from_dict(payload)
+        except Exception:
+            return None
+        if not old.results:
+            return None
+        fresh.results = old.results
+        fresh.stale = True
+        fresh.age_seconds = age_seconds
+        if fetch and any(result.content is None for result in fresh.results):
+            # The cached payload is SERP-only; rehydrate page content on demand.
+            await self.fetch_content(fresh.results)
+            _stamp_fetch_stats(fresh, requested=True)
+        return fresh
+
     async def research_run(
         self,
         query: str,
@@ -780,6 +833,11 @@ class Josty:
             **fanout.accounting(),
         )
         _stamp_fetch_stats(run, requested=fetch)
+        if cache_key and not run.results and self._unanswered(run):
+            # No engine answered, but this query was answered before (#104).
+            stale = await self._serve_stale(cache_key, run, fetch=fetch)
+            if stale is not None:
+                return stale
         if (
             cache_key
             and self.enable_cache

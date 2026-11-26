@@ -26,7 +26,7 @@ def parser() -> argparse.ArgumentParser:
     )
     command.add_argument("--limit", type=int, default=10)
     command.add_argument("--site", action="append", dest="sites", help="add a site: filter")
-    command.add_argument("--mode", choices=("plain", "exact", "oss"), default="plain")
+    command.add_argument("--mode", choices=("plain", "exact"), default="plain")
     command.add_argument("--category", choices=("text", "news"), default="text")
     command.add_argument("--region", help="DDGS region code, for example us-en or de-de")
     command.add_argument(

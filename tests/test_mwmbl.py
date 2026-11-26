@@ -184,9 +184,9 @@ def test_the_default_roster_queries_mwmbl_but_keeps_primary_results(monkeypatch)
     run = asyncio.run(Josty(enable_cache=False).search_run("q", limit=5))
 
     assert "mwmbl" in {p.provider for p in run.providers}
-    # Six ddgs engines plus the native source: one call each, no amplification.
-    assert run.request_count == 7
-    assert run.scheduled_count == 7
+    # Five ddgs engines plus the native source: one call each, no amplification.
+    assert run.request_count == 6
+    assert run.scheduled_count == 6
     assert run.shed_count == 0
     # A primary engine answered, so the fallback source's rows are not fused:
     # the order above it is exactly what it would be without the source.
@@ -220,7 +220,7 @@ def test_mwmbl_rows_answer_a_run_the_primary_engines_left_empty(monkeypatch):
         "https://example.org/b",
     ]
     assert all(r.sources == ["mwmbl"] for r in run.results)
-    assert run.request_count == 7
+    assert run.request_count == 6
 
 
 def test_prefer_primary_drops_a_fallback_list_only_when_a_primary_has_rows():

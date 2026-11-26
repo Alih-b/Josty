@@ -129,7 +129,8 @@ class SearchCache:
                     return None
                 payload_str, expires_at = row
                 if expires_at < now:
-                    conn.execute("DELETE FROM search_cache WHERE key = ?", (key,))
+                    # An expired row stays until pruning evicts it (#104): a run
+                    # that cannot get a fresh answer may still serve it, stale.
                     return None
                 conn.execute(
                     """
@@ -144,6 +145,28 @@ class SearchCache:
                 except Exception:
                     conn.execute("DELETE FROM search_cache WHERE key = ?", (key,))
                     return None
+        except Exception:
+            return None
+
+    def get_stale(self, key: str) -> tuple[dict[str, Any], float] | None:
+        """The expired row for ``key`` and its age in seconds, or None (#104).
+
+        A miss no longer deletes the row, so the answer Josty gave earlier is
+        still here after its TTL. It is served only to a caller that could not
+        get a fresh one, and is marked stale there. Never counts as a hit.
+        """
+        if self.disabled:
+            return None
+        try:
+            now = time.time()
+            with self._get_conn() as conn:
+                row = conn.execute(
+                    "SELECT payload, expires_at, created_at FROM search_cache WHERE key = ?",
+                    (key,),
+                ).fetchone()
+                if not row or row[1] >= now:
+                    return None
+                return json.loads(row[0]), round(now - (row[2] or now), 3)
         except Exception:
             return None
 
@@ -399,6 +422,16 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         cs = p.get("circuit_state")
         if cs not in ("closed", "open", "half-open"):
             cs = "closed" if cs is not None else None
+        # Wire evidence (#99) is additive: a row cached before it carries no such
+        # key and reads back as None, same as a call that never saw a response.
+        wire: dict[str, Any] = {}
+        for key, cast in (("http_status", int), ("body_bytes", int), ("refusal_rate", float)):
+            try:
+                wire[key] = cast(p[key]) if p.get(key) is not None else None
+            except (ValueError, TypeError):
+                wire[key] = None
+        if wire["refusal_rate"] is not None and not math.isfinite(wire["refusal_rate"]):
+            wire["refusal_rate"] = None
         providers.append(
             ProviderStatus(
                 provider=str(p.get("provider", "")),
@@ -411,6 +444,7 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
                 circuit_state=cs,
                 failures=fails,
                 backoff_remaining=bo,
+                **wire,
             )
         )
 
@@ -428,6 +462,15 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         except (TypeError, ValueError):
             return None
 
+    def _as_opt_float(value: Any) -> float | None:
+        if value is None:
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        return number if math.isfinite(number) else None
+
     fetch_raw = payload.get("fetch")
     if not isinstance(fetch_raw, dict):
         fetch_raw = {}
@@ -443,4 +486,6 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         fetch_attempted=_as_int(fetch_raw.get("attempted")),
         fetch_ok=_as_int(fetch_raw.get("ok")),
         fetch_failed=_as_int(fetch_raw.get("failed")),
+        stale=bool(payload.get("stale", False)),
+        age_seconds=_as_opt_float(payload.get("age_seconds")),
     )

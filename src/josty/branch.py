@@ -56,9 +56,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 from .breaker import CircuitBreaker
-from .errors import _classify_search_error
+from .errors import _classify_search_error, _describe_failure
 from .lease import Lease, LeasePool
-from .models import ProviderStatus, SearchResult
+from .models import ProviderStatus, SearchResult, WireFacts
 from .status import ErrorKind, SafeSearch, SearchCategory, TimeLimit
 
 if TYPE_CHECKING:
@@ -89,6 +89,8 @@ class IssueOutcome:
     error: BaseException | None
     #: True when a worker thread is still running and will release its own lease.
     lease_retained: bool = False
+    #: What the adapter saw on the wire (#99); None when it could not see it.
+    wire: WireFacts | None = None
 
 
 @dataclass(frozen=True)
@@ -279,16 +281,17 @@ class BranchRunner:
         latency_ms = outcome.latency_ms
         if exc is not None and not isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
             breaker.record_latency(provider, latency_ms)
-            error_kind = _classify_search_error(exc)
+            error_kind = _classify_search_error(exc, outcome.wire)
             if error_kind != "empty":
                 breaker.record_failure(provider, "search")
                 return self._status(
                     call,
                     provider,
                     ok=False,
-                    error=f"{type(exc).__name__}: {exc}",
+                    error=_describe_failure(exc, outcome.wire, error_kind),
                     error_kind=error_kind,
                     latency_ms=latency_ms,
+                    wire=outcome.wire,
                 )
             # An "empty" classification is the same successful-empty branch as a
             # call that returned zero rows: fall through to the block below.
@@ -319,6 +322,7 @@ class BranchRunner:
             result_count=len(outcome.results),
             error_kind="empty" if not outcome.results else None,
             latency_ms=latency_ms,
+            wire=outcome.wire,
         )
 
     def _status(
@@ -331,6 +335,7 @@ class BranchRunner:
         error: str | None = None,
         error_kind: ErrorKind | None = None,
         latency_ms: float | None = None,
+        wire: WireFacts | None = None,
     ) -> ProviderStatus:
         """The one status factory; every return path stamps telemetry here.
 
@@ -349,4 +354,7 @@ class BranchRunner:
             circuit_state=b_state["state"],
             failures=b_state["failures"],
             backoff_remaining=b_state["backoff_remaining"],
+            http_status=wire.http_status if wire else None,
+            body_bytes=wire.body_bytes if wire else None,
+            refusal_rate=wire.refusal_rate if wire else None,
         )

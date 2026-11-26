@@ -197,8 +197,6 @@ def test_query_variant_count_reflects_expansion(monkeypatch):
     run = asyncio.run(engine.search_run("q", mode="exact", limit=3))
     assert run.query_variant_count == 2
     assert run.request_count == 2
-    oss = Josty.expand("document indexing", ["github.com", "gitlab.com"], mode="oss")
-    assert len(oss) == 8
 
 
 def test_research_run_stamps_fanout_and_coverage(monkeypatch):

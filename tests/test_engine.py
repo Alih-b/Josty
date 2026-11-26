@@ -99,12 +99,12 @@ def test_query_modes_are_explicit():
         "agent search",
         '"agent search"',
     ]
-    assert Josty.expand("agent search", mode="oss") == [
-        "agent search",
-        '"agent search"',
-        "agent search open source",
-        "agent search self-hosted",
-    ]
+
+
+def test_oss_mode_is_rejected_not_silently_rewritten():
+    """#98: fixed suffixes quadrupled the calls per engine; nothing showed they help."""
+    with pytest.raises(ValueError, match="unsupported search mode: oss"):
+        Josty.expand("foo", mode="oss")  # type: ignore[arg-type]
 
 
 def test_site_filters_scope_every_variant():
@@ -881,6 +881,53 @@ def test_engine_available_follows_installed_ddgs_registry():
         assert "not enabled in the installed ddgs" in message
 
 
+def test_disabled_ddgs_engines_josty_intends_to_call_are_registered():
+    """ddgs ships yandex and bing disabled; josty registers those two, not Google."""
+    from ddgs import DDGS
+    from ddgs.engines import ENGINES
+    from ddgs.engines.bing import Bing
+    from ddgs.engines.google import Google
+    from ddgs.engines.yandex import Yandex
+
+    assert ENGINES["text"]["yandex"] is Yandex
+    assert ENGINES["text"]["bing"] is Bing
+    assert _engine_available("text", "yandex") == (True, None)
+    assert _engine_available("text", "bing") == (True, None)
+    # ddgs itself resolves the name to that class instead of falling back to "auto".
+    assert [type(engine) for engine in DDGS()._get_engines("text", "yandex")] == [Yandex]
+    # An allow-list: Google stays exactly as ddgs shipped it.
+    assert ("google" in ENGINES["text"]) is (not Google.disabled)
+    if Google.disabled:
+        assert _engine_available("text", "google") == (
+            False,
+            "skipped: engine 'google' is not enabled in the installed ddgs",
+        )
+
+
+def test_registered_yandex_engine_is_called_instead_of_skipped(monkeypatch):
+    calls: list[str] = []
+
+    class RecordingDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            calls.append(kwargs.get("backend"))
+            return [{"title": "Yandex hit", "href": "https://example.org/yandex-1"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", RecordingDDGS)
+
+    run = asyncio.run(
+        Josty(backends=("yandex",), enable_cache=False).search_run("query", limit=5)
+    )
+
+    assert calls == ["yandex"]
+    assert run.providers[0].provider == "yandex"
+    assert run.providers[0].ok is True
+    assert run.providers[0].error_kind is None
+    assert [result.url for result in run.results] == ["https://example.org/yandex-1"]
+
+
 def test_diagnose_probes_grokipedia_and_wikipedia_hosts(monkeypatch):
     grok_ok, _ = _engine_available("text", "grokipedia")
     wiki_ok, _ = _engine_available("text", "wikipedia")
@@ -936,7 +983,7 @@ def test_diagnose_scopes_probes_to_category_and_github_opt_in(monkeypatch):
     text = asyncio.run(Josty().diagnose_run()).dict()
     text_providers = {entry["provider"] for entry in text["providers"]}
     assert "github-api" not in text_providers
-    assert all(p in text_providers for p in ("brave", "google", "yahoo"))
+    assert all(p in text_providers for p in ("brave", "mojeek", "yahoo"))
 
     news = asyncio.run(Josty().diagnose_run(category="news")).dict()
     news_providers = {entry["provider"] for entry in news["providers"]}
@@ -945,6 +992,57 @@ def test_diagnose_scopes_probes_to_category_and_github_opt_in(monkeypatch):
     got = asyncio.run(Josty().diagnose_run(include_github=True)).dict()
     got_providers = {entry["provider"] for entry in got["providers"]}
     assert "github-api" in got_providers
+
+
+def test_default_roster_omits_google_which_the_pinned_ddgs_disables():
+    """#97: a default engine ddgs skips made every default run `degraded`."""
+    names = [name for group in Josty.DEFAULT_BACKENDS for name in group.split(",")]
+
+    assert "google" not in names
+    assert names == ["brave", "duckduckgo", "mojeek", "startpage", "yahoo", "mwmbl"]
+    # The roster and the installed registry agree: nothing in it can be skipped.
+    for name in names:
+        if name not in Josty.NATIVE_BACKENDS:
+            assert _engine_available("text", name) == (True, None)
+
+
+def test_default_run_reports_complete_and_empty_once_nothing_is_skipped(monkeypatch):
+    """Every engine answering is `complete`; every engine empty is `empty`."""
+    rows: list[dict] = [{"title": "Hit", "href": "https://example.org/hit"}]
+
+    class FixedDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            return rows
+
+    monkeypatch.setattr("josty.engine.DDGS", FixedDDGS)
+    engine = Josty(enable_cache=False)
+
+    answered = asyncio.run(engine.search_run("query", limit=5))
+    assert answered.status == "complete"
+    assert all(provider.ok for provider in answered.providers)
+
+    rows.clear()
+    nothing = asyncio.run(engine.search_run("query", limit=5))
+    assert nothing.status == "empty"
+    assert nothing.results == []
+
+
+def test_explicit_google_request_is_skipped_not_silently_dropped(monkeypatch):
+    from ddgs.engines.google import Google
+
+    if not Google.disabled:
+        pytest.skip("this ddgs enables Google")
+
+    run = asyncio.run(
+        Josty(backends=("google",), enable_cache=False).search_run("query", limit=5)
+    )
+
+    assert [provider.provider for provider in run.providers] == ["google"]
+    assert run.providers[0].ok is False
+    assert run.providers[0].error_kind == "skipped"
 
 
 def test_domain_weights_boost_and_penalize_with_subdomains_and_profiles():
@@ -1092,6 +1190,124 @@ def test_search_cache_migrates_legacy_schema(tmp_path):
         ).fetchone()
     assert hits == 1
     assert last_accessed > 0
+
+
+def _expire_rows(cache: SearchCache, seconds: float = 500.0) -> None:
+    """Move every cached row into the past, as if its TTL had run out."""
+    with sqlite3.connect(cache.db_path) as conn:
+        conn.execute(
+            "UPDATE search_cache SET created_at = created_at - ?, expires_at = expires_at - ?",
+            (seconds, seconds),
+        )
+
+
+class _AnsweringDDGS:
+    def __init__(self, **kwargs):
+        pass
+
+    def text(self, query, **kwargs):
+        return [{"title": "Answer", "href": "https://example.org/answer", "body": "then"}]
+
+
+class _BlockedDDGS:
+    def __init__(self, **kwargs):
+        pass
+
+    def text(self, query, **kwargs):
+        from ddgs.exceptions import RatelimitException
+
+        raise RatelimitException("429")
+
+
+def _answered_once_then(monkeypatch, tmp_path, second_ddgs):
+    """Answer a query, let the row expire, then ask again through ``second_ddgs``."""
+    monkeypatch.setattr("josty.engine.DDGS", _AnsweringDDGS)
+    engine = Josty(backends=("duckduckgo",), cache_db=tmp_path / "stale.db", cache_ttl=60)
+    first = asyncio.run(engine.search_run("q", limit=5))
+    assert [item.url for item in first.results] == ["https://example.org/answer"]
+    _expire_rows(engine.cache)
+    monkeypatch.setattr("josty.engine.DDGS", second_ddgs)
+    return engine, asyncio.run(engine.search_run("q", limit=5))
+
+
+def test_expired_row_stays_in_the_table_after_a_miss(tmp_path):
+    """#104: expiry is not eviction; overflow pruning is what removes it."""
+    cache = SearchCache(tmp_path / "keep.db", default_ttl=60.0)
+    key = SearchCache.hash_key("query")
+    cache.set(key, {"query": "query"})
+    _expire_rows(cache)
+
+    assert cache.get(key) is None
+    assert cache.stats()["rows"] == 1
+    stale = cache.get_stale(key)
+    assert stale is not None and stale[0] == {"query": "query"}
+    assert stale[1] > 60
+
+    cache.max_rows = 1
+    cache.set(SearchCache.hash_key("other"), {"query": "other"})
+    assert cache.get_stale(key) is None
+
+
+def test_blocked_run_serves_the_expired_answer_marked_stale(tmp_path, monkeypatch):
+    """#104: every engine refused, but Josty answered this query earlier."""
+    engine, second = _answered_once_then(monkeypatch, tmp_path, _BlockedDDGS)
+
+    assert second.stale is True
+    assert second.age_seconds > 60  # older than the row's TTL
+    assert [item.url for item in second.results] == ["https://example.org/answer"]
+    # Today's statuses, not the ones from when the answer was fresh.
+    assert [provider.error_kind for provider in second.providers] == ["rate_limited"]
+    assert second.status == "degraded"
+    assert second.cached is False
+    payload = second.dict()
+    assert payload["stale"] is True
+    assert payload["age_seconds"] == second.age_seconds
+    # The refused run did not overwrite the row it was served from.
+    assert engine.cache.get_stale(_row_key(engine.cache)) is not None
+
+
+def _row_key(cache: SearchCache) -> str:
+    with sqlite3.connect(cache.db_path) as conn:
+        return conn.execute("SELECT key FROM search_cache").fetchone()[0]
+
+
+def test_genuine_empty_run_never_serves_a_stale_answer(tmp_path, monkeypatch):
+    class EmptyDDGS:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            return []
+
+    _, second = _answered_once_then(monkeypatch, tmp_path, EmptyDDGS)
+
+    assert second.results == []
+    assert second.stale is False
+    assert second.status == "empty"
+    assert "stale" not in second.dict()
+
+
+def test_fresh_success_overwrites_the_row_as_before(tmp_path, monkeypatch):
+    engine, second = _answered_once_then(monkeypatch, tmp_path, _AnsweringDDGS)
+
+    assert second.stale is False
+    assert "stale" not in second.dict()
+    assert [item.url for item in second.results] == ["https://example.org/answer"]
+    # The row is fresh again, so the next run is an ordinary cache hit.
+    monkeypatch.setattr("josty.engine.DDGS", _BlockedDDGS)
+    third = asyncio.run(engine.search_run("q", limit=5))
+    assert third.cached is True
+    assert third.stale is False
+    assert len(third.results) == 1
+
+
+def test_stale_run_survives_the_cache_roundtrip(tmp_path, monkeypatch):
+    _, second = _answered_once_then(monkeypatch, tmp_path, _BlockedDDGS)
+
+    restored = _search_run_from_dict(second.dict())
+
+    assert (restored.stale, restored.age_seconds) == (True, second.age_seconds)
+    assert [item.url for item in restored.results] == ["https://example.org/answer"]
 
 
 def test_search_cache_ttl_expiration(tmp_path):
@@ -1298,13 +1514,6 @@ def test_expand_with_max_query_variants_truncation_and_validation():
     with pytest.raises(ValueError, match="max_query_variants must be positive"):
         Josty.expand("test", max_query_variants=-1)
 
-    # OSS mode generates 4 variants by default; cap at 2
-    uncapped = Josty.expand("test query", mode="oss")
-    assert len(uncapped) == 4
-    capped = Josty.expand("test query", mode="oss", max_query_variants=2)
-    assert capped == uncapped[:2]
-    assert len(capped) == 2
-
     # Multi-site exact generates 4 variants (2 sites x 2 variants); cap at 3
     multi_site = Josty.expand(
         "test query", sites=["github.com", "gitlab.com"], mode="exact"
@@ -1345,13 +1554,13 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
 
     engine = Josty(backends=("duckduckgo",), enable_cache=True)
 
-    # Mode oss with 2 sites creates 8 variants uncapped; cap at 2
+    # Exact mode with 2 sites creates 4 variants uncapped; cap at 2
     queries_seen.clear()
     run1 = asyncio.run(
         engine.search_run(
             "my query",
             sites=["github.com", "gitlab.com"],
-            mode="oss",
+            mode="exact",
             max_query_variants=2,
         )
     )
@@ -1364,12 +1573,97 @@ def test_search_run_honors_max_query_variants_and_isolates_cache(monkeypatch):
         engine.search_run(
             "my query",
             sites=["github.com", "gitlab.com"],
-            mode="oss",
+            mode="exact",
             max_query_variants=3,
         )
     )
     assert len(queries_seen) == 3
     assert len(run2.results) == 1
+
+
+def _stored(text: str) -> SearchResult:
+    """A result whose stored page text is exactly ``text``."""
+    item = result("https://example.org/page")
+    item.content = text
+    item.fetched_at = "2026-11-26T00:00:00+00:00"
+    return item
+
+
+def test_quote_is_an_exact_span_of_the_stored_text():
+    """#107: prefix + exact + suffix is a substring of the text the page stored."""
+    import hashlib
+
+    text = "Intro. " + "a" * 40 + " Keep the connection pool limits modest. " + "b" * 40
+
+    quote = _stored(text).quote("connection pool limits")
+
+    assert quote is not None
+    selector = quote.selector
+    assert selector["type"] == "TextQuoteSelector"
+    assert selector["exact"] == "connection pool limits"
+    assert len(selector["prefix"]) == len(selector["suffix"]) == 32
+    assert selector["prefix"] + selector["exact"] + selector["suffix"] in text
+    assert quote.url == "https://example.org/page"
+    assert quote.fetched_at == "2026-11-26T00:00:00+00:00"
+    assert quote.sha256 == hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def test_quote_near_the_start_of_a_text_keeps_its_prefix_short():
+    quote = _stored("connection pool limits rule everything").quote("connection pool limits")
+
+    assert quote.selector["prefix"] == ""
+    assert quote.selector["suffix"] == " rule everything"
+
+
+def test_quote_is_none_rather_than_a_near_match():
+    assert _stored("connection pooling limits").quote("connection pool limits") is None
+    assert _stored("some text").quote("") is None
+    # Never fetched: there is no stored text to cite.
+    assert result("https://example.org/x").quote("anything") is None
+
+
+def test_quote_hash_proves_whether_the_page_drifted():
+    """#107: the hash is of the stored text; a mutated copy no longer matches."""
+    import hashlib
+
+    text = "Body paragraph content"
+    quote = _stored(text).quote("paragraph")
+
+    assert quote.sha256 == hashlib.sha256(text.encode("utf-8")).hexdigest()
+    mutated = text.replace("paragraph", "sentence")
+    assert quote.sha256 != hashlib.sha256(mutated.encode("utf-8")).hexdigest()
+    assert quote.dict() == {
+        "url": "https://example.org/page",
+        "fetched_at": "2026-11-26T00:00:00+00:00",
+        "sha256": quote.sha256,
+        "selector": {
+            "type": "TextQuoteSelector",
+            "exact": "paragraph",
+            "prefix": "Body ",
+            "suffix": " content",
+        },
+    }
+
+
+def test_quote_follows_the_fetch_path(monkeypatch):
+    import hashlib
+
+    async def fake_download(self, client, url):
+        page = "<html><body><p>Keep the connection pool limits modest.</p></body></html>"
+        return page, url
+
+    monkeypatch.setattr(Josty, "_download", fake_download)
+    item = result("https://example.org/pool")
+    asyncio.run(Josty(enable_cache=False).fetch_content([item]))
+
+    quote = item.quote("connection pool limits")
+
+    assert quote is not None
+    assert quote.url == "https://example.org/pool"
+    assert quote.fetched_at == item.fetched_at
+    assert quote.sha256 == hashlib.sha256(item.content.encode("utf-8")).hexdigest()
+    span = quote.selector
+    assert span["prefix"] + span["exact"] + span["suffix"] in item.content
 
 
 def test_fetch_content_identifies_itself_and_truncation(monkeypatch):
@@ -1548,7 +1842,15 @@ def test_empty_variants_do_not_clear_rate_limit_failures(monkeypatch):
     monkeypatch.setattr("josty.engine.DDGS", FlipDDGS)
     breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
     engine = Josty(backends=("duckduckgo",), enable_cache=False, breaker=breaker)
-    asyncio.run(engine.search_run("document indexing", mode="oss", limit=5))
+    # Four variants (exact x 2 sites) so the 429 / empty alternation trips twice.
+    asyncio.run(
+        engine.search_run(
+            "document indexing",
+            sites=["github.com", "gitlab.com"],
+            mode="exact",
+            limit=5,
+        )
+    )
     allowed, message = breaker.status("duckduckgo", "search")
     assert allowed is False
     assert message is not None

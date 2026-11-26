@@ -753,14 +753,9 @@ class TestExpand:
     def test_exact_mode_quotes(self):
         assert Josty.expand("foo bar", mode="exact") == ["foo bar", '"foo bar"']
 
-    def test_oss_mode_three_variants(self):
-        assert Josty.expand("foo", mode="oss") == [
-            "foo", '"foo"', "foo open source", "foo self-hosted"
-        ]
-
     def test_max_query_variants_caps(self):
-        # 4 oss variants, cap at 2
-        assert Josty.expand("foo", mode="oss", max_query_variants=2) == ["foo", '"foo"']
+        # 2 exact variants, cap at 1
+        assert Josty.expand("foo", mode="exact", max_query_variants=1) == ["foo"]
 
     def test_max_query_variants_with_sites(self):
         # 2 sites x 2 variants = 4, cap at 3
@@ -1209,6 +1204,415 @@ class TestClassifyError:
     def test_ddgs_no_results_is_empty(self):
         from ddgs.exceptions import DDGSException
         assert _classify_search_error(DDGSException("no results found")) == "empty"
+
+
+def _wire_response(status: int, body: bytes) -> SimpleNamespace:
+    """What primp hands ddgs: the three attributes its ``Response`` reads."""
+    text = body.decode("utf-8", "replace")
+    return SimpleNamespace(status_code=status, content=body, text=text)
+
+
+class TestWireTruth:
+    """#99: the wire decides what a zero-row call was, not ddgs's flat exception.
+
+    Every end-to-end case runs the real ddgs machinery (registry, engine
+    request, parser, result aggregation); only the bytes off the socket are
+    stubbed, at the primp client the tap sits above.
+    """
+
+    ENGINE = "duckduckgo"
+
+    @staticmethod
+    def _wire(backend: str, answer) -> object:
+        """A DDGS factory whose engine's socket answers through ``answer``."""
+
+        def factory(**kwargs):
+            from ddgs import DDGS
+
+            ddgs = DDGS(timeout=5)
+            resolve = ddgs._get_engines
+            assert resolve("text", backend), backend
+
+            def stubbed(category, requested):
+                # Every engine this client resolves gets the same socket, so a
+                # default-roster call cannot leak onto the real network either.
+                engines = resolve(category, requested)
+                for engine in engines:
+                    engine.http_client.client = SimpleNamespace(
+                        request=lambda *a, **k: answer()
+                    )
+                return engines
+
+            ddgs._get_engines = stubbed
+            return ddgs
+
+        return factory
+
+    @staticmethod
+    def _skip_unless_enabled(*backends: str) -> None:
+        from josty.backends import _engine_available
+
+        for backend in backends:
+            if not _engine_available("text", backend)[0]:
+                pytest.skip(f"{backend} is not enabled in the installed ddgs")
+
+    @pytest.mark.parametrize(
+        ("status", "body", "kind", "ok"),
+        [
+            (429, b"", "rate_limited", False),
+            (403, b"", "blocked", False),
+            (202, b"", "blocked", False),
+            (503, b"", "blocked", False),
+            (
+                200,
+                b"<html><head><title>Making sure you're not a bot!</title></head>"
+                b"<body></body></html>",
+                "blocked",
+                False,
+            ),
+            (
+                200,
+                b"<html><head><title>Captcha</title></head><body>g-recaptcha</body></html>",
+                "blocked",
+                False,
+            ),
+            # ~1.8 KB with no result markup: a real "nothing found" page.
+            (
+                200,
+                b"<html><body>" + b"<p>no hits here</p>" * 100 + b"</body></html>",
+                "empty",
+                True,
+            ),
+            # 207 KB with a real title and no challenge: a markup variant the
+            # parser does not know (#100), not an index miss.
+            (
+                200,
+                b"<html><head><title>q - Search</title></head><body>"
+                + b"<p>lorem ipsum dolor</p>" * 9000
+                + b"</body></html>",
+                "parse",
+                False,
+            ),
+        ],
+    )
+    def test_zero_rows_are_what_the_status_said(self, monkeypatch, status, body, kind, ok):
+        self._skip_unless_enabled(self.ENGINE)
+        monkeypatch.setattr(
+            "josty.engine.DDGS",
+            self._wire(self.ENGINE, lambda: _wire_response(status, body)),
+        )
+
+        run = asyncio.run(
+            Josty(backends=(self.ENGINE,), enable_cache=False).search_run("q", limit=5)
+        )
+        provider = run.providers[0]
+
+        assert provider.ok is ok
+        assert provider.error_kind == kind
+        assert provider.http_status == status
+        assert provider.body_bytes == len(body)
+        assert provider.refusal_rate == (0.0 if status == 200 else 1.0)
+        assert run.status == ("empty" if kind == "empty" else "failed")
+        # A ddgs client without the seam is not tapped, so nothing is invented.
+        assert "http_status" in provider.dict()
+
+    def test_no_response_from_a_sinkholed_host_is_filtered(self, monkeypatch):
+        self._skip_unless_enabled("startpage")
+
+        def refuse(*args, **kwargs):
+            raise ConnectionError("SSL handshake failed")
+
+        monkeypatch.setattr("josty.engine.DDGS", self._wire("startpage", refuse))
+        monkeypatch.setattr(
+            socket,
+            "getaddrinfo",
+            lambda *args, **kwargs: [
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.10.34.36", 443))
+            ],
+        )
+
+        run = asyncio.run(
+            Josty(backends=("startpage",), enable_cache=False).search_run("q", limit=5)
+        )
+        provider = run.providers[0]
+
+        assert provider.ok is False
+        assert provider.error_kind == "filtered"
+        assert provider.http_status is None
+        assert "10.10.34.36" in provider.error
+
+    def test_a_slow_resolver_cannot_hold_the_worker(self, monkeypatch):
+        """The after-the-fact lookup is bounded; past the bound nothing is invented."""
+        import threading
+        import time
+
+        from josty import providers
+
+        release = threading.Event()
+
+        def hang(*args, **kwargs):
+            release.wait(5)
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.10.34.36", 443))]
+
+        monkeypatch.setattr(socket, "getaddrinfo", hang)
+        monkeypatch.setattr(providers, "_SILENCE_LOOKUP_SECONDS", 0.05)
+        tap = providers._WireTap("q")
+        tap.facts.host = "www.startpage.com"
+
+        t0 = time.perf_counter()
+        facts = tap.note_silence()
+        elapsed = time.perf_counter() - t0
+        release.set()
+
+        assert elapsed < 1.0
+        assert facts.resolved == ()
+
+    def test_no_response_from_an_ordinary_address_is_not_filtered(self, monkeypatch):
+        self._skip_unless_enabled("startpage")
+
+        def refuse(*args, **kwargs):
+            raise ConnectionError("connection reset by peer")
+
+        monkeypatch.setattr("josty.engine.DDGS", self._wire("startpage", refuse))
+        monkeypatch.setattr(
+            socket,
+            "getaddrinfo",
+            lambda *args, **kwargs: [
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+            ],
+        )
+
+        run = asyncio.run(
+            Josty(backends=("startpage",), enable_cache=False).search_run("q", limit=5)
+        )
+
+        assert run.providers[0].error_kind != "filtered"
+        assert run.providers[0].ok is False
+
+    def test_a_block_page_that_arrives_is_blocked_not_filtered(self, monkeypatch):
+        """A VPN gets a 200 block page: the host answered, so the path is open."""
+        self._skip_unless_enabled("startpage")
+        page = (
+            b"<html><head><title>Startpage Blocked</title></head><body>"
+            + b"<p>blocked</p>" * 4000
+            + b"</body></html>"
+        )
+        monkeypatch.setattr(
+            "josty.engine.DDGS",
+            self._wire("startpage", lambda: _wire_response(200, page)),
+        )
+
+        run = asyncio.run(
+            Josty(backends=("startpage",), enable_cache=False).search_run("q", limit=5)
+        )
+
+        assert run.providers[0].error_kind == "blocked"
+        assert run.providers[0].http_status == 200
+
+    @pytest.mark.parametrize(
+        ("host", "kind"),
+        [("hn.algolia.com", "geo"), ("www.google.com", "blocked")],
+    )
+    def test_a_403_is_geo_only_for_a_host_a_probe_proved(self, host, kind):
+        """One 403 alone is never read as a country decision (#99)."""
+        from ddgs.exceptions import DDGSException
+
+        from josty.models import WireFacts, WireResponse
+
+        facts = WireFacts([WireResponse(403, 512)], host=host)
+        assert _classify_search_error(DDGSException("No results found."), facts) == kind
+
+    def test_a_genuine_empty_does_not_trip_the_breaker_but_a_403_does(self, monkeypatch):
+        self._skip_unless_enabled(self.ENGINE)
+        breaker = CircuitBreaker(fail_threshold=2, window_seconds=60, cool_down_seconds=30)
+        engine = Josty(backends=(self.ENGINE,), enable_cache=False, breaker=breaker)
+
+        monkeypatch.setattr(
+            "josty.engine.DDGS",
+            self._wire(self.ENGINE, lambda: _wire_response(200, b"<html></html>")),
+        )
+        asyncio.run(engine.search_run("q", limit=5))
+        assert breaker.get_state(self.ENGINE)["failures"] == 0
+
+        monkeypatch.setattr(
+            "josty.engine.DDGS",
+            self._wire(self.ENGINE, lambda: _wire_response(403, b"")),
+        )
+        run = asyncio.run(engine.search_run("q", limit=5))
+        assert run.status == "failed"
+        assert breaker.get_state(self.ENGINE)["failures"] == 1
+
+    def test_all_403_exits_one_with_the_refusal_on_stdout(self, monkeypatch, capsys):
+        self._skip_unless_enabled(self.ENGINE)
+        monkeypatch.setattr(
+            "josty.engine.DDGS",
+            self._wire(self.ENGINE, lambda: _wire_response(403, b"")),
+        )
+        # One engine in the roster: with every provider refused the run "fails".
+        monkeypatch.setattr(Josty, "DEFAULT_BACKENDS", (self.ENGINE,))
+        monkeypatch.setattr("sys.argv", ["josty", "q"])
+
+        with pytest.raises(SystemExit) as exit_info:
+            cli_main()
+
+        assert exit_info.value.code == 1
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "failed"
+        assert payload["providers"][0]["error_kind"] == "blocked"
+        assert payload["providers"][0]["http_status"] == 403
+
+    def test_a_hit_with_a_refused_follow_up_stays_a_hit_and_reports_the_rate(self):
+        """Wikipedia asks twice per hit: the row, then its extract. Refuse the second."""
+        self._skip_unless_enabled("wikipedia")
+        import itertools
+
+        from josty.branch import SearchCall
+        from josty.fanout import _FanoutLedger
+        from josty.providers import DdgsSearchAdapter
+
+        hit = json.dumps(
+            ["q", ["Asyncio"], ["snippet"], ["https://en.wikipedia.org/wiki/Asyncio"]]
+        ).encode()
+        answers = itertools.chain(
+            [_wire_response(200, hit)], itertools.repeat(_wire_response(503, b""))
+        )
+
+        def factory(**kwargs):
+            from ddgs import DDGS
+
+            ddgs = DDGS(timeout=5)
+            engine = ddgs._get_engines("text", "wikipedia")[0]
+            engine.http_client.client = SimpleNamespace(
+                request=lambda *a, **k: next(answers)
+            )
+            return ddgs
+
+        call = SearchCall("python asyncio", "wikipedia", 5, "text", None, "moderate", None)
+        adapter = DdgsSearchAdapter(
+            provider="wikipedia",
+            client_factory=factory,
+            available=lambda category, backend: (True, None),
+            timeout=5,
+        )
+
+        results, _, exc, wire = adapter._worker(
+            call, ledger=_FanoutLedger(), pool=None, lease_id=None
+        )
+
+        assert exc is None
+        assert [item.url for item in results] == ["https://en.wikipedia.org/wiki/Asyncio"]
+        assert wire.host == "en.wikipedia.org"
+        assert wire.http_status == 503
+        assert wire.refusal_rate == 0.5
+
+    def test_a_call_with_a_partial_refusal_keeps_its_rate_when_aggregated(self):
+        """One call, a 200 and a 503: the engine's rate is 0.5, not 1.0."""
+        from josty.errors import _aggregate_engine_status
+        from josty.models import ProviderStatus
+
+        paged = ProviderStatus(
+            "e", "q", True, 1, http_status=503, body_bytes=900, refusal_rate=0.5
+        )
+
+        merged = _aggregate_engine_status([paged], [[result("https://example.org/a")]])
+
+        assert merged.refusal_rate == 0.5
+
+    def test_refusal_rate_is_the_share_of_the_engines_refused_calls(self):
+        """Ten calls, three refused, seven hits: a hit at 0.3, with the refusals visible."""
+        from josty.errors import _aggregate_engine_status
+        from josty.models import ProviderStatus, WireFacts, WireResponse
+
+        answered = [
+            ProviderStatus("e", f"q{i}", True, 1, http_status=200, body_bytes=900, refusal_rate=0.0)
+            for i in range(7)
+        ]
+        refused = [
+            ProviderStatus(
+                "e", f"q{i}", False, 0, error_kind="blocked", http_status=503,
+                body_bytes=120, refusal_rate=1.0,
+            )
+            for i in range(7, 10)
+        ]
+        merged = _aggregate_engine_status(
+            answered + refused, [[result("https://example.org/a")]] * 7 + [[]] * 3
+        )
+
+        assert merged.ok is True
+        assert merged.result_count == 1
+        assert merged.error_kind == "blocked"
+        assert merged.http_status == 503
+        assert merged.body_bytes == 120
+        assert merged.refusal_rate == 0.3
+        # ...and the same share inside one call, for an engine that pages.
+        paged = WireFacts(
+            [WireResponse(200, 900)] * 7 + [WireResponse(503, 120)] * 3
+        )
+        assert paged.refusal_rate == 0.3
+        assert paged.http_status == 503
+
+    def test_bare_captcha_and_challenge_words_are_not_evidence(self):
+        """Real result pages carry both words; only a title or markup counts."""
+        from josty.errors import _is_challenge_page
+
+        body = "<title>q - Search</title><body>captcha solver challenge</body>"
+        assert _is_challenge_page(body) is False
+        assert _is_challenge_page("<title>Just a moment...</title>") is True
+
+    def test_the_private_ddgs_seams_the_tap_reads_are_still_there(self):
+        """A ddgs release that moves one of them fails here, not as a silent empty."""
+        from ddgs import DDGS
+        from ddgs.http_client import HttpClient, Response
+
+        engines = DDGS(timeout=5)._get_engines("text", self.ENGINE)
+
+        assert engines, "ddgs no longer resolves one engine by name"
+        assert isinstance(engines[0].http_client, HttpClient)
+        assert callable(engines[0].http_client.request)
+        assert {"status_code", "content", "text"} <= set(Response.__slots__)
+
+    def test_the_query_echoed_in_a_page_title_is_not_a_block_page(self, monkeypatch):
+        """A zero-row page whose title repeats the query ("nginx 403 forbidden")."""
+        page = (
+            b"<html><head><title>nginx 403 forbidden - Search Results</title></head>"
+            b"<body><p>no hits here</p></body></html>"
+        )
+        monkeypatch.setattr(
+            "josty.engine.DDGS",
+            self._wire(self.ENGINE, lambda: _wire_response(200, page)),
+        )
+
+        def search(query):
+            return asyncio.run(
+                Josty(backends=(self.ENGINE,), enable_cache=False).search_run(query, limit=5)
+            )
+
+        echoed = search("nginx 403 forbidden")
+        other = search("q")
+
+        # The same page. Only when the title merely repeats the query is it no wall.
+        assert (echoed.providers[0].ok, echoed.providers[0].error_kind) == (True, "empty")
+        assert (other.providers[0].ok, other.providers[0].error_kind) == (False, "blocked")
+
+    def test_wire_evidence_survives_the_cache_roundtrip(self):
+        from josty.cache import _search_run_from_dict
+        from josty.models import ProviderStatus
+
+        provider = ProviderStatus(
+            "brave", "q", False, 0,
+            error_kind="parse", http_status=200, body_bytes=145218, refusal_rate=0.25,
+        )
+        restored = _search_run_from_dict(SearchRun("q", providers=[provider]).dict())
+        wire = restored.providers[0]
+        assert (wire.http_status, wire.body_bytes, wire.refusal_rate) == (200, 145218, 0.25)
+        # A row cached before the fields existed reads back as "not observed".
+        legacy_payload = {
+            "query": "q",
+            "results": [],
+            "providers": [{"provider": "brave", "query": "q", "ok": True}],
+        }
+        legacy = _search_run_from_dict(legacy_payload).providers[0]
+        assert (legacy.http_status, legacy.body_bytes, legacy.refusal_rate) == (None, None, None)
 
 
 class TestClassifyProbeError:

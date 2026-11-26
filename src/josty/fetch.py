@@ -142,3 +142,28 @@ def extract(html: str, url: str) -> tuple[str, str]:
         )
         fallback = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", without_noise)).strip()
         return fallback, "html-text-fallback"
+
+
+#: Characters of context on each side of a quote: a W3C TextQuoteSelector's
+#: prefix and suffix.
+QUOTE_CONTEXT_CHARS = 32
+
+
+def text_quote(text: str, phrase: str) -> dict[str, str] | None:
+    """A W3C TextQuoteSelector for an exact phrase of ``text``, or None (#107).
+
+    Exact match only: no fuzzy or near-match, so a quote is always a span the
+    stored text really contains. The first occurrence wins.
+    """
+    if not phrase or not text:
+        return None
+    start = text.find(phrase)
+    if start < 0:
+        return None
+    end = start + len(phrase)
+    return {
+        "type": "TextQuoteSelector",
+        "exact": phrase,
+        "prefix": text[max(0, start - QUOTE_CONTEXT_CHARS) : start],
+        "suffix": text[end : end + QUOTE_CONTEXT_CHARS],
+    }
