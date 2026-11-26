@@ -140,6 +140,9 @@ def is_ad_redirect(url: str) -> bool:
     )
 
 
+#: Tag-stripped text shorter than this is a page shell, not content (#130).
+MIN_FALLBACK_CHARS = 200
+
 #: A page with at least this many table rows gets a second extraction pass (#128).
 _MIN_TABLE_ROWS = 5
 
