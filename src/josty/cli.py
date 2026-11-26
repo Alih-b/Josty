@@ -216,6 +216,8 @@ def _engine_strip(run: SearchRun) -> str:
         cooling = f"   cooling {countdown}" if remaining else ""
         if provider.ok:
             state = f"✓ {provider.result_count}"
+        elif provider.error_kind == "not_applicable":
+            state = "· n/a"
         elif provider.error_kind == "skipped":
             state = "✗ skipped"
         else:

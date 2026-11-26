@@ -66,7 +66,7 @@ def test_precheck_allows_only_a_plain_text_query():
 def test_precheck_skips_a_filter_the_source_cannot_honour(overrides):
     adapter = MwmblSearchAdapter(timeout=8, user_agent="test-agent")
     reason = adapter.precheck(_call(**overrides))
-    assert reason is not None and reason.startswith("skipped:")
+    assert reason is not None and reason.startswith("not applicable:")
 
 
 def test_issue_parses_rows_and_counts_exactly_one_call(monkeypatch):

@@ -340,8 +340,11 @@ class SearchRun:
         # A provider is a failed branch when its call failed outright, or when it
         # answered but an aggregated query variant failed (ok=true with a failure
         # error_kind). "empty" is a successful empty branch, not a failure.
+        # "not_applicable" is a source that cannot honour the call's filter (#105):
+        # never asked, so never a loss, unlike a skip by an open circuit.
         search_partial = any(
-            not provider.ok or provider.error_kind not in (None, "empty")
+            (not provider.ok and provider.error_kind != "not_applicable")
+            or provider.error_kind not in (None, "empty", "not_applicable")
             for provider in self.providers
         )
         # Fetch is a separate phase: a total extraction miss must not look like

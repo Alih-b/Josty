@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from josty.engine import Josty
 from josty.providers import MwmblSearchAdapter
 from josty.status import WANT_INDEXES, engine_walk_order, index_of
@@ -79,6 +81,41 @@ def test_two_engines_on_one_index_do_not_satisfy_the_walk(monkeypatch):
     assert run.untried == []
 
 
+@pytest.mark.parametrize(
+    "filters",
+    [
+        {"sites": ["github.com"]},
+        {"region": "us-en"},
+        {"timelimit": "w"},
+        {"safesearch": "on"},
+    ],
+)
+def test_a_source_that_cannot_honour_the_filter_is_not_a_loss(monkeypatch, filters):
+    """Not asked is not failed: the run stays complete."""
+
+    class OnSite:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            backend = kwargs["backend"]
+            return [{"title": backend, "href": f"https://github.com/{backend}"}]
+
+    _use_ddgs(monkeypatch, OnSite)
+
+    async def never(self, client, query):
+        raise AssertionError("a source that cannot honour the filter must not be asked")
+
+    monkeypatch.setattr(MwmblSearchAdapter, "_request", never)
+
+    run = _run(("mwmbl", "yandex", "yahoo"), **filters)
+
+    refused = [p for p in run.providers if p.error_kind == "not_applicable"]
+    assert [p.provider for p in refused] == ["mwmbl"]
+    assert run.partial is False
+    assert run.status == "complete"
+
+
 def test_a_site_filter_is_not_sent_to_a_source_that_cannot_honour_it(monkeypatch):
     ddgs = _Rows()
     _use_ddgs(monkeypatch, ddgs)
@@ -91,7 +128,8 @@ def test_a_site_filter_is_not_sent_to_a_source_that_cannot_honour_it(monkeypatch
     run = _run(("mwmbl", "yandex"), sites=["github.com"])
 
     assert ddgs.calls == ["yandex"]
-    skipped = {p.provider: p.error for p in run.providers if p.error_kind == "skipped"}
-    assert list(skipped) == ["mwmbl"]
-    assert skipped["mwmbl"].startswith("skipped:")
+    refused = [p for p in run.providers if p.error_kind == "not_applicable"]
+    assert [p.provider for p in refused] == ["mwmbl"]
+    assert refused[0].error.startswith("not applicable:")
+    assert run.partial is False
     assert run.request_count == 1

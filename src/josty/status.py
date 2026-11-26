@@ -11,7 +11,16 @@ SearchCategory = Literal["text", "news"]
 SafeSearch = Literal["on", "moderate", "off"]
 TimeLimit = Literal["d", "w", "m", "y"]
 ErrorKind = Literal[
-    "network", "rate_limited", "blocked", "empty", "parse", "unknown", "skipped", "filtered", "geo"
+    "network",
+    "rate_limited",
+    "blocked",
+    "empty",
+    "parse",
+    "unknown",
+    "skipped",
+    "filtered",
+    "geo",
+    "not_applicable",
 ]
 ProfileType = Literal["general", "dev"]
 

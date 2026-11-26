@@ -73,6 +73,7 @@ _ERROR_KIND_SEVERITY: dict[str | None, int] = {
     None: -1,
     "empty": 0,
     "skipped": 1,
+    "not_applicable": 1,
     "unknown": 2,
     "parse": 3,
     "network": 4,
@@ -171,7 +172,9 @@ def _aggregate_engine_status(
         error_kind = "empty"
         error = None
     else:
-        error_kind = "skipped"
+        # No variant ran: keep why, a cool-down skip or a filter the source
+        # cannot honour alike.
+        error_kind = statuses[0].error_kind or "skipped"
         error = next((status.error for status in statuses if status.error), None)
     latencies = [s.latency_ms for s in statuses if s.latency_ms is not None]
     # Worst-case across concurrent query variants, not a representative sample.
