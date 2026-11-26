@@ -42,12 +42,15 @@ if TYPE_CHECKING:
 #: items with a div.compTitle and a div.compText.
 _YAHOO_VARIANT_ITEMS = "//section[contains(@class, 's-algo')]"
 #: The h3 also holds a span.title-url with the site name and the display URL.
+#: Items nest on some pages: each section.s-algo sits inside the previous one, so
+#: every selector takes the item's own first compTitle and compText (#126) rather
+#: than reaching through the whole subtree.
 _YAHOO_VARIANT_TITLE = (
-    ".//div[contains(@class, 'compTitle')]//h3[1]"
+    "(.//div[contains(@class, 'compTitle')])[1]//h3[1]"
     "//text()[not(ancestor::span[contains(@class, 'title-url')])]"
 )
-_YAHOO_VARIANT_LINKS = ".//div[contains(@class, 'compTitle')]//a/@href"
-_YAHOO_VARIANT_TEXT = ".//div[contains(@class, 'compText')]"
+_YAHOO_VARIANT_LINKS = "(.//div[contains(@class, 'compTitle')])[1]//a/@href"
+_YAHOO_VARIANT_TEXT = "(.//div[contains(@class, 'compText')])[1]"
 
 
 def _yahoo_variant_rows(body: str) -> list[dict[str, Any]]:

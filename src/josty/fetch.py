@@ -76,7 +76,15 @@ async def download(
     raise ValueError("too many redirects")
 
 
-async def validate_public_url(url: str, *, timeout: float) -> None:
+#: The RFC 2544 benchmarking range. Proxy and VPN clients in fake-IP mode answer
+#: every DNS lookup with an address from it and route the connection themselves
+#: (#129). It is not global, so it is blocked unless the caller opts in.
+FAKE_IP_NETWORK = ipaddress.ip_network("198.18.0.0/15")
+
+
+async def validate_public_url(
+    url: str, *, timeout: float, allow_fake_ip: bool = False
+) -> None:
     parsed = urlsplit(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         raise ValueError("only public HTTP(S) URLs can be fetched")
@@ -99,8 +107,18 @@ async def validate_public_url(url: str, *, timeout: float) -> None:
         raise ValueError("hostname could not be resolved") from exc
     for address in addresses:
         ip = ipaddress.ip_address(address[4][0])
+        in_fake_range = ip.version == 4 and ip in FAKE_IP_NETWORK
+        if in_fake_range and allow_fake_ip:
+            continue
         if not ip.is_global or ip.is_multicast:
-            raise ValueError("private or reserved network destinations are blocked")
+            message = "private or reserved network destinations are blocked"
+            if in_fake_range:
+                message += (
+                    f" ({ip} is in {FAKE_IP_NETWORK}, the fake-IP range of proxy and"
+                    " VPN clients; set JOSTY_ALLOW_FAKE_IP=1 or pass --allow-fake-ip"
+                    " to allow it)"
+                )
+            raise ValueError(message)
 
 
 def is_ad_redirect(url: str) -> bool:
@@ -125,6 +143,34 @@ def is_ad_redirect(url: str) -> bool:
 #: Tag-stripped text shorter than this is a page shell, not content (#130).
 MIN_FALLBACK_CHARS = 200
 
+#: A page with at least this many table rows gets a second extraction pass (#128).
+_MIN_TABLE_ROWS = 5
+
+
+def _table_lines(markdown: str | None) -> int:
+    return sum(1 for line in (markdown or "").splitlines() if line.startswith("|"))
+
+
+def _extract_with_unlinked_tables(html: str, url: str) -> str | None:
+    """trafilatura's markdown of ``html`` with the links inside tables unwrapped.
+
+    trafilatura drops a table whose text is mostly links (its link-density test),
+    and a table of winners or releases usually is exactly that. Unwrapping the
+    anchors keeps the cell text and gives up only the link targets in the table.
+    """
+    import lxml.html
+    import trafilatura
+
+    document = lxml.html.fromstring(html)
+    for anchor in document.xpath("//table//a"):
+        anchor.drop_tag()
+    return trafilatura.extract(
+        lxml.html.tostring(document, encoding="unicode"),
+        url=url,
+        include_links=True,
+        output_format="markdown",
+    )
+
 
 def extract(html: str, url: str) -> tuple[str, str]:
     with _EXTRACT_LOCK:
@@ -134,6 +180,13 @@ def extract(html: str, url: str) -> tuple[str, str]:
             extracted = trafilatura.extract(
                 html, url=url, include_links=True, output_format="markdown"
             )
+            if len(re.findall(r"<tr[\s>]", html, flags=re.IGNORECASE)) >= _MIN_TABLE_ROWS:
+                try:
+                    unlinked = _extract_with_unlinked_tables(html, url)
+                except Exception:
+                    unlinked = None
+                if unlinked and _table_lines(unlinked) > _table_lines(extracted):
+                    extracted = unlinked
             if extracted and extracted.strip():
                 return extracted.strip(), "trafilatura"
         except Exception:

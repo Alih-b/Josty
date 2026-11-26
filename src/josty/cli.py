@@ -4,6 +4,7 @@ import json
 import math
 import os
 import sys
+import threading
 
 from ._version import __version__
 from .engine import Josty
@@ -93,6 +94,12 @@ def parser() -> argparse.ArgumentParser:
         default=Josty.DEFAULT_MAX_CONTENT_CHARS,
         help="cap extracted markdown length per page (default: %(default)d, 0 for unlimited)",
     )
+    command.add_argument(
+        "--allow-fake-ip",
+        action="store_true",
+        help="let page fetch reach 198.18.0.0/15, the fake-IP range of proxy and VPN "
+        "clients (same as JOSTY_ALLOW_FAKE_IP=1); everything else stays blocked",
+    )
     return command
 
 
@@ -122,6 +129,12 @@ def fetch_parser() -> argparse.ArgumentParser:
         default=None,
         help="max number of results to fetch",
     )
+    cmd.add_argument(
+        "--allow-fake-ip",
+        action="store_true",
+        help="let page fetch reach 198.18.0.0/15, the fake-IP range of proxy and VPN "
+        "clients (same as JOSTY_ALLOW_FAKE_IP=1); everything else stays blocked",
+    )
     return cmd
 
 
@@ -135,6 +148,7 @@ async def run_fetch(args: argparse.Namespace) -> dict | list:
         max_fetch_concurrency=args.fetch_concurrency,
         max_content_chars=args.max_content_chars,
         enable_cache=False,
+        allow_fake_ip=True if args.allow_fake_ip else None,
     )
 
     if raw_input.startswith("{"):
@@ -238,6 +252,7 @@ async def run(args: argparse.Namespace) -> dict | list | SearchRun:
         max_query_variants=args.max_query_variants,
         profile=args.profile,
         enable_cache=not args.no_cache,
+        allow_fake_ip=True if args.allow_fake_ip else None,
     )
     if args.diagnose:
         return (
@@ -263,6 +278,58 @@ async def run(args: argparse.Namespace) -> dict | list | SearchRun:
     return search if args.format != "json" else search.dict()
 
 
+def _run_coroutine(coroutine):
+    """Run ``coroutine`` to completion without waiting for abandoned threads (#127).
+
+    ``asyncio.run`` ends by joining the default executor, so a hostname lookup
+    that a ``wait_for`` already gave up on would hold the output until it
+    returned. Here the loop is closed with ``shutdown(wait=False)`` instead.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coroutine)
+    finally:
+        try:
+            pending = asyncio.all_tasks(loop)
+            for task in pending:
+                task.cancel()
+            if pending:
+                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
+
+
+def _threads_still_running() -> bool:
+    main_thread = threading.main_thread()
+    return any(t is not main_thread and t.is_alive() for t in threading.enumerate())
+
+
+def entry() -> None:
+    """Console entry point: :func:`main`, then leave without joining threads (#127).
+
+    Worker threads that a timeout abandoned (an engine call, a hostname lookup)
+    are joined by the interpreter at exit, which can keep a finished run alive
+    for minutes. The output is already written and the cache commits on every
+    write, so once both streams are flushed the process ends at once.
+    """
+    code: object = 0
+    try:
+        main()
+    except SystemExit as exc:
+        code = 0 if exc.code is None else exc.code
+    if isinstance(code, int) and _threads_still_running():
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+        os._exit(code)
+    raise SystemExit(code)
+
+
 def _sanitize_json(value: object) -> object:
     """Replace non-finite floats with None so one NaN field cannot fail the query."""
     if isinstance(value, float) and not math.isfinite(value):
@@ -284,7 +351,7 @@ def main(argv: list[str] | None = None) -> None:
         if not fargs.stdin and not fargs.urls:
             fparser.error("must provide target URLs or pass --stdin")
         try:
-            payload = asyncio.run(run_fetch(fargs))
+            payload = _run_coroutine(run_fetch(fargs))
             print(
                 json.dumps(
                     _sanitize_json(payload),
@@ -321,7 +388,7 @@ def main(argv: list[str] | None = None) -> None:
             "--format brief|strip needs a search envelope: not with --results-only"
         )
     try:
-        payload = asyncio.run(run(args))
+        payload = _run_coroutine(run(args))
         # allow_nan=False keeps stdout strictly RFC-8259 JSON. Non-finite
         # floats are sanitized to null first so one bad field degrades in-band
         # instead of exiting 2 for the whole query.
@@ -355,4 +422,4 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    entry()
