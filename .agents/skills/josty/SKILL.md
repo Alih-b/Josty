@@ -57,7 +57,7 @@ python3 -m pip install --user josty
 | `--category <c>` | `text`, `news` | Text search or news search via `DDGS.news()`. |
 | `--time-limit <t>` | `d`, `w`, `m`, `y` | Restrict results by publication timeframe. |
 | `--region <r>` | E.g. `us-en`, `de-de` | Upstream region code. |
-| `--safe-search <mode>` | `on`, `moderate`, `off` | Upstream safe-search hint. `google`, `brave`, `mojeek` and `startpage` apply it; `duckduckgo` and `yahoo` take no such parameter and are queried anyway, and `mwmbl` is skipped at `on`. `on` is therefore only strict for the engines that support it. |
+| `--safe-search <mode>` | `on`, `moderate`, `off` | Upstream safe-search hint. `google`, `brave`, `mojeek` and `startpage` apply it; `duckduckgo` and `yahoo` take no such parameter and are queried anyway, and `mwmbl` is `not_applicable` at `on`. `on` is therefore only strict for the engines that support it. |
 | `--github` | Boolean flag | Also queries official GitHub repository search API. |
 | `--results-only` | Boolean flag | Emits raw JSON list of `SearchResult` objects instead of the run envelope. |
 | `--format <f>` | `json`, `brief`, `strip` | `json` (default). `brief` prints the agent's text view instead of JSON: a header, what did not answer, one line per result. `strip` keeps the JSON and writes one line per engine to stderr. Not with `--results-only` or `--diagnose`. |
