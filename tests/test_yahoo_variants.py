@@ -23,24 +23,25 @@ FIRST_MARKUP = (FIXTURES / "relsrch.html").read_bytes()
 SECOND_MARKUP = (FIXTURES / "grp-talgo.html").read_bytes()
 
 
-def _wire(body: bytes):
+def _wire(backend: str, body: bytes):
     def factory(**kwargs):
         from ddgs import DDGS
 
         ddgs = DDGS(timeout=5)
-        engine = ddgs._get_engines("text", "yahoo")[0]
-        engine.http_client.client = SimpleNamespace(
-            request=lambda *a, **k: SimpleNamespace(
-                status_code=200, content=body, text=body.decode("utf-8")
+        for engine in ddgs._get_engines("text", backend):
+            engine.http_client.client = SimpleNamespace(
+                request=lambda *a, **k: SimpleNamespace(
+                    status_code=200, content=body, text=body.decode("utf-8")
+                ),
+                set_cookies=lambda *a, **k: None,
             )
-        )
         return ddgs
 
     return factory
 
 
 def _run(monkeypatch, backend: str, body: bytes):
-    monkeypatch.setattr("josty.engine.DDGS", _wire(body))
+    monkeypatch.setattr("josty.engine.DDGS", _wire(backend, body))
     return asyncio.run(
         Josty(backends=(backend,), enable_cache=False).search_run("q", limit=5)
     )
@@ -89,9 +90,11 @@ def test_modules_without_a_result_link_are_dropped():
 
 def test_the_second_markup_is_yahoo_only(monkeypatch):
     """Another engine serving the same bytes is not re-parsed with Yahoo's selectors."""
-
     run = _run(monkeypatch, "brave", SECOND_MARKUP)
 
+    # The stub answered, not the network.
+    assert run.providers[0].http_status == 200
+    assert run.providers[0].body_bytes == len(SECOND_MARKUP)
     assert run.results == []
     assert run.status != "complete"
 
