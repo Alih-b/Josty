@@ -44,7 +44,7 @@ dev = [
 ]
 
 [project.scripts]
-josty = "josty.cli:main"
+josty = "josty.cli:entry"
 
 [tool.hatch.version]
 path = "src/josty/_version.py"
