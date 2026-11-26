@@ -47,8 +47,10 @@ class _WireTap:
     test; a client without the seam (the suite's doubles) is simply not tapped.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, query: str | None = None) -> None:
         self.facts = WireFacts()
+        #: The call's query, so a page title can be read without it (#99).
+        self.query = query
 
     def install(self, ddgs: Any, call: SearchCall) -> None:
         """Tap every engine the call will use. Never raises: no seam, no tap."""
@@ -82,7 +84,7 @@ class _WireTap:
                     WireResponse(
                         status,
                         len(size) if isinstance(size, (bytes, bytearray)) else len(text),
-                        status == 200 and _is_challenge_page(text),
+                        status == 200 and _is_challenge_page(text, self.query),
                     )
                 )
             return response
@@ -171,7 +173,7 @@ class DdgsSearchAdapter:
         as a ghost is a safe no-op rather than a double free.
         """
         t0 = time.perf_counter()
-        tap = _WireTap()
+        tap = _WireTap(call.query)
         try:
             # A fresh DDGS client per call is deliberate, not waste:
             # ddgs engine instances carry a shared cached_property lxml
