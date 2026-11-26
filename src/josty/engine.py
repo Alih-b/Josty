@@ -754,6 +754,21 @@ class Josty:
             max_query_variants=effective_max_variants,
         )
         variant_count = len(queries)
+        # The parameters of this run, so a caller can ask one more engine (#106).
+        # Built before the cache lookup: a cached run answers more() as well, or
+        # its `untried` list would name engines it refuses to ask (#119).
+        params: dict[str, Any] = {
+            "query": query,
+            "sites": normalized_sites,
+            "mode": mode,
+            "limit": limit,
+            "category": category,
+            "region": region,
+            "safesearch": safesearch,
+            "timelimit": timelimit,
+            "profile": effective_profile,
+            "max_query_variants": effective_max_variants,
+        }
         if self.enable_cache and self.cache:
             effective_backends = tuple(self.news_backends if category == "news" else self.backends)
             # SERP identity: fetch is a separate phase and must not bust the cache.
@@ -791,6 +806,7 @@ class Josty:
                         await self.fetch_content(run.results)
                     _stamp_fetch_stats(run, requested=fetch)
                     run.cached = True
+                    run._maker = (self, params)
                     return run
                 except Exception:
                     self.cache.delete(cache_key)
@@ -862,21 +878,7 @@ class Josty:
             untried=fanout.untried,
             **fanout.accounting(),
         )
-        run._maker = (
-            self,
-            {
-                "query": query,
-                "sites": normalized_sites,
-                "mode": mode,
-                "limit": limit,
-                "category": category,
-                "region": region,
-                "safesearch": safesearch,
-                "timelimit": timelimit,
-                "profile": effective_profile,
-                "max_query_variants": effective_max_variants,
-            },
-        )
+        run._maker = (self, params)
         _stamp_fetch_stats(run, requested=fetch)
         # An engine in cool-down was not asked (#105): that is no answer either.
         unanswered = any(
