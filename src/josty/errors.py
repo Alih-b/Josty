@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 import socket
 import ssl
@@ -125,12 +126,19 @@ def _is_challenge_page(body: str, query: str | None = None) -> bool:
 
     The query is cut out of the title first. A results page carries its query
     there, so a zero-row search for "nginx 403 forbidden" would otherwise read
-    as a wall.
+    as a wall. The title is HTML source, so it is unescaped and whitespace is
+    collapsed before the cut (#113); an escaped or re-spaced echo is the same
+    echo. The cut only happens when the title holds more than the query: a wall
+    titled exactly ``Captcha`` is judged as it is, not emptied.
     """
     title = _TITLE_RE.search(body)
-    words = title.group(1) if title else ""
+    words = html.unescape(title.group(1)) if title else ""
     if query:
-        words = re.sub(re.escape(query), "", words, flags=re.IGNORECASE)
+        asked = " ".join(html.unescape(query).split())
+        seen = " ".join(words.split())
+        if asked and len(seen) > len(asked):
+            seen = re.sub(re.escape(asked), "", seen, flags=re.IGNORECASE)
+        words = seen
     return bool(_CHALLENGE_TITLE_RE.search(words) or _CHALLENGE_MARKUP_RE.search(body))
 
 
