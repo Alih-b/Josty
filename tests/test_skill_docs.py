@@ -22,3 +22,13 @@ def test_every_error_kind_is_documented_and_a_removed_mode_stays_gone():
     assert tuple(mode.choices) == ("plain", "exact")
     assert "--mode oss" not in text
     assert TICK + "oss" + TICK not in text
+
+
+def test_a_filter_refusal_is_documented_as_not_applicable_not_skipped():
+    """A strict safe-search refusal is not_applicable, like site, region and time limit."""
+    readme = (SKILL.parents[3] / "README.md").read_text()
+
+    for text in (SKILL.read_text(), readme):
+        assert "mwmbl" in text
+        assert "is skipped at" not in text
+        assert "skips it too" not in text
