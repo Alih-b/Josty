@@ -57,7 +57,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from .breaker import CircuitBreaker
 from .errors import _classify_search_error, _describe_failure
-from .lease import Lease, LeasePool
+from .lease import SHED_DEADLINE, Lease, LeasePool
 from .models import ProviderStatus, SearchResult, WireFacts
 from .status import ErrorKind, SafeSearch, SearchCategory, TimeLimit
 
@@ -91,6 +91,9 @@ class IssueOutcome:
     lease_retained: bool = False
     #: What the adapter saw on the wire (#99); None when it could not see it.
     wire: WireFacts | None = None
+    #: True when the deadline fired before the worker reached its call site, so
+    #: nothing was issued: a local shed, never an upstream failure (#121).
+    unissued: bool = False
 
 
 @dataclass(frozen=True)
@@ -268,6 +271,17 @@ class BranchRunner:
                 ),
             )
             retained = outcome.lease_retained
+            if outcome.unissued and pool is not None:
+                # The pool already counted this one as shed with reason deadline.
+                return [], self._status(
+                    call,
+                    adapter.provider,
+                    ok=False,
+                    result_count=0,
+                    error=pool.shed_message(SHED_DEADLINE),
+                    error_kind="skipped",
+                    latency_ms=None,
+                )
         finally:
             # Covers the exception path too. Idempotent: a worker that already
             # released its own lease (or was reaped as a ghost) makes this a no-op.

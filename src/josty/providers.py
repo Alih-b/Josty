@@ -227,7 +227,14 @@ class DdgsSearchAdapter:
             # lease is retained here -- the ghost releases it in its own
             # finally, and that release is idempotent.
             latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
-            return IssueOutcome([], latency_ms, exc, lease_retained=True)
+            unissued = (
+                ctx.pool is not None
+                and lease_id is not None
+                and ctx.pool.shed_unissued(lease_id)
+            )
+            # unissued: the worker never reached its call site, so this is a local
+            # deadline, not a wall. The branch reports it shed (#121).
+            return IssueOutcome([], latency_ms, exc, lease_retained=True, unissued=unissued)
         return IssueOutcome(results, latency_ms, exc, wire=wire)
 
     def _worker(
@@ -269,8 +276,13 @@ class DdgsSearchAdapter:
                 kwargs["region"] = call.region
             if call.timelimit:
                 kwargs["timelimit"] = call.timelimit
-            # The one request site: counted immediately before the call so the
-            # ledger measures calls issued, not tasks scheduled.
+            # The one request site: claimed and counted immediately before the
+            # call so the ledger measures calls issued, not tasks scheduled. A
+            # lost claim means the arbiter already accounted this call as shed
+            # (#121); the request is then never sent, because a call the run
+            # reports as unissued must not leave the box either.
+            if pool is not None and lease_id is not None and not pool.claim_issue(lease_id):
+                return [], round((time.perf_counter() - t0) * 1000, 2), None, None
             ledger.record()
             try:
                 rows = method(call.query, **kwargs)

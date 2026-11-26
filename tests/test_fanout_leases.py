@@ -399,3 +399,46 @@ def test_slot_is_taken_before_a_lease_no_branch_holds_a_lease_while_parked():
         assert results[0].url == "https://example.org/x"
 
     asyncio.run(scenario())
+
+
+#: Set by the fake engine's one request site, if it is ever reached.
+_REACHED_CALL_SITE = threading.Event()
+
+
+class _SlowToCallSite:
+    """The worker starts, but has not reached its call site when the budget ends."""
+
+    def __init__(self, **kwargs):
+        time.sleep(0.3)
+
+    def text(self, query, **kwargs):
+        _REACHED_CALL_SITE.set()
+        return []
+
+
+def test_a_call_whose_worker_starts_after_the_deadline_is_shed_not_a_wall(monkeypatch):
+    """The identity holds, and a local deadline is not reported as the engine (#121)."""
+    monkeypatch.setattr(eng, "SEARCH_THREAD_TIMEOUT_HEADROOM", 0.05)
+    monkeypatch.setattr(eng, "DDGS", _SlowToCallSite)
+    _REACHED_CALL_SITE.clear()
+    engine = eng.Josty(backends=("brave",), timeout=0.02, enable_cache=False)
+
+    run = asyncio.run(engine.search_run("q", limit=5))
+    status = run.providers[0]
+
+    assert run.scheduled_count == 1
+    assert run.request_count == 0
+    assert run.shed_count == 1
+    assert run.scheduled_count == run.request_count + run.shed_count
+    assert run.shed_by_reason == {"deadline": 1}
+    assert (status.ok, status.error_kind) == (False, "skipped")
+    assert "not issued" in status.error
+    assert "deadline" in status.error
+    # Nothing was asked, so nothing is known about the engine: no circuit opens.
+    assert status.circuit_state != "open"
+    assert engine.breaker.status("brave")[0] is True
+    # The ghost keeps running after the report, but a call the run counted as
+    # unissued must not reach the wire: "shed" means not sent, not "not billed".
+    assert not _REACHED_CALL_SITE.wait(timeout=1.0), (
+        "the shed call still ran on the worker thread"
+    )
