@@ -164,9 +164,14 @@ class CircuitBreaker:
         with self._lock:
             self._register_key(key)
             now = time.monotonic()
+            backoff = self._backoff_for(trips)
             remaining = until_utc - time.time()
+            # A deadline noted on a wall clock that has since stepped back would
+            # otherwise keep the engine out for longer than any cool-down allows
+            # (#114). The trip count is kept, so the next failure still doubles.
+            remaining = min(remaining, backoff)
             # The trip happened one back-off before its deadline.
-            self._last_trip_at[key] = now + remaining - self._backoff_for(trips)
+            self._last_trip_at[key] = now + remaining - backoff
             self._consecutive_trips[key] = int(trips)
             if remaining > 0:
                 self._state[key] = "open"

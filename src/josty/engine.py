@@ -878,6 +878,12 @@ class Josty:
             },
         )
         _stamp_fetch_stats(run, requested=fetch)
+        # An offline machine fails every engine it asks the same way, and saving
+        # those trips suspends all of them for every later process (#114). One
+        # engine cannot tell that apart from a wall (a single-engine run keeps its
+        # trip), so the rule needs at least two asked engines that all failed at
+        # the network. The trips stay in this process, and the cache keeps its rows.
+        self._forget_a_local_outage(run)
         # An engine in cool-down was not asked (#105): that is no answer either.
         unanswered = any(
             p.error_kind in self.UNANSWERED_KINDS
@@ -902,6 +908,24 @@ class Josty:
                 cache_key, payload, ttl=_ttl_for(category, timelimit, self.cache.default_ttl)
             )
         return run
+
+    def _forget_a_local_outage(self, run: SearchRun) -> None:
+        """Drop saved network trips when a run looks like a local outage (#114).
+
+        ``note_trip`` fires inside the breaker, before the run knows what the other
+        engines did. Here the whole run is known: two or more engines asked, every
+        one of them failed at the network, none answered. That is the machine, not
+        the engines, so persisting it would make the next process skip them all.
+        """
+        if self.cache is None:
+            return
+        asked = [
+            p for p in run.providers if p.error_kind not in ("not_applicable", "skipped")
+        ]
+        if len(asked) < 2 or not all(p.error_kind == "network" for p in asked):
+            return
+        for provider in asked:
+            self.cache.forget_trip(provider.provider)
 
     async def _more_of(self, run: SearchRun, p: dict[str, Any]) -> SearchRun:
         """One more engine for a run: the first it lists as untried (#106).

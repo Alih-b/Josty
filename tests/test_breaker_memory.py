@@ -126,3 +126,33 @@ def test_history_that_has_decayed_is_dropped(tmp_path):
     cache.note_trip("mojeek", time.time() - 5.0, 1)
 
     assert set(cache.open_circuits(60.0)) == {"mojeek"}
+
+
+def test_a_restored_deadline_is_capped_by_its_own_cool_down(tmp_path):
+    """A clock that stepped back must not stretch a saved trip past its cap (#114)."""
+    from josty.breaker import CircuitBreaker
+
+    breaker = CircuitBreaker(cool_down_seconds=180.0, max_cool_down_seconds=360.0)
+    breaker.restore("brave", time.time() + 86400.0, 1)
+
+    allowed, message = breaker.status("brave")
+    assert allowed is False
+    assert "cool-down until" in message
+    assert breaker.get_state("brave")["backoff_remaining"] <= 180.0
+
+
+def test_a_local_outage_is_not_saved_for_the_next_process(tmp_path, monkeypatch):
+    """Every engine failing at the network is the machine, not the engines (#114)."""
+    import httpx
+
+    monkeypatch.setattr(
+        "josty.engine.DDGS", _Refusing(httpx.ConnectError("no route to host"))
+    )
+    engine = Josty(backends=("brave,duckduckgo",), cache_db=tmp_path / "off.db", timeout=0.2)
+    run = _search(engine)
+
+    assert {provider.error_kind for provider in run.providers} == {"network"}
+    # Nothing is left for the next process...
+    assert engine.cache.open_circuits(60.0) == {}
+    # ...but this process still leaves both engines alone.
+    assert engine.breaker.status("brave")[0] is False
