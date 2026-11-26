@@ -267,6 +267,16 @@ class Absence:
     answered: list[str]
 
 
+def _age_text(seconds: float) -> str:
+    """An age for the agent's view; the unit follows the size."""
+    seconds = max(float(seconds), 0.0)
+    if seconds < 60:
+        return f"{seconds:.0f} s"
+    if seconds < 3600:
+        return f"{seconds / 60:.0f} min"
+    return f"{seconds / 3600:.1f} h"
+
+
 @dataclass
 class SearchRun:
     query: str
@@ -378,6 +388,11 @@ class SearchRun:
         """
         indexes = sorted({index_of(name) for result in self.results for name in result.sources})
         header = f"{self.query} · {len(self.results)} results"
+        if self.stale:
+            # Rows of an expired cached answer (#104): the one case where they are
+            # not what this run found, so the header says how old they are.
+            age = f", {_age_text(self.age_seconds)} old" if self.age_seconds is not None else ""
+            header += " · stale" + age
         if indexes:
             plural = "es" if len(indexes) != 1 else ""
             header += f" · {len(indexes)} index{plural} ({', '.join(indexes)})"

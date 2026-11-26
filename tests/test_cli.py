@@ -407,6 +407,32 @@ def test_format_brief_prints_the_agent_view_and_needs_the_envelope(monkeypatch, 
     assert exit_info.value.code == 2
 
 
+def test_format_brief_marks_rows_served_stale_with_their_age(monkeypatch, capsys):
+    """#104 + #108: the agent's view must not pass an expired answer off as found now."""
+    run = _stub_search(
+        monkeypatch,
+        [ProviderStatus("yahoo", "q", False, 0, error_kind="rate_limited", http_status=429)],
+    )
+    run.results = [SearchResult("A title", "https://example.org/a", "", sources=["yahoo"])]
+    run.stale = True
+    run.age_seconds = 9000.0
+    monkeypatch.setattr("sys.argv", ["josty", "q", "--format", "brief"])
+
+    main()
+    out, err = capsys.readouterr()
+
+    assert out.splitlines() == [
+        "q · 1 results · stale, 2.5 h old · 1 index (bing)",
+        "no answer: yahoo rate_limited 429",
+        " 1 ✓ A title   yahoo",
+    ]
+    assert err == ""
+
+
+def test_a_stale_run_without_a_known_age_still_says_stale():
+    assert repr(SearchRun("q", [], [], stale=True)) == "q · 0 results · stale"
+
+
 def test_without_format_stdout_is_json_and_stderr_is_empty(monkeypatch, capsys):
     _stub_search(monkeypatch, [ProviderStatus("yahoo", "q", True, 7, latency_ms=800.0)])
     monkeypatch.setattr("sys.argv", ["josty", "q"])

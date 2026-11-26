@@ -137,7 +137,7 @@ Emitted on stdout for standard searches:
 
 ### 2. Auxiliary Command Shapes
 - `--results-only`: Returns a flat JSON array of `SearchResult` objects (`[ { ... }, ... ]`).
-- `--format brief`: Prints `repr(run)`, not JSON: a header (`query · N results · K indexes (…) · U untried`), then `no answer: …` when an engine did not answer, then one line per result with a check for each distinct index that found it.
+- `--format brief`: Prints `repr(run)`, not JSON: a header (`query · N results · K indexes (…) · U untried`; `stale, AGE old` follows the result count when the rows are an expired cached answer served because no engine answered), then `no answer: …` when an engine did not answer, then one line per result with a check for each distinct index that found it.
 - `--format strip`: The JSON envelope on stdout, plus one line per engine on stderr (`✓ 7   0.8s`, `✗ 429   cooling 2:41`, `· untried`).
 - `--diagnose`: Returns `{ "schema_version": "1.0", "phase": "transport", "probe": "https_host", "status": "complete"|"degraded"|"failed", "reachable": int, "count": int, "note": str, "providers": [ ... ] }`.
 - `--cache-stats`: Returns `{ "rows": int, "bytes": int, "hits": int }`.
