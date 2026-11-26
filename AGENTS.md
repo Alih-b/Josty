@@ -17,8 +17,19 @@ Josty is **not** a search engine, web crawler, or privacy proxy. Keep the footpr
    - Exit `1`: `status` is `failed` (all attempted backends failed with 0 results).
    - Exit `2`: Command-line syntax or argument validation errors.
 4. **No Hidden Amplification**: `Josty.research_run()` executes exactly one fanout pass, counted by a per-run ledger at the ddgs/GitHub call site and reported as `request_count`. Never add automatic background retries or silent query rewriting to fix empty results; callers handle query broadening. The pass is a walk (#105): engines are asked one at a time in `ENGINE_PRIORS` order until `WANT_INDEXES` distinct search indexes have answered (`SIDE_SOURCES` fuse their rows but never count); engines never asked are listed in `untried`, never issued and never failures. Admission is bounded by a per-run `LeasePool`: a call that is refused before it opens a socket is reported as `error_kind="skipped"` with a shed reason and is **never** rendered as an upstream network failure. Every proposed call must end as issued, shed, or not-attempted; `tests/test_fanout_leases.py` pins that identity, and stdout stays pure JSON.
-5. **SSRF Guard**: `fetch.py` validates destination IP addresses before connecting. Never relax checks for loopback, private subnets (RFC 1918), link-local, cloud metadata (`169.254.169.254`), or non-HTTP schemes.
+5. **SSRF Guard**: `fetch.py` validates destination IP addresses before connecting. Never relax checks for loopback, private subnets (RFC 1918), link-local, cloud metadata (`169.254.169.254`), or non-HTTP schemes. The one opt-in is `allow_fake_ip` / `JOSTY_ALLOW_FAKE_IP` / `--allow-fake-ip` (#129), which admits only `198.18.0.0/15`, the fake-IP range of proxy and VPN clients; it is off by default and nothing else is widened.
 6. **No Circumvention**: Do not add CAPTCHA solvers, paywall bypasses, or anti-bot evasions. Upstream provider failures must be surfaced faithfully in `ProviderStatus`.
+
+## The Failure Contract
+
+One rule behind invariants 4 and 6: **a local shortfall is never reported as the engine's.** An agent reads the status to decide whether to retry, ask elsewhere, or tell the user the thing does not exist, so a wrong label is a wrong decision.
+
+1. **A local decision is never an upstream failure.** A call that was shed, refused, deferred or abandoned reports `skipped` with its reason (`capacity`, `ghost_capacity`, `ghost_budget`, `deadline`), never `network`; it opens no circuit and is never cached as the engine's answer. A call reported as unissued is also never sent — the lease claim in `LeasePool.claim_issue` is what makes "not counted" and "not sent" the same event.
+2. **"I could not read it" is not "there is nothing".** An answer we failed to parse is `parse`, not `empty`. A JavaScript shell that yields a page title is a fetch failure, not `fetch_ok`.
+3. **The cache never outlives its evidence.** A degraded answer is cached for the breaker cool-down, not the full TTL. A trip caused by this machine's network is not persisted for the next process to inherit.
+4. **Every field describes the run that produced it.** `coverage`, `absent.asked`, `untried`, `more()` and `request_count` say the same thing on a cache hit as on a live run, and `scheduled == issued + shed` holds on every path, including a ghost that finishes after the run.
+
+When adding an outcome, decide which side of the line it lands on *before* writing the status. `tests/test_fanout_leases.py` pins rule 1 and `tests/test_breaker_memory.py` pins rule 3.
 
 ## Verification Commands
 
