@@ -1505,6 +1505,19 @@ class TestWireTruth:
         assert wire.http_status == 503
         assert wire.refusal_rate == 0.5
 
+    def test_a_call_with_a_partial_refusal_keeps_its_rate_when_aggregated(self):
+        """One call, a 200 and a 503: the engine's rate is 0.5, not 1.0."""
+        from josty.errors import _aggregate_engine_status
+        from josty.models import ProviderStatus
+
+        paged = ProviderStatus(
+            "e", "q", True, 1, http_status=503, body_bytes=900, refusal_rate=0.5
+        )
+
+        merged = _aggregate_engine_status([paged], [[result("https://example.org/a")]])
+
+        assert merged.refusal_rate == 0.5
+
     def test_refusal_rate_is_the_share_of_the_engines_refused_calls(self):
         """Ten calls, three refused, seven hits: a hit at 0.3, with the refusals visible."""
         from josty.errors import _aggregate_engine_status
