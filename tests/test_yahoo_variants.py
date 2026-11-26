@@ -72,7 +72,8 @@ def test_the_second_markup_is_read_from_the_capture_not_invented():
 
     assert len(rows) == 1
     assert rows[0]["href"] == "https://www.kernel.org/category/releases.html"
-    assert "Linux" in rows[0]["title"]
+    # The site name and display URL above the title are not part of it.
+    assert rows[0]["title"] == "The Linux Kernel Archives - Releases"
     assert rows[0]["body"]
 
 

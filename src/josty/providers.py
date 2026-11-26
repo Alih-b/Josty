@@ -41,7 +41,11 @@ if TYPE_CHECKING:
 #: first (div.relsrch items with a div.Title); the other carries section.s-algo
 #: items with a div.compTitle and a div.compText.
 _YAHOO_VARIANT_ITEMS = "//section[contains(@class, 's-algo')]"
-_YAHOO_VARIANT_TITLE = ".//div[contains(@class, 'compTitle')]//h3[1]//text()"
+#: The h3 also holds a span.title-url with the site name and the display URL.
+_YAHOO_VARIANT_TITLE = (
+    ".//div[contains(@class, 'compTitle')]//h3[1]"
+    "//text()[not(ancestor::span[contains(@class, 'title-url')])]"
+)
 _YAHOO_VARIANT_LINKS = ".//div[contains(@class, 'compTitle')]//a/@href"
 _YAHOO_VARIANT_TEXT = ".//div[contains(@class, 'compText')]"
 
