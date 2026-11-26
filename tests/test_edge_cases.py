@@ -1341,6 +1341,32 @@ class TestWireTruth:
         assert provider.http_status is None
         assert "10.10.34.36" in provider.error
 
+    def test_a_slow_resolver_cannot_hold_the_worker(self, monkeypatch):
+        """The after-the-fact lookup is bounded; past the bound nothing is invented."""
+        import threading
+        import time
+
+        from josty import providers
+
+        release = threading.Event()
+
+        def hang(*args, **kwargs):
+            release.wait(5)
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.10.34.36", 443))]
+
+        monkeypatch.setattr(socket, "getaddrinfo", hang)
+        monkeypatch.setattr(providers, "_SILENCE_LOOKUP_SECONDS", 0.05)
+        tap = providers._WireTap("q")
+        tap.facts.host = "www.startpage.com"
+
+        t0 = time.perf_counter()
+        facts = tap.note_silence()
+        elapsed = time.perf_counter() - t0
+        release.set()
+
+        assert elapsed < 1.0
+        assert facts.resolved == ()
+
     def test_no_response_from_an_ordinary_address_is_not_filtered(self, monkeypatch):
         self._skip_unless_enabled("startpage")
 
