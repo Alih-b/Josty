@@ -106,10 +106,10 @@ _GEO_BLOCKED_HOSTS = frozenset({"hn.algolia.com"})
 # An interstitial is recognised by its title or by challenge-specific markup.
 # A bare "captcha" or "challenge" substring is not evidence: real result pages
 # carry both words in snippets and script names.
+_TITLE_RE = re.compile(r"<title[^>]*>([^<]*)</title>", re.IGNORECASE)
 _CHALLENGE_TITLE_RE = re.compile(
-    r"<title[^>]*>[^<]*(?:captcha|just a moment|attention required|access denied|"
-    r"blocked|forbidden|are you human|not a bot|security check|one more step|"
-    r"verifying (?:your|you are))[^<]*</title>",
+    r"captcha|just a moment|attention required|access denied|blocked|forbidden|"
+    r"are you human|not a bot|security check|one more step|verifying (?:your|you are)",
     re.IGNORECASE,
 )
 _CHALLENGE_MARKUP_RE = re.compile(
@@ -119,9 +119,18 @@ _CHALLENGE_MARKUP_RE = re.compile(
 )
 
 
-def _is_challenge_page(body: str) -> bool:
-    """True when a 200 body is an interstitial (captcha, Anubis, Cloudflare)."""
-    return bool(_CHALLENGE_TITLE_RE.search(body) or _CHALLENGE_MARKUP_RE.search(body))
+def _is_challenge_page(body: str, query: str | None = None) -> bool:
+    """True when a 200 body is an interstitial (captcha, Anubis, Cloudflare).
+
+    The query is cut out of the title first. A results page carries its query
+    there, so a zero-row search for "nginx 403 forbidden" would otherwise read
+    as a wall.
+    """
+    title = _TITLE_RE.search(body)
+    words = title.group(1) if title else ""
+    if query:
+        words = re.sub(re.escape(query), "", words, flags=re.IGNORECASE)
+    return bool(_CHALLENGE_TITLE_RE.search(words) or _CHALLENGE_MARKUP_RE.search(body))
 
 
 def _aggregate_engine_status(
