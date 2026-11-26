@@ -1341,6 +1341,32 @@ class TestWireTruth:
         assert provider.http_status is None
         assert "10.10.34.36" in provider.error
 
+    def test_a_slow_resolver_cannot_hold_the_worker(self, monkeypatch):
+        """The after-the-fact lookup is bounded; past the bound nothing is invented."""
+        import threading
+        import time
+
+        from josty import providers
+
+        release = threading.Event()
+
+        def hang(*args, **kwargs):
+            release.wait(5)
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.10.34.36", 443))]
+
+        monkeypatch.setattr(socket, "getaddrinfo", hang)
+        monkeypatch.setattr(providers, "_SILENCE_LOOKUP_SECONDS", 0.05)
+        tap = providers._WireTap("q")
+        tap.facts.host = "www.startpage.com"
+
+        t0 = time.perf_counter()
+        facts = tap.note_silence()
+        elapsed = time.perf_counter() - t0
+        release.set()
+
+        assert elapsed < 1.0
+        assert facts.resolved == ()
+
     def test_no_response_from_an_ordinary_address_is_not_filtered(self, monkeypatch):
         self._skip_unless_enabled("startpage")
 
@@ -1465,6 +1491,19 @@ class TestWireTruth:
         assert wire.host == "en.wikipedia.org"
         assert wire.http_status == 503
         assert wire.refusal_rate == 0.5
+
+    def test_a_call_with_a_partial_refusal_keeps_its_rate_when_aggregated(self):
+        """One call, a 200 and a 503: the engine's rate is 0.5, not 1.0."""
+        from josty.errors import _aggregate_engine_status
+        from josty.models import ProviderStatus
+
+        paged = ProviderStatus(
+            "e", "q", True, 1, http_status=503, body_bytes=900, refusal_rate=0.5
+        )
+
+        merged = _aggregate_engine_status([paged], [[result("https://example.org/a")]])
+
+        assert merged.refusal_rate == 0.5
 
     def test_refusal_rate_is_the_share_of_the_engines_refused_calls(self):
         """Ten calls, three refused, seven hits: a hit at 0.3, with the refusals visible."""

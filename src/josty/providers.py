@@ -17,6 +17,7 @@ import functools
 import html
 import re
 import socket
+import threading
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -40,7 +41,11 @@ if TYPE_CHECKING:
 #: first (div.relsrch items with a div.Title); the other carries section.s-algo
 #: items with a div.compTitle and a div.compText.
 _YAHOO_VARIANT_ITEMS = "//section[contains(@class, 's-algo')]"
-_YAHOO_VARIANT_TITLE = ".//div[contains(@class, 'compTitle')]//h3[1]//text()"
+#: The h3 also holds a span.title-url with the site name and the display URL.
+_YAHOO_VARIANT_TITLE = (
+    ".//div[contains(@class, 'compTitle')]//h3[1]"
+    "//text()[not(ancestor::span[contains(@class, 'title-url')])]"
+)
 _YAHOO_VARIANT_LINKS = ".//div[contains(@class, 'compTitle')]//a/@href"
 _YAHOO_VARIANT_TEXT = ".//div[contains(@class, 'compText')]"
 
@@ -71,6 +76,17 @@ def _yahoo_variant_rows(body: str) -> list[dict[str, Any]]:
         text = " ".join(snippets[0].itertext()) if snippets else ""
         rows.append({"title": title, "href": url, "body": re.sub(r"\s+", " ", text).strip()})
     return rows
+
+
+def _json_body(response: httpx.Response, source: str, query: str) -> object:
+    """The body as JSON. HTML in its place is a challenge page or a parse miss."""
+    try:
+        return response.json()
+    except ValueError as exc:
+        kind = "blocked" if _is_challenge_page(response.text, query) else "parse"
+        raise ProviderError(
+            kind, f"{source}: HTTP {response.status_code} body is not JSON"
+        ) from exc
 
 
 class _WireTap:
@@ -128,14 +144,34 @@ class _WireTap:
         return tapped
 
     def note_silence(self) -> WireFacts:
-        """Explain a call that got no HTTP response: where did its host resolve?"""
+        """Explain a call that got no HTTP response: where did its host resolve?
+
+        The lookup runs on a daemon thread and is waited for at most
+        ``_SILENCE_LOOKUP_SECONDS``: a slow resolver must not hold this worker
+        and its lease past the search timeout. A lookup that does not finish
+        in time leaves ``resolved`` empty.
+        """
         if self.facts.host and not self.facts.responses:
-            try:
-                infos = socket.getaddrinfo(self.facts.host, 443, type=socket.SOCK_STREAM)
-            except OSError:
-                infos = []
-            self.facts.resolved = tuple(dict.fromkeys(info[4][0] for info in infos))
+            found: list[tuple[str, ...]] = []
+            lookup = threading.Thread(
+                target=lambda host=self.facts.host: found.append(_resolve(host)), daemon=True
+            )
+            lookup.start()
+            lookup.join(_SILENCE_LOOKUP_SECONDS)
+            self.facts.resolved = found[0] if found else ()
         return self.facts
+
+
+#: Ceiling on the after-the-fact DNS lookup of a call that got no response.
+_SILENCE_LOOKUP_SECONDS = 1.0
+
+
+def _resolve(host: str) -> tuple[str, ...]:
+    try:
+        infos = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+    except OSError:
+        return ()
+    return tuple(dict.fromkeys(info[4][0] for info in infos))
 
 
 class DdgsSearchAdapter:
@@ -240,7 +276,8 @@ class DdgsSearchAdapter:
                 # the bytes the tap already holds (#100). Not a retry.
                 if call.backend != "yahoo" or not tap.facts.body:
                     raise
-                rows = _yahoo_variant_rows(tap.facts.body)
+                # ddgs stops at max_results; so does this parser.
+                rows = _yahoo_variant_rows(tap.facts.body)[: call.limit]
                 if not rows:
                     raise
             results = []
@@ -315,7 +352,7 @@ class MwmblSearchAdapter:
         """The one wire call; the single test seam for this source."""
         response = await client.get(MWMBL_SEARCH_URL, params={"q": query})
         response.raise_for_status()
-        return response.json()
+        return _json_body(response, "mwmbl", query)
 
     async def _fetch(self, query: str, budget: float, headers: dict[str, str]) -> object:
         async with httpx.AsyncClient(
@@ -418,7 +455,7 @@ class WikipediaSearchAdapter:
             return "not applicable: wikipedia cannot honour a site: filter"
         return None
 
-    async def _request(self, client: httpx.AsyncClient, query: str) -> object:
+    async def _request(self, client: httpx.AsyncClient, query: str, limit: int) -> object:
         """The one wire call; the single test seam for this source."""
         response = await client.get(
             WIKIPEDIA_SEARCH_URL,
@@ -426,18 +463,21 @@ class WikipediaSearchAdapter:
                 "action": "query",
                 "list": "search",
                 "format": "json",
-                "srlimit": 10,
+                # The API's ceiling for a client without a bot flag.
+                "srlimit": min(limit, 500),
                 "srsearch": query,
             },
         )
         response.raise_for_status()
-        return response.json()
+        return _json_body(response, "wikipedia", query)
 
-    async def _fetch(self, query: str, budget: float, headers: dict[str, str]) -> object:
+    async def _fetch(
+        self, query: str, limit: int, budget: float, headers: dict[str, str]
+    ) -> object:
         async with httpx.AsyncClient(
             timeout=budget, headers=headers, follow_redirects=False, trust_env=False
         ) as client:
-            return await self._request(client, query)
+            return await self._request(client, query, limit)
 
     async def issue(self, call: SearchCall, ctx: IssueContext) -> IssueOutcome:
         headers = {
@@ -450,7 +490,7 @@ class WikipediaSearchAdapter:
             # ledger measures calls issued, not tasks scheduled.
             ctx.ledger.record()
             body = await asyncio.wait_for(
-                self._fetch(call.query, min(self._timeout, ctx.budget), headers),
+                self._fetch(call.query, call.limit, min(self._timeout, ctx.budget), headers),
                 timeout=ctx.budget,
             )
             # Every field that reaches the models is checked: a shape variant

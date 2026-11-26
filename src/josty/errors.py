@@ -186,9 +186,11 @@ def _aggregate_engine_status(
     # not recency): Fanout.search (fanout.py) stamps them from a fresh
     # breaker.get_state() after the gather.
     # Wire evidence (#99). http_status/body_bytes come from the first refused
-    # variant, else the first that reached the wire; refusal_rate is the share
-    # of the engine's wire-reaching calls that got a non-200.
+    # variant, else the first that reached the wire; refusal_rate is the mean of
+    # the variants' own rates, each the share of that call's HTTP sub-requests
+    # that got a non-200.
     seen = [status for status in statuses if status.http_status is not None]
+    rates = [status.refusal_rate for status in seen if status.refusal_rate is not None]
     witness = next((s for s in failures if s.http_status is not None), seen[0] if seen else None)
     return ProviderStatus(
         provider,
@@ -200,11 +202,7 @@ def _aggregate_engine_status(
         latency_ms=latency_ms,
         http_status=witness.http_status if witness else None,
         body_bytes=witness.body_bytes if witness else None,
-        refusal_rate=(
-            round(sum(1 for status in seen if status.http_status != 200) / len(seen), 3)
-            if seen
-            else None
-        ),
+        refusal_rate=round(sum(rates) / len(rates), 3) if rates else None,
     )
 
 

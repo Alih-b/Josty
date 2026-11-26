@@ -35,7 +35,6 @@ import re
 import statistics
 import sys
 import time
-from collections import defaultdict
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -176,13 +175,17 @@ def _zero_result_kind(facts: list[dict]) -> str | None:
 
 def truth_of(run: SearchRun, seen: list[dict]) -> dict:
     """Per-engine capture facts beside the reported kind, and the mislabel count."""
-    by_host: dict[str, list[dict]] = defaultdict(list)
-    for fact in seen:
-        by_host[str(fact["host"])].append(fact)
     providers: list[dict] = []
     judged = mislabels = 0
     for status in run.providers:
-        facts = by_host.get(Josty.BACKEND_HOSTS.get(status.provider, ""), [])
+        # The listed host or a subdomain of it: ddgs's DuckDuckGo text engine
+        # asks html.duckduckgo.com.
+        host = Josty.BACKEND_HOSTS.get(status.provider, "")
+        facts = [
+            fact
+            for fact in seen
+            if host and (fact["host"] == host or str(fact["host"]).endswith("." + host))
+        ]
         largest = max(facts, key=lambda fact: fact["body_bytes"], default=None)
         zero_rows = status.result_count == 0
         expected = _expected_kind(facts) if zero_rows else None
