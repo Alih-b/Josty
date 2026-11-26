@@ -326,10 +326,13 @@ class SearchRun:
 
     @property
     def coverage(self) -> float | None:
-        n = len(self.providers)
-        if n == 0:
+        # A source that cannot honour the call's filter was never asked (#105), so
+        # it is not a loss and not in the denominator (#119): two sources that
+        # could answer and did is 1.0, not two-thirds.
+        asked = [p for p in self.providers if p.error_kind != "not_applicable"]
+        if not asked:
             return None
-        return round(self.nonempty_provider_count / n, 3)
+        return round(sum(1 for p in asked if p.ok and p.result_count > 0) / len(asked), 3)
 
     @property
     def fetch_status(self) -> str:
@@ -459,8 +462,14 @@ class SearchRun:
         """Why there are no rows (#106); None when there are."""
         if self.results:
             return None
+        # "asked" means the index was asked (#106): a source that cannot honour
+        # the call's filter never was, so it is not named here (#119).
+        asked = [
+            provider.provider
+            for provider in self.providers
+            if provider.error_kind != "not_applicable"
+        ]
         answered = [provider.provider for provider in self.providers if provider.ok]
-        asked = [provider.provider for provider in self.providers]
         return Absence("novalue" if answered else "somevalue", asked, answered)
 
     async def more(self) -> SearchRun | None:

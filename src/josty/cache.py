@@ -248,22 +248,34 @@ class SearchCache:
                 total = new_total
 
     def stats(self) -> dict[str, int]:
-        """Aggregate cache telemetry: row count, payload bytes, and cumulative hits."""
+        """Aggregate cache telemetry: rows, payload bytes, hits, and expired rows.
+
+        ``expired`` counts the rows past ``expires_at`` that are kept only to serve
+        the stale answer (#104), so an operator can tell a full cache from a cache
+        whose entries no run will read again (#119).
+        """
         if self.disabled:
-            return {"rows": 0, "bytes": 0, "hits": 0}
+            return {"rows": 0, "bytes": 0, "hits": 0, "expired": 0}
         try:
             with self._get_conn() as conn:
-                rows, payload_bytes, hits = conn.execute(
+                rows, payload_bytes, hits, expired = conn.execute(
                     """
                     SELECT COUNT(*),
                            COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0),
-                           COALESCE(SUM(COALESCE(hit_count, 0)), 0)
+                           COALESCE(SUM(COALESCE(hit_count, 0)), 0),
+                           COALESCE(SUM(CASE WHEN expires_at <= ? THEN 1 ELSE 0 END), 0)
                     FROM search_cache
-                    """
+                    """,
+                    (time.time(),),
                 ).fetchone()
-                return {"rows": int(rows), "bytes": int(payload_bytes), "hits": int(hits)}
+                return {
+                    "rows": int(rows),
+                    "bytes": int(payload_bytes),
+                    "hits": int(hits),
+                    "expired": int(expired),
+                }
         except Exception:
-            return {"rows": 0, "bytes": 0, "hits": 0}
+            return {"rows": 0, "bytes": 0, "hits": 0, "expired": 0}
 
     def clear(self) -> None:
         if self.disabled:

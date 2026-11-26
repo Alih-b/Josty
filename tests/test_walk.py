@@ -153,3 +153,37 @@ def test_a_site_filter_is_not_sent_to_a_source_that_cannot_honour_it(monkeypatch
     assert refused[0].error.startswith("not applicable:")
     assert run.partial is False
     assert run.request_count == 1
+
+
+def test_coverage_leaves_out_a_source_that_was_never_asked(monkeypatch):
+    """Two sources that could answer and did is 1.0, not two-thirds (#119)."""
+    ddgs = _Rows()
+    _use_ddgs(monkeypatch, ddgs)
+
+    async def never(self, client, query):
+        raise AssertionError("a source that cannot honour the filter must not be asked")
+
+    monkeypatch.setattr(MwmblSearchAdapter, "_request", never)
+
+    run = _run(("mwmbl", "yandex", "yahoo"), sites=["github.com"])
+
+    assert [p.error_kind for p in run.providers if p.provider == "mwmbl"] == ["not_applicable"]
+    assert run.coverage == 1.0
+    assert run.dict()["coverage"] == 1.0
+
+
+def test_an_absence_never_names_a_source_it_could_not_ask(monkeypatch):
+    """`absent.asked` is why there are no rows, so it names calls, not entries (#119)."""
+
+    async def never(self, client, query):
+        raise AssertionError("mwmbl cannot honour a site filter")
+
+    monkeypatch.setattr(MwmblSearchAdapter, "_request", never)
+
+    run = _run(("mwmbl",), sites=["github.com"])
+
+    assert run.results == []
+    assert run.providers[0].error_kind == "not_applicable"
+    assert run.absent is not None
+    assert run.absent.asked == []
+    assert run.absent.answered == []

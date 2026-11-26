@@ -3,6 +3,7 @@ import socket
 import sqlite3
 import ssl
 import sys
+import time
 from types import SimpleNamespace
 from urllib.parse import urlsplit
 
@@ -1114,12 +1115,12 @@ def test_search_cache_hit_and_miss_and_clear(tmp_path):
 
 def test_cache_stats_starts_and_resets_empty(tmp_path):
     cache = SearchCache(tmp_path / "stats.db", default_ttl=60.0)
-    assert cache.stats() == {"rows": 0, "bytes": 0, "hits": 0}
+    assert cache.stats() == {"rows": 0, "bytes": 0, "hits": 0, "expired": 0}
     key = SearchCache.hash_key("query")
     cache.set(key, {"query": "query"})
     cache.get(key)
     cache.clear()
-    assert cache.stats() == {"rows": 0, "bytes": 0, "hits": 0}
+    assert cache.stats() == {"rows": 0, "bytes": 0, "hits": 0, "expired": 0}
 
 
 def test_search_cache_increments_hit_count(tmp_path):
@@ -2164,6 +2165,46 @@ def test_breaker_state_is_shared_through_the_cache_db_and_nowhere_else(tmp_path)
     engine_b.clear_cache()
     engine_c = Josty(cache_db=db_file, **knobs)
     assert engine_c.breaker.status("duckduckgo") == (True, None)
+
+
+def test_a_cached_run_can_still_ask_one_more_engine(tmp_path, monkeypatch):
+    """`untried` and `more()` never disagree, cached or not (#119)."""
+    seen: list[str] = []
+
+    class Rows:
+        def __init__(self, **kwargs):
+            pass
+
+        def text(self, query, **kwargs):
+            seen.append(kwargs["backend"])
+            return [{"title": kwargs["backend"], "href": f"https://example.org/{kwargs['backend']}"}]
+
+    monkeypatch.setattr("josty.engine.DDGS", Rows)
+    engine = Josty(backends=("yandex", "brave", "mojeek"), cache_db=tmp_path / "more.db")
+
+    first = asyncio.run(engine.search_run("q", limit=5))
+    assert first.untried == ["mojeek"]
+
+    cached = asyncio.run(engine.search_run("q", limit=5))
+    assert cached.cached is True
+    assert cached.untried == ["mojeek"]
+
+    more = asyncio.run(cached.more())
+    assert more is not None
+    assert seen[-1] == "mojeek"
+    assert [p.provider for p in more.providers] == ["mojeek"]
+
+
+def test_cache_stats_counts_rows_kept_only_for_a_stale_answer(tmp_path):
+    """An expired row is still a row; --cache-stats says how many (#119)."""
+    cache = SearchCache(tmp_path / "stats2.db", default_ttl=60.0)
+    cache.set("k", {"query": "q"}, ttl=60.0)
+    with sqlite3.connect(cache.db_path) as conn:
+        conn.execute("UPDATE search_cache SET expires_at = ?", (time.time() - 1.0,))
+
+    stats = cache.stats()
+
+    assert (stats["rows"], stats["expired"]) == (1, 1)
 
 
 class _OneEngineBlockedDDGS:

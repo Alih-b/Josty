@@ -872,7 +872,7 @@ class TestCache:
         assert cache.db_path is None
         cache.set("k", {"x": 1})
         assert cache.get("k") is None
-        assert cache.stats() == {"rows": 0, "bytes": 0, "hits": 0}
+        assert cache.stats() == {"rows": 0, "bytes": 0, "hits": 0, "expired": 0}
         if not before:
             assert not Path("/tmp/josty_cache.db").exists()
 
