@@ -273,11 +273,14 @@ class DdgsSearchAdapter:
                 kwargs["region"] = call.region
             if call.timelimit:
                 kwargs["timelimit"] = call.timelimit
-            # The one request site: counted immediately before the call so the
-            # ledger measures calls issued, not tasks scheduled. The pool claim
-            # makes the count and the branch's deadline check exclusive (#121).
-            if pool is None or lease_id is None or pool.claim_issue(lease_id):
-                ledger.record()
+            # The one request site: claimed and counted immediately before the
+            # call so the ledger measures calls issued, not tasks scheduled. A
+            # lost claim means the arbiter already accounted this call as shed
+            # (#121); the request is then never sent, because a call the run
+            # reports as unissued must not leave the box either.
+            if pool is not None and lease_id is not None and not pool.claim_issue(lease_id):
+                return [], round((time.perf_counter() - t0) * 1000, 2), None, None
+            ledger.record()
             try:
                 rows = method(call.query, **kwargs)
             except Exception:
