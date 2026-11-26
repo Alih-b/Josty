@@ -297,6 +297,12 @@ class DdgsSearchAdapter:
                         )
                     )
                     rank += 1
+            if rows and not results and not any(r.get("href") or r.get("url") for r in rows):
+                # Rows without a link are a parser miss, not an empty answer (#131):
+                # the page held results and ddgs could not read their addresses.
+                raise ProviderError(
+                    "parse", f"{call.backend}: {len(rows)} rows came back without a link"
+                )
             latency = round((time.perf_counter() - t0) * 1000, 2)
             return results, latency, None, tap.facts
         except Exception as exc:
