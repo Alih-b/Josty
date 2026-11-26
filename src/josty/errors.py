@@ -184,9 +184,10 @@ def _aggregate_engine_status(
     # breaker.get_state() after the gather.
     # Wire evidence (#99). The witness is the refused variant that set error_kind,
     # else the largest answered body, so http_status/body_bytes always belong to
-    # the status a reader sees. refusal_rate is the share of the engine's
-    # wire-reaching calls that got a non-200.
+    # the status a reader sees. refusal_rate is the mean of the variants' own
+    # rates, each the share of that call's HTTP sub-requests that got a non-200.
     seen = [status for status in statuses if status.http_status is not None]
+    rates = [status.refusal_rate for status in seen if status.refusal_rate is not None]
     witnesses = [status for status in failures if status.http_status is not None]
     if witnesses:
         witness = max(
@@ -206,11 +207,7 @@ def _aggregate_engine_status(
         latency_ms=latency_ms,
         http_status=witness.http_status if witness else None,
         body_bytes=witness.body_bytes if witness else None,
-        refusal_rate=(
-            round(sum(1 for status in seen if status.http_status != 200) / len(seen), 3)
-            if seen
-            else None
-        ),
+        refusal_rate=round(sum(rates) / len(rates), 3) if rates else None,
     )
 
 

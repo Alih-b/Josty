@@ -63,7 +63,7 @@ def _ctx() -> IssueContext:
 
 
 def _patch_body(monkeypatch, body: object) -> None:
-    async def canned(self, client, query):
+    async def canned(self, client, query, limit):
         assert query == "q"
         return body
 
@@ -118,7 +118,7 @@ def test_request_asks_list_search_and_never_opensearch():
 
     adapter = WikipediaSearchAdapter(timeout=8, user_agent="test-agent")
 
-    asyncio.run(_REAL_REQUEST(adapter, FakeClient(), "python asyncio timeout"))
+    asyncio.run(_REAL_REQUEST(adapter, FakeClient(), "python asyncio timeout", 10))
 
     assert asked["url"] == WIKIPEDIA_SEARCH_URL
     params = asked["params"]
@@ -128,6 +128,36 @@ def test_request_asks_list_search_and_never_opensearch():
     assert params["srlimit"] == 10
     # The prefix-only endpoint ddgs uses is the bug this source exists for.
     assert "opensearch" not in str(asked)
+
+
+@pytest.mark.parametrize(
+    ("page", "kind"),
+    [
+        ("<html><head><title>Wikimedia Error</title></head></html>", "parse"),
+        ("<html><head><title>Just a moment...</title></head></html>", "blocked"),
+    ],
+)
+def test_a_200_that_is_not_json_is_parse_or_blocked_never_unknown(page, kind):
+    class HtmlResponse:
+        status_code = 200
+        text = page
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            raise ValueError("Expecting value: line 1 column 1 (char 0)")
+
+    class FakeClient:
+        async def get(self, url, params=None):
+            return HtmlResponse()
+
+    adapter = WikipediaSearchAdapter(timeout=8, user_agent="test-agent")
+
+    with pytest.raises(ProviderError) as raised:
+        asyncio.run(_REAL_REQUEST(adapter, FakeClient(), "q", 10))
+
+    assert raised.value.error_kind == kind
 
 
 def test_issue_maps_rows_to_canonical_wiki_urls_and_counts_one_call(monkeypatch):
@@ -148,6 +178,22 @@ def test_issue_maps_rows_to_canonical_wiki_urls_and_counts_one_call(monkeypatch)
     assert outcome.results[0].snippet == "Asynchronous I/O & events"
     assert [r.engine_ranks for r in outcome.results] == [{"wikipedia": 1}, {"wikipedia": 2}]
     assert all(r.sources == ["wikipedia"] for r in outcome.results)
+
+
+def test_the_call_limit_reaches_the_api(monkeypatch):
+    """A run asking for 25 rows asks Wikipedia for 25, not a fixed 10."""
+    asked: list[int] = []
+
+    async def counted(self, client, query, limit):
+        asked.append(limit)
+        return _page([])
+
+    monkeypatch.setattr(WikipediaSearchAdapter, "_request", counted)
+    adapter = WikipediaSearchAdapter(timeout=8, user_agent="test-agent")
+
+    asyncio.run(adapter.issue(_call(limit=25), _ctx()))
+
+    assert asked == [25]
 
 
 def test_issue_respects_a_small_limit(monkeypatch):
