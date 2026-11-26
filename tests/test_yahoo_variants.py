@@ -3,7 +3,9 @@
 The fixtures under tests/fixtures/yahoo/ are verbatim result items cut from
 captures taken on 2026-11-26 through ddgs's own Yahoo engine: one query flips
 between two pages. "relsrch" is the markup ddgs 9.16.1 parses; "grp-talgo" is
-the one it read as an empty answer. Hermetic: the engine's socket is stubbed at
+the one it read as an empty answer. "grp-talgo-nested" is the second markup as it
+is served for long result lists (#126): three items cut from one capture, each
+nested inside the previous one. Hermetic: the engine's socket is stubbed at
 the primp client, under the tap (AGENTS.md invariant 2).
 """
 
@@ -21,6 +23,7 @@ from josty.providers import _yahoo_variant_rows
 FIXTURES = Path(__file__).parent / "fixtures" / "yahoo"
 FIRST_MARKUP = (FIXTURES / "relsrch.html").read_bytes()
 SECOND_MARKUP = (FIXTURES / "grp-talgo.html").read_bytes()
+NESTED_MARKUP = (FIXTURES / "grp-talgo-nested.html").read_bytes()
 
 
 def _wire(backend: str, body: bytes):
@@ -130,3 +133,28 @@ def test_a_page_neither_markup_reads_is_parse_never_empty(monkeypatch):
 
     assert run.providers[0].error_kind == "parse"
     assert run.status == "failed"
+
+
+def test_nested_items_keep_only_their_own_title_and_text():
+    """#126: each section.s-algo sits inside the previous one's grp-talgo-ext."""
+    rows = _yahoo_variant_rows(NESTED_MARKUP.decode("utf-8"))
+
+    assert [row["title"] for row in rows] == [
+        "Coroutines and tasks — Python 3.15.2 documentation",
+        "asyncio — Asynchronous I/O — Python 3.15.2 documentation",
+        "How to use asyncio.TaskGroup – SuperFastPython",
+    ]
+    assert [row["href"] for row in rows] == [
+        "https://docs.python.org/3/library/asyncio-task.html",
+        "https://docs.python.org/3/library/asyncio.html",
+        "https://superfastpython.com/asyncio-taskgroup/",
+    ]
+    assert all(len(row["body"]) < 400 for row in rows)
+    assert not any(rows[0]["body"] == row["body"] for row in rows[1:])
+
+
+def test_nested_page_yields_short_titles_through_the_real_engine(monkeypatch):
+    run = _run(monkeypatch, "yahoo", NESTED_MARKUP)
+
+    assert len(run.results) == 3
+    assert max(len(item.title) for item in run.results) < 80
