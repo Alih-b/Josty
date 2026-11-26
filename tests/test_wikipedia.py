@@ -130,6 +130,36 @@ def test_request_asks_list_search_and_never_opensearch():
     assert "opensearch" not in str(asked)
 
 
+@pytest.mark.parametrize(
+    ("page", "kind"),
+    [
+        ("<html><head><title>Wikimedia Error</title></head></html>", "parse"),
+        ("<html><head><title>Just a moment...</title></head></html>", "blocked"),
+    ],
+)
+def test_a_200_that_is_not_json_is_parse_or_blocked_never_unknown(page, kind):
+    class HtmlResponse:
+        status_code = 200
+        text = page
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            raise ValueError("Expecting value: line 1 column 1 (char 0)")
+
+    class FakeClient:
+        async def get(self, url, params=None):
+            return HtmlResponse()
+
+    adapter = WikipediaSearchAdapter(timeout=8, user_agent="test-agent")
+
+    with pytest.raises(ProviderError) as raised:
+        asyncio.run(_REAL_REQUEST(adapter, FakeClient(), "q", 10))
+
+    assert raised.value.error_kind == kind
+
+
 def test_issue_maps_rows_to_canonical_wiki_urls_and_counts_one_call(monkeypatch):
     _patch_body(monkeypatch, BODY)
     ledger = _FanoutLedger()

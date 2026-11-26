@@ -35,6 +35,17 @@ if TYPE_CHECKING:
     from .lease import LeasePool
 
 
+def _json_body(response: httpx.Response, source: str, query: str) -> object:
+    """The body as JSON. HTML in its place is a challenge page or a parse miss."""
+    try:
+        return response.json()
+    except ValueError as exc:
+        kind = "blocked" if _is_challenge_page(response.text, query) else "parse"
+        raise ProviderError(
+            kind, f"{source}: HTTP {response.status_code} body is not JSON"
+        ) from exc
+
+
 class _WireTap:
     """Records what the engines behind one ddgs call actually got back (#99).
 
@@ -266,7 +277,7 @@ class MwmblSearchAdapter:
         """The one wire call; the single test seam for this source."""
         response = await client.get(MWMBL_SEARCH_URL, params={"q": query})
         response.raise_for_status()
-        return response.json()
+        return _json_body(response, "mwmbl", query)
 
     async def _fetch(self, query: str, budget: float, headers: dict[str, str]) -> object:
         async with httpx.AsyncClient(
@@ -379,7 +390,7 @@ class WikipediaSearchAdapter:
             },
         )
         response.raise_for_status()
-        return response.json()
+        return _json_body(response, "wikipedia", query)
 
     async def _fetch(
         self, query: str, limit: int, budget: float, headers: dict[str, str]
