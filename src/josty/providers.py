@@ -283,7 +283,8 @@ class DdgsSearchAdapter:
                 # the bytes the tap already holds (#100). Not a retry.
                 if call.backend != "yahoo" or not tap.facts.body:
                     raise
-                rows = _yahoo_variant_rows(tap.facts.body)
+                # ddgs stops at max_results; so does this parser.
+                rows = _yahoo_variant_rows(tap.facts.body)[: call.limit]
                 if not rows:
                     raise
             results = []

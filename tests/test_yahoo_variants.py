@@ -40,10 +40,10 @@ def _wire(backend: str, body: bytes):
     return factory
 
 
-def _run(monkeypatch, backend: str, body: bytes):
+def _run(monkeypatch, backend: str, body: bytes, limit: int = 5):
     monkeypatch.setattr("josty.engine.DDGS", _wire(backend, body))
     return asyncio.run(
-        Josty(backends=(backend,), enable_cache=False).search_run("q", limit=5)
+        Josty(backends=(backend,), enable_cache=False).search_run("q", limit=limit)
     )
 
 
@@ -75,6 +75,24 @@ def test_the_second_markup_is_read_from_the_capture_not_invented():
     # The site name and display URL above the title are not part of it.
     assert rows[0]["title"] == "The Linux Kernel Archives - Releases"
     assert rows[0]["body"]
+
+
+def test_the_second_markup_stops_at_the_call_limit(monkeypatch):
+    """ddgs stops at max_results; rows past the limit must not reach fusion."""
+    item = (
+        '<section class="dd algo s-algo"><div class="compTitle"><h3>'
+        '<a href="https://r.search.yahoo.com/_ylt=x/RU=https%3a%2f%2fexample.org%2f{n}'
+        '/RK=2/RS=x">Result {n}</a></h3></div><div class="compText">s</div></section>'
+    )
+    page = "<html><body>" + "".join(item.format(n=n) for n in range(4)) + "</body></html>"
+
+    run = _run(monkeypatch, "yahoo", page.encode(), limit=2)
+
+    assert run.providers[0].result_count == 2
+    assert [result.url for result in run.results] == [
+        "https://example.org/0",
+        "https://example.org/1",
+    ]
 
 
 def test_modules_without_a_result_link_are_dropped():
