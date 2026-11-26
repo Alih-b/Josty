@@ -286,7 +286,11 @@ class BranchRunner:
             breaker.record_latency(provider, latency_ms)
             error_kind = _classify_search_error(exc, outcome.wire)
             if error_kind != "empty":
-                breaker.record_failure(provider, "search")
+                # An unreadable page says nothing about whether the engine will
+                # answer the next call (#124): the status reports it and the
+                # walk moves on, but the circuit stays closed.
+                if error_kind != "parse":
+                    breaker.record_failure(provider, "search")
                 return self._status(
                     call,
                     provider,
