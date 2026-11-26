@@ -17,6 +17,10 @@ ProfileType = Literal["general", "dev"]
 
 SCHEMA_VERSION = "1.0"
 
+#: Base of the problem types SearchRun.why() returns (#106); the fragment names
+#: the kind, so it stays stable whatever words the detail uses.
+PROBLEM_TYPE_BASE = "https://github.com/Alih-b/Josty/problems"
+
 
 class SearchStatus:
     """Run-level search status values; the wire schema stays 1.0."""

@@ -338,6 +338,7 @@ class Josty:
         region: str | None,
         safesearch: SafeSearch,
         timelimit: TimeLimit | None,
+        engines: tuple[str, ...] | None = None,
     ) -> tuple[list[list[SearchResult]], list[ProviderStatus]]:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
@@ -352,7 +353,11 @@ class Josty:
         # distinct search indexes have answered. Every variant of one engine
         # still goes out together, through the run's one pool, ledger and
         # deadline. An engine the walk never asks is listed, not failed.
-        group_of = {engine: group for group, engine in self._engine_specs(category)}
+        group_of = {
+            engine: group
+            for group, engine in self._engine_specs(category)
+            if engines is None or engine in engines
+        }
         lists: list[tuple[int, list[SearchResult]]] = []
         statuses: list[ProviderStatus] = []
         answered: set[str] = set()
@@ -695,6 +700,24 @@ class Josty:
             _stamp_fetch_stats(fresh, requested=True)
         return fresh
 
+    def _new_fanout(self) -> Fanout:
+        """One Fanout per run: its own pool, worker pool, ledger and deadline.
+
+        Per-run rather than per-instance, so a worker that never returns cannot
+        shed a later run; dedicated rather than shared, so trafilatura extraction
+        never queues behind search workers. Sized to the cap because admission
+        guarantees held + ghosts <= capacity, so a submission is never queued.
+        """
+        return Fanout(
+            capacity=self.max_search_concurrency,
+            search_timeout=self.timeout,
+            headroom=SEARCH_THREAD_TIMEOUT_HEADROOM,
+            max_ghosts=self.max_ghosts,
+            semaphore=self._search_semaphore(),
+            breaker=self.breaker,
+            run_timeout=self.run_timeout,
+        )
+
     async def research_run(
         self,
         query: str,
@@ -771,21 +794,7 @@ class Josty:
                 except Exception:
                     self.cache.delete(cache_key)
 
-        # One Fanout per run owns the admission pool, the dedicated worker pool,
-        # the ledger and the deadline. Per-run rather than per-instance, so a
-        # worker that never returns cannot shed a later run; dedicated rather
-        # than shared, so trafilatura extraction never queues behind search
-        # workers. Sized to the cap because admission guarantees held + ghosts
-        # <= capacity, so a submission is never queued.
-        fanout = Fanout(
-            capacity=self.max_search_concurrency,
-            search_timeout=self.timeout,
-            headroom=SEARCH_THREAD_TIMEOUT_HEADROOM,
-            max_ghosts=self.max_ghosts,
-            semaphore=self._search_semaphore(),
-            breaker=self.breaker,
-            run_timeout=self.run_timeout,
-        )
+        fanout = self._new_fanout()
         try:
             web_task = self._search_parts(
                 queries,
@@ -852,6 +861,21 @@ class Josty:
             untried=fanout.untried,
             **fanout.accounting(),
         )
+        run._maker = (
+            self,
+            {
+                "query": query,
+                "sites": normalized_sites,
+                "mode": mode,
+                "limit": limit,
+                "category": category,
+                "region": region,
+                "safesearch": safesearch,
+                "timelimit": timelimit,
+                "profile": effective_profile,
+                "max_query_variants": effective_max_variants,
+            },
+        )
         _stamp_fetch_stats(run, requested=fetch)
         unanswered = any(p.error_kind in self.UNANSWERED_KINDS for p in run.providers)
         if cache_key and not run.results and unanswered:
@@ -872,6 +896,43 @@ class Josty:
                 cache_key, payload, ttl=_ttl_for(category, timelimit, self.cache.default_ttl)
             )
         return run
+
+    async def _more_of(self, run: SearchRun, p: dict[str, Any]) -> SearchRun:
+        """One more engine for a run: the first it lists as untried (#106).
+
+        Nothing is cached and run is not touched. The answer is a run of its own
+        that carries the engines still untried, so the caller can go on.
+        """
+        engine, *rest = run.untried
+        queries = self.expand(
+            p["query"], p["sites"], p["mode"], max_query_variants=p["max_query_variants"]
+        )
+        fanout = self._new_fanout()
+        try:
+            lists, providers = await self._search_parts(
+                queries,
+                fanout=fanout,
+                limit=p["limit"],
+                category=p["category"],
+                region=p["region"],
+                safesearch=p["safesearch"],
+                timelimit=p["timelimit"],
+                engines=(engine,),
+            )
+        finally:
+            await fanout.close()
+        results = self._filter_sites(rrf(lists, profile=p["profile"]), p["sites"])[: p["limit"]]
+        more = SearchRun(
+            query=p["query"],
+            results=results,
+            providers=providers,
+            run_at=datetime.now(timezone.utc).isoformat(),
+            query_variant_count=len(queries),
+            untried=rest,
+            **fanout.accounting(),
+        )
+        more._maker = (self, p)
+        return more
 
     async def research(self, query: str, **kwargs: Any) -> list[SearchResult]:
         return (await self.research_run(query, **kwargs)).results
