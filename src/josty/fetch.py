@@ -76,7 +76,15 @@ async def download(
     raise ValueError("too many redirects")
 
 
-async def validate_public_url(url: str, *, timeout: float) -> None:
+#: The RFC 2544 benchmarking range. Proxy and VPN clients in fake-IP mode answer
+#: every DNS lookup with an address from it and route the connection themselves
+#: (#129). It is not global, so it is blocked unless the caller opts in.
+FAKE_IP_NETWORK = ipaddress.ip_network("198.18.0.0/15")
+
+
+async def validate_public_url(
+    url: str, *, timeout: float, allow_fake_ip: bool = False
+) -> None:
     parsed = urlsplit(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         raise ValueError("only public HTTP(S) URLs can be fetched")
@@ -99,8 +107,18 @@ async def validate_public_url(url: str, *, timeout: float) -> None:
         raise ValueError("hostname could not be resolved") from exc
     for address in addresses:
         ip = ipaddress.ip_address(address[4][0])
+        in_fake_range = ip.version == 4 and ip in FAKE_IP_NETWORK
+        if in_fake_range and allow_fake_ip:
+            continue
         if not ip.is_global or ip.is_multicast:
-            raise ValueError("private or reserved network destinations are blocked")
+            message = "private or reserved network destinations are blocked"
+            if in_fake_range:
+                message += (
+                    f" ({ip} is in {FAKE_IP_NETWORK}, the fake-IP range of proxy and"
+                    " VPN clients; set JOSTY_ALLOW_FAKE_IP=1 or pass --allow-fake-ip"
+                    " to allow it)"
+                )
+            raise ValueError(message)
 
 
 def is_ad_redirect(url: str) -> bool:

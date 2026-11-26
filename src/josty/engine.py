@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import math
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -131,6 +132,7 @@ class Josty:
         breaker_window_seconds: float = DEFAULT_BREAKER_WINDOW_SECONDS,
         breaker_cool_down_seconds: float = DEFAULT_BREAKER_COOL_DOWN_SECONDS,
         breaker_max_cool_down_seconds: float = DEFAULT_BREAKER_MAX_COOL_DOWN_SECONDS,
+        allow_fake_ip: bool | None = None,
     ):
         if max_concurrency is not None:
             # Deprecated alias, applied before validation. Applying it afterwards
@@ -156,6 +158,13 @@ class Josty:
             raise ValueError("content limits must be positive")
         if profile not in ("general", "dev"):
             raise ValueError(f"unsupported profile: {profile}")
+        # Page fetch refuses 198.18.0.0/15 unless asked (#129). None reads
+        # JOSTY_ALLOW_FAKE_IP so a shell on a fake-IP network sets it once.
+        if allow_fake_ip is None:
+            allow_fake_ip = os.environ.get("JOSTY_ALLOW_FAKE_IP", "").strip().lower() in (
+                "1", "true", "yes", "on",
+            )
+        self.allow_fake_ip = allow_fake_ip
         self.timeout = timeout
         self.max_search_concurrency = max_search_concurrency
         self.max_fetch_concurrency = max_fetch_concurrency
@@ -499,7 +508,7 @@ class Josty:
         )
 
     async def _validate_public_url(self, url: str) -> None:
-        await validate_public_url(url, timeout=self.timeout)
+        await validate_public_url(url, timeout=self.timeout, allow_fake_ip=self.allow_fake_ip)
 
     @staticmethod
     def _is_ad_redirect(url: str) -> bool:
