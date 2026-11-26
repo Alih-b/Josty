@@ -43,12 +43,15 @@ from .status import (
     CHALLENGED_HTTP_STATUSES,
     SEARCH_THREAD_TIMEOUT_HEADROOM,
     USER_AGENT,
+    WANT_INDEXES,
     ProfileType,
     SafeSearch,
     SearchCategory,
     SearchMode,
     SearchStatus,
     TimeLimit,
+    engine_walk_order,
+    index_of,
 )
 
 
@@ -60,6 +63,8 @@ class Josty:
     #: every default run `degraded` (#97). An explicit `backends=("google",)` is
     #: still honoured and reported `skipped` while ddgs keeps it disabled.
     DEFAULT_BACKENDS = (
+        # First in the walk: 10/10 on both Iran routes, median 586 ms (#101, #105).
+        "yandex",
         "brave,duckduckgo",
         "mojeek,startpage",
         "yahoo",
@@ -342,28 +347,43 @@ class Josty:
             raise ValueError(f"unsupported safe-search mode: {safesearch}")
         if timelimit not in (None, "d", "w", "m", "y"):
             raise ValueError(f"unsupported time limit: {timelimit}")
-        # An engine listed in multiple groups is queried once, in its first
-        # group: one call and one status per engine, contract-wide. Plans are
-        # engine-major then variant, and Fanout re-groups them in plan order.
-        plans = [
-            Plan(
-                group_index=group_index,
-                call=SearchCall(
-                    query=variant,
-                    backend=engine,
-                    limit=limit,
-                    category=category,
-                    region=region,
-                    safesearch=safesearch,
-                    timelimit=timelimit,
-                ),
+        # One call and one status per engine, contract-wide. The walk (#105) asks
+        # the engines in a measured order, one at a time, and stops once enough
+        # distinct search indexes have answered. Every variant of one engine
+        # still goes out together, through the run's one pool, ledger and
+        # deadline. An engine the walk never asks is listed, not failed.
+        group_of = {engine: group for group, engine in self._engine_specs(category)}
+        lists: list[tuple[int, list[SearchResult]]] = []
+        statuses: list[ProviderStatus] = []
+        answered: set[str] = set()
+        for engine in engine_walk_order(group_of):
+            if len(answered) >= WANT_INDEXES:
+                fanout.untried.append(engine)
+                continue
+            plans = [
+                Plan(
+                    group_index=group_of[engine],
+                    call=SearchCall(
+                        query=variant,
+                        backend=engine,
+                        limit=limit,
+                        category=category,
+                        region=region,
+                        safesearch=safesearch,
+                        timelimit=timelimit,
+                    ),
+                )
+                for variant in queries
+            ]
+            group_lists, group_statuses = await fanout.search(
+                plans, functools.partial(self._invoke_plan, fanout=fanout)
             )
-            for group_index, engine in self._engine_specs(category)
-            for variant in queries
-        ]
-        return await fanout.search(
-            plans, functools.partial(self._invoke_plan, fanout=fanout)
-        )
+            lists.extend((group_of[engine], items) for items in group_lists)
+            statuses.extend(group_statuses)
+            if group_statuses[0].result_count > 0:
+                answered.add(index_of(engine))
+        # Fusion order is the roster's group order, not the walk's.
+        return [items for _, items in sorted(lists, key=lambda pair: pair[0])], statuses
 
     async def _invoke_plan(
         self, plan: Plan, *, fanout: Fanout
@@ -829,6 +849,7 @@ class Josty:
             providers=providers,
             run_at=datetime.now(timezone.utc).isoformat(),
             query_variant_count=variant_count,
+            untried=fanout.untried,
             **fanout.accounting(),
         )
         _stamp_fetch_stats(run, requested=fetch)

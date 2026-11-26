@@ -183,9 +183,10 @@ def test_the_default_roster_queries_mwmbl_and_fuses_its_rows(monkeypatch):
     run = asyncio.run(Josty(enable_cache=False).search_run("q", limit=5))
 
     assert "mwmbl" in {p.provider for p in run.providers}
-    # Five ddgs engines plus the native source: one call each, no amplification.
-    assert run.request_count == 6
-    assert run.scheduled_count == 6
+    # The walk (#105) stops at two indexes: yandex answers, then mwmbl. One call
+    # each, no amplification.
+    assert run.request_count == 2
+    assert run.scheduled_count == 2
     assert run.shed_count == 0
     # Its rows fuse like any other engine's (#105): an index that answered
     # counts, so there is nothing to gain from asking it and dropping the answer.
@@ -219,7 +220,9 @@ def test_mwmbl_rows_answer_a_run_the_primary_engines_left_empty(monkeypatch):
         "https://example.org/b",
     ]
     assert all(r.sources == ["mwmbl"] for r in run.results)
-    assert run.request_count == 6
+    # Only one index answered, so the walk asks every engine: six ddgs engines
+    # plus the native source.
+    assert run.request_count == 7
 
 
 @pytest.mark.parametrize("field", ["title", "content", "extract"])

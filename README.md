@@ -33,7 +33,7 @@
 
 ## What It Is
 
-**Josty** queries public search backends in parallel through `ddgs`, fuses rankings with Cormack-Clarke Reciprocal Rank Fusion (RRF), canonicalizes URLs, and optionally extracts bounded page text.
+**Josty** queries public search backends through `ddgs` in a measured order, one engine at a time, and stops once two distinct search indexes have answered (#105); it fuses rankings with Cormack-Clarke Reciprocal Rank Fusion (RRF), canonicalizes URLs, and optionally extracts bounded page text.
 
 It also calls [Mwmbl](https://mwmbl.org)'s keyless JSON search API directly. `ddgs` has no Mwmbl engine, so this one source is a native adapter: still one bounded call per query variant, still no key. Its rows are fused like any other engine's (#105). It takes only a query, so a run with `--time-limit` or `--region` reports the source as `skipped` rather than returning results that ignore the filter, and `--safe-search on` skips it too (see the skill's option table for which engines apply that hint at all).
 

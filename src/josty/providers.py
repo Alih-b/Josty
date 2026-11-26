@@ -303,6 +303,10 @@ class MwmblSearchAdapter:
             # grokipedia and wikipedia engines, which take no safe-search
             # parameter either and are queried anyway.
             return "skipped: mwmbl has no safe-search filter"
+        if call.query.startswith("site:"):
+            # The API has no site: operator. Asked anyway, it reports "nothing on
+            # that site", which is not something it looked at.
+            return "skipped: mwmbl cannot honour a site: filter"
         return None
 
     async def _request(self, client: httpx.AsyncClient, query: str) -> object:
@@ -406,6 +410,10 @@ class WikipediaSearchAdapter:
             return "skipped: wikipedia is English-only and ignores region selection"
         if call.safesearch == "on":
             return "skipped: wikipedia has no safe-search filter"
+        if call.query.startswith("site:"):
+            # Full-text search has no site: operator; an empty answer would claim
+            # "nothing on that site", which is not something it looked at.
+            return "skipped: wikipedia cannot honour a site: filter"
         return None
 
     async def _request(self, client: httpx.AsyncClient, query: str) -> object:

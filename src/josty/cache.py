@@ -520,6 +520,11 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
             return None
         return number if math.isfinite(number) else None
 
+    def _as_str_list(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        return [str(item) for item in value]
+
     fetch_raw = payload.get("fetch")
     if not isinstance(fetch_raw, dict):
         fetch_raw = {}
@@ -537,4 +542,5 @@ def _search_run_from_dict(payload: dict[str, Any]) -> SearchRun:
         fetch_failed=_as_int(fetch_raw.get("failed")),
         stale=bool(payload.get("stale", False)),
         age_seconds=_as_opt_float(payload.get("age_seconds")),
+        untried=_as_str_list(payload.get("untried")),
     )

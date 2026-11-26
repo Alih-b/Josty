@@ -276,6 +276,8 @@ class SearchRun:
     #: answered this run (#104). The providers are always this run's own.
     stale: bool = False
     age_seconds: float | None = None
+    #: Engines the walk never asked (#105). Not failures: they were never issued.
+    untried: list[str] = field(default_factory=list)
 
     @property
     def provider_count(self) -> int:
@@ -372,6 +374,7 @@ class SearchRun:
             },
             "providers": [provider.dict() for provider in self.providers],
             "results": [result.dict() for result in self.results],
+            "untried": list(self.untried),
         }
         if self.run_at is not None:
             payload["run_at"] = self.run_at

@@ -435,14 +435,15 @@ def test_group_backends_fan_out_per_engine_and_stay_group_fused(monkeypatch):
             ]
 
     monkeypatch.setattr("josty.engine.DDGS", FakeDDGS)
+    # bing and yahoo are one index, so the walk asks brave as well (#105).
     run = asyncio.run(
-        Josty(backends=("duckduckgo,brave", "google")).search_run("query", limit=5)
+        Josty(backends=("bing,yahoo", "brave")).search_run("query", limit=5)
     )
-    assert sorted(seen_backends) == ["brave", "duckduckgo", "google"]
-    assert {status.provider for status in run.providers} == {"duckduckgo", "brave", "google"}
+    assert seen_backends == ["bing", "yahoo", "brave"]
+    assert {status.provider for status in run.providers} == {"bing", "yahoo", "brave"}
     assert all(status.ok for status in run.providers)
     assert len(run.results) == 1
-    assert run.results[0].sources == ["duckduckgo", "brave", "google"]
+    assert run.results[0].sources == ["bing", "yahoo", "brave"]
 
 
 def test_provider_status_is_one_entry_per_engine_across_variants(monkeypatch):
@@ -999,7 +1000,15 @@ def test_default_roster_omits_google_which_the_pinned_ddgs_disables():
     names = [name for group in Josty.DEFAULT_BACKENDS for name in group.split(",")]
 
     assert "google" not in names
-    assert names == ["brave", "duckduckgo", "mojeek", "startpage", "yahoo", "mwmbl"]
+    assert names == [
+        "yandex",
+        "brave",
+        "duckduckgo",
+        "mojeek",
+        "startpage",
+        "yahoo",
+        "mwmbl",
+    ]
     # The roster and the installed registry agree: nothing in it can be skipped.
     for name in names:
         if name not in Josty.NATIVE_BACKENDS:
