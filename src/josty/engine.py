@@ -26,7 +26,14 @@ from .cache import (
 )
 from .errors import _classify_probe_error
 from .fanout import Fanout, Plan
-from .fetch import FETCH_HEADERS, download, extract, is_ad_redirect, validate_public_url
+from .fetch import (
+    FETCH_HEADERS,
+    MIN_FALLBACK_CHARS,
+    download,
+    extract,
+    is_ad_redirect,
+    validate_public_url,
+)
 from .models import DiagnoseRun, HostStatus, ProviderStatus, SearchResult, SearchRun
 from .providers import (
     DdgsSearchAdapter,
@@ -479,6 +486,9 @@ class Josty:
                     try:
                         html, final_url = await self._download(client, item.url)
                         content, method = await asyncio.to_thread(self._extract, html, final_url)
+                        if method == "html-text-fallback" and len(content) < MIN_FALLBACK_CHARS:
+                            # A page that renders with script leaves only its title (#130).
+                            raise ValueError("no readable text (the page may need JavaScript)")
                         if self.max_content_chars and self.max_content_chars > 0:
                             item.content = content[: self.max_content_chars]
                         else:

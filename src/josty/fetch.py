@@ -122,6 +122,10 @@ def is_ad_redirect(url: str) -> bool:
     )
 
 
+#: Tag-stripped text shorter than this is a page shell, not content (#130).
+MIN_FALLBACK_CHARS = 200
+
+
 def extract(html: str, url: str) -> tuple[str, str]:
     with _EXTRACT_LOCK:
         try:
