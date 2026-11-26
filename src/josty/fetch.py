@@ -122,6 +122,35 @@ def is_ad_redirect(url: str) -> bool:
     )
 
 
+#: A page with at least this many table rows gets a second extraction pass (#128).
+_MIN_TABLE_ROWS = 5
+
+
+def _table_lines(markdown: str | None) -> int:
+    return sum(1 for line in (markdown or "").splitlines() if line.startswith("|"))
+
+
+def _extract_with_unlinked_tables(html: str, url: str) -> str | None:
+    """trafilatura's markdown of ``html`` with the links inside tables unwrapped.
+
+    trafilatura drops a table whose text is mostly links (its link-density test),
+    and a table of winners or releases usually is exactly that. Unwrapping the
+    anchors keeps the cell text and gives up only the link targets in the table.
+    """
+    import lxml.html
+    import trafilatura
+
+    document = lxml.html.fromstring(html)
+    for anchor in document.xpath("//table//a"):
+        anchor.drop_tag()
+    return trafilatura.extract(
+        lxml.html.tostring(document, encoding="unicode"),
+        url=url,
+        include_links=True,
+        output_format="markdown",
+    )
+
+
 def extract(html: str, url: str) -> tuple[str, str]:
     with _EXTRACT_LOCK:
         try:
@@ -130,6 +159,13 @@ def extract(html: str, url: str) -> tuple[str, str]:
             extracted = trafilatura.extract(
                 html, url=url, include_links=True, output_format="markdown"
             )
+            if len(re.findall(r"<tr[\s>]", html, flags=re.IGNORECASE)) >= _MIN_TABLE_ROWS:
+                try:
+                    unlinked = _extract_with_unlinked_tables(html, url)
+                except Exception:
+                    unlinked = None
+                if unlinked and _table_lines(unlinked) > _table_lines(extracted):
+                    extracted = unlinked
             if extracted and extracted.strip():
                 return extracted.strip(), "trafilatura"
         except Exception:
