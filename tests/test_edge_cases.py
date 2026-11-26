@@ -1581,6 +1581,24 @@ class TestWireTruth:
         assert (echoed.providers[0].ok, echoed.providers[0].error_kind) == (True, "empty")
         assert (other.providers[0].ok, other.providers[0].error_kind) == (False, "blocked")
 
+    def test_an_escaped_or_respaced_echo_is_still_an_echo(self):
+        """The title is HTML: unescape and collapse before cutting the query (#113)."""
+        from josty.errors import _is_challenge_page
+
+        quoted = '<title>&quot;nginx 403 forbidden&quot; - Yahoo Search Results</title>'
+        assert _is_challenge_page(quoted, '"nginx 403 forbidden"') is False
+        ampersand = "<title>rust &amp; blocked threads - Search</title>"
+        assert _is_challenge_page(ampersand, "rust & blocked threads") is False
+        respaced = "<title>nginx  403 forbidden - Search</title>"
+        assert _is_challenge_page(respaced, "nginx 403 forbidden") is False
+
+    def test_a_wall_titled_like_its_query_keeps_the_word_that_names_it(self):
+        """Cutting the query from a title that *is* the query would erase the wall (#113)."""
+        from josty.errors import _is_challenge_page
+
+        assert _is_challenge_page("<title>Captcha</title>", "captcha") is True
+        assert _is_challenge_page("<title>captcha</title>", None) is True
+
     def test_wire_evidence_survives_the_cache_roundtrip(self):
         from josty.cache import _search_run_from_dict
         from josty.models import ProviderStatus

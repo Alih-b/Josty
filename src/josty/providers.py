@@ -42,12 +42,15 @@ if TYPE_CHECKING:
 #: items with a div.compTitle and a div.compText.
 _YAHOO_VARIANT_ITEMS = "//section[contains(@class, 's-algo')]"
 #: The h3 also holds a span.title-url with the site name and the display URL.
+#: Items nest on some pages: each section.s-algo sits inside the previous one, so
+#: every selector takes the item's own first compTitle and compText (#126) rather
+#: than reaching through the whole subtree.
 _YAHOO_VARIANT_TITLE = (
-    ".//div[contains(@class, 'compTitle')]//h3[1]"
+    "(.//div[contains(@class, 'compTitle')])[1]//h3[1]"
     "//text()[not(ancestor::span[contains(@class, 'title-url')])]"
 )
-_YAHOO_VARIANT_LINKS = ".//div[contains(@class, 'compTitle')]//a/@href"
-_YAHOO_VARIANT_TEXT = ".//div[contains(@class, 'compText')]"
+_YAHOO_VARIANT_LINKS = "(.//div[contains(@class, 'compTitle')])[1]//a/@href"
+_YAHOO_VARIANT_TEXT = "(.//div[contains(@class, 'compText')])[1]"
 
 
 def _yahoo_variant_rows(body: str) -> list[dict[str, Any]]:
@@ -297,6 +300,12 @@ class DdgsSearchAdapter:
                         )
                     )
                     rank += 1
+            if rows and not results and not any(r.get("href") or r.get("url") for r in rows):
+                # Rows without a link are a parser miss, not an empty answer (#131):
+                # the page held results and ddgs could not read their addresses.
+                raise ProviderError(
+                    "parse", f"{call.backend}: {len(rows)} rows came back without a link"
+                )
             latency = round((time.perf_counter() - t0) * 1000, 2)
             return results, latency, None, tap.facts
         except Exception as exc:

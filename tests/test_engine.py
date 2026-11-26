@@ -2205,3 +2205,56 @@ def test_cache_stats_counts_rows_kept_only_for_a_stale_answer(tmp_path):
     stats = cache.stats()
 
     assert (stats["rows"], stats["expired"]) == (1, 1)
+
+
+class _OneEngineBlockedDDGS:
+    """``brave`` answers, ``duckduckgo`` is refused: the run is degraded."""
+
+    def __init__(self, **kwargs):
+        pass
+
+    def text(self, query, **kwargs):
+        from ddgs.exceptions import RatelimitException
+
+        if kwargs.get("backend") == "duckduckgo":
+            raise RatelimitException("429")
+        return [{"title": "Answer", "href": "https://example.org/answer", "body": "b"}]
+
+
+def _ttl_of_cached_rows(engine) -> list[float]:
+    with sqlite3.connect(str(engine.cache.db_path)) as conn:
+        rows = conn.execute("SELECT expires_at - created_at FROM search_cache").fetchall()
+    return [row[0] for row in rows]
+
+
+def test_a_degraded_run_is_cached_no_longer_than_the_cool_down(tmp_path, monkeypatch):
+    """#125: replaying a degraded answer for hours keeps a recovered engine out."""
+    monkeypatch.setattr("josty.engine.DDGS", _OneEngineBlockedDDGS)
+    engine = Josty(
+        backends=("duckduckgo", "brave"), cache_db=tmp_path / "d.db", cache_ttl=21600.0
+    )
+    run = asyncio.run(engine.search_run("q", limit=5))
+    assert run.status == "degraded"
+    assert [round(ttl) for ttl in _ttl_of_cached_rows(engine)] == [180]
+
+
+def test_a_complete_run_keeps_the_full_ttl(tmp_path, monkeypatch):
+    monkeypatch.setattr("josty.engine.DDGS", _AnsweringDDGS)
+    engine = Josty(backends=("duckduckgo",), cache_db=tmp_path / "c.db", cache_ttl=21600.0)
+    run = asyncio.run(engine.search_run("q", limit=5))
+    assert run.status == "complete"
+    assert [round(ttl) for ttl in _ttl_of_cached_rows(engine)] == [21600]
+
+
+def test_an_expired_degraded_run_is_asked_again(tmp_path, monkeypatch):
+    monkeypatch.setattr("josty.engine.DDGS", _OneEngineBlockedDDGS)
+    engine = Josty(
+        backends=("duckduckgo", "brave"),
+        cache_db=tmp_path / "e.db",
+        cache_ttl=21600.0,
+    )
+    assert asyncio.run(engine.search_run("q", limit=5)).cached is False
+    assert asyncio.run(engine.search_run("q", limit=5)).cached is True
+    _expire_rows(engine.cache, seconds=500.0)
+    again = asyncio.run(engine.search_run("q", limit=5))
+    assert again.cached is False
