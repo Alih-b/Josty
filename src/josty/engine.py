@@ -186,6 +186,8 @@ class Josty:
         )
         self._search_sem: asyncio.Semaphore | None = None
         self._fetch_sem: asyncio.Semaphore | None = None
+        # A degraded run is cached no longer than an engine stays suspended (#125).
+        self._degraded_ttl = float(breaker_cool_down_seconds)
         if breaker is not None:
             self.breaker = breaker
         else:
@@ -898,9 +900,12 @@ class Josty:
         ):
             payload = _strip_fetch_fields(run.dict())
             payload["cached"] = False
-            self.cache.set(
-                cache_key, payload, ttl=_ttl_for(category, timelimit, self.cache.default_ttl)
-            )
+            ttl = _ttl_for(category, timelimit, self.cache.default_ttl)
+            if run.status == SearchStatus.DEGRADED:
+                # An engine that should have answered did not (#125): replaying
+                # this for hours would keep it out long after it recovered.
+                ttl = min(ttl, self._degraded_ttl)
+            self.cache.set(cache_key, payload, ttl=ttl)
         return run
 
     async def _more_of(self, run: SearchRun, p: dict[str, Any]) -> SearchRun:
